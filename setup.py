@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='deampy',
-    version='1.0.0',
+    version='1.0.1',
     install_requires=['numpy', 'matplotlib', 'scipy'],
     packages=['deampy'],
     url='https://github.com/modeling-health-care-decisions/deampy',
