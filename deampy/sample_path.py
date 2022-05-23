@@ -1,4 +1,4 @@
-import deampy.Statistics as Stat
+import deampy.statistics as Stat
 
 
 class _SamplePath:

@@ -88,7 +88,7 @@ def format_interval(interval, deci=None, sig_digits=None, format=None):
         return str(interval)
 
 
-def format_estimate_interval(estimate, interval, deci, sig_digits, format=None):
+def format_estimate_interval(estimate, interval, deci=None, sig_digits=None, format=None):
     """
     :param estimate: the estimate
     :param interval: list of form [low up]

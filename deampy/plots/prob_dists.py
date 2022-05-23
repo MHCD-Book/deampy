@@ -1,9 +1,10 @@
-import deampy.RandomVariateGenerators as RVGs
-import deampy.plots.FigSupport as Fig
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as stat
+
+import deampy.plots.plot_support as Fig
+import deampy.random_variats as RVGs
 
 COLOR_CONTINUOUS_FIT = 'r'
 COLOR_DISCRETE_FIT = 'r'

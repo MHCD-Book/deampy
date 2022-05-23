@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from deampy.plots.FigSupport import output_figure
+from deampy.plots.plot_support import output_figure
 
 
 def add_histogram_to_ax(ax, data, color=None, bin_width=None, x_range=None,

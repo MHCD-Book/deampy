@@ -1,6 +1,6 @@
 import numpy as np
 
-from deampy.RandomVariateGenerators import Empirical, Exponential
+from deampy.random_variats import Empirical, Exponential
 
 
 class MarkovJumpProcess:
@@ -125,8 +125,8 @@ def continuous_to_discrete(trans_rate_matrix, delta_t):
 
     # list of rates out of each row
     rates_out = []
-    for row in trans_rate_matrix:
-        rates_out.append(out_rate(row))
+    for i, row in enumerate(trans_rate_matrix):
+        rates_out.append(out_rate(row, i))
 
     prob_matrix = []
     for i in range(len(trans_rate_matrix)):

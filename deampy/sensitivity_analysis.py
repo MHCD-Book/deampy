@@ -1,7 +1,8 @@
-import deampy.FormatFunctions as F
-import deampy.InOutFunctions as IO
-from deampy.Statistics import partial_corr
 from scipy.stats import spearmanr, pearsonr, rankdata
+
+import deampy.format_functions as F
+import deampy.in_out_functions as IO
+from deampy.statistics import partial_corr
 
 
 class SensitivityAnalysis:

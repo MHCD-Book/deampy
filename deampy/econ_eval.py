@@ -1,20 +1,21 @@
 import string
 import warnings
 
-import deampy.FormatFunctions as F
-import deampy.InOutFunctions as IO
 import matplotlib.cm as cm
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import scipy.stats as stat
-from deampy.Statistics import SummaryStat
-from deampy.plots.EconEvalFigSupport import old_add_curves_to_ax, add_curves_to_ax
-from deampy.support.EconEvalSupport import *
-from deampy.support.MiscFunctions import convert_lnl_to_prob
-from deampy.support.SupportClasses import *
 from numpy import exp, power, average
 from numpy.random import RandomState
 from scipy.stats import sem
+
+import deampy.format_functions as F
+import deampy.in_out_functions as IO
+from deampy.plots.econ_eval_plots import old_add_curves_to_ax, add_curves_to_ax
+from deampy.statistics import SummaryStat
+from deampy.support.econ_eval_support import *
+from deampy.support.misc_classes import *
+from deampy.support.misc_functions import convert_lnl_to_prob
 
 # warnings.filterwarnings("always")
 NUM_OF_BOOTSTRAPS = 1000  # number of bootstrap samples to calculate confidence intervals for ICER
@@ -2131,7 +2132,7 @@ class ICER_Paired(_ICER):
             return self._ICER - np.percentile(icer_bootstrap_means, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
 
         else:
-            raise ValueError('Invalid method. Method should be either bootstrap, Bayesian-Ratio, or Bayesian-NMB.')
+            raise ValueError('Invalid method. Method should be either bootstrap or Bayesian.')
 
     def get_PI(self, alpha=0.05):
         """

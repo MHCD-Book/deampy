@@ -1,7 +1,8 @@
 import os
 
-import deampy.InOutFunctions as io
 from numpy import iinfo, int32
+
+import deampy.in_out_functions as io
 
 
 class _Trace:

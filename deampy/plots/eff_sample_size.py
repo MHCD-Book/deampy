@@ -1,9 +1,10 @@
 import random
 
-import deampy.plots.FigSupport as Fig
-import deampy.support.MiscFunctions as S
 import matplotlib.pyplot as plt
 import numpy as np
+
+import deampy.plots.plot_support as Fig
+import deampy.support.misc_functions as S
 
 
 def plot_eff_sample_size(likelihood_weights, if_randomize=True,

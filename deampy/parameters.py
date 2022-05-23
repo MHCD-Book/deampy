@@ -1,13 +1,14 @@
 from math import log, cos, pi
 
 import numpy as np
-from deampy.RandomVariateGenerators import Beta as B
-from deampy.RandomVariateGenerators import Dirichlet as Dirich
-from deampy.RandomVariateGenerators import Gamma as G
-from deampy.RandomVariateGenerators import Multinomial as Mult
-from deampy.RandomVariateGenerators import Uniform as U
-from deampy.RandomVariateGenerators import UniformDiscrete as UD
 from numpy import exp, pi, cos
+
+from deampy.random_variats import Beta as B
+from deampy.random_variats import Dirichlet as Dirich
+from deampy.random_variats import Gamma as G
+from deampy.random_variats import Multinomial as Mult
+from deampy.random_variats import Uniform as U
+from deampy.random_variats import UniformDiscrete as UD
 
 
 class _Parameter:

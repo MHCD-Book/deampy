@@ -1,7 +1,8 @@
-import deampy.RandomVariateGenerators as RVG
-import deampy.Statistics as Stat
 import numpy as np
 from scipy.optimize import minimize
+
+import deampy.random_variats as RVG
+import deampy.statistics as Stat
 
 
 def assert_np_list(obs, error_message):

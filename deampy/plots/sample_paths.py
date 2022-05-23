@@ -1,6 +1,7 @@
-import deampy.plots.FigSupport as Fig
 import matplotlib.pyplot as plt
-from deampy.SamplePath import *
+
+import deampy.plots.plot_support as Fig
+from deampy.sample_path import *
 
 
 def plot_sample_path(sample_path,

@@ -1,5 +1,5 @@
-import deampy.RandomVariateGenerators as RVGs
-from deampy.DataFrames import DataFrameOfObjects
+import deampy.random_variats as RVGs
+from deampy.data_structure import DataFrameOfObjects
 
 
 class MortalityModel:
