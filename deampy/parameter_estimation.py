@@ -1,16 +1,17 @@
 import copy
 from enum import Enum
 
-import deampy.InOutFunctions as IO
-import deampy.Statistics as Stat
-import deampy.plots.Histogram as Fig
-import deampy.support.MiscFunctions as F
 import matplotlib.pyplot as plt
 import numpy as np
-from deampy.plots.FigSupport import output_figure
 from numpy.polynomial.polynomial import polyfit
 from numpy.random import choice
 from scipy.stats import pearsonr
+
+import deampy.in_out_functions as IO
+import deampy.plots.histogram as Fig
+import deampy.statistics as Stat
+import deampy.support.misc_functions as F
+from deampy.plots.plot_support import output_figure
 
 # list of columns in the parameter csv file that are not considered a parameter
 COLUMNS_TO_SKIP = ['ID', 'Seed', 'LnL', 'Probability', 'Message', 'Simulation Replication', 'Random Seed']
