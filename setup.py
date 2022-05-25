@@ -2,9 +2,9 @@ from setuptools import setup
 
 setup(
     name='deampy',
-    version='1.0.3',
-    install_requires=['numpy', 'matplotlib', 'scipy'],
-    packages=['deampy'],
+    version='1.0.12',
+    install_requires=['numpy', 'matplotlib', 'scipy', 'statsmodels', 'sklearn'],
+    packages=['deampy', 'deampy.optimization', 'deampy.plots', 'deampy.support'],
     url='https://github.com/modeling-health-care-decisions/deampy',
     license='MIT License',
     author='Reza Yaesoubi',
