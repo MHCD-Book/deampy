@@ -8,7 +8,7 @@ from deampy.format_functions import format_number
 from deampy.in_out_functions import write_csv, read_csv_rows, write_dictionary_to_csv
 from deampy.optimization.opt_support import *
 from deampy.plots.plot_support import output_figure
-from deampy.regression import PolynomialQFunction
+from deampy.regression_models import PolynomialQFunction
 from deampy.support.misc_functions import get_moving_average
 
 MAX_PROCESSES = mp.cpu_count()  # maximum number of processors
