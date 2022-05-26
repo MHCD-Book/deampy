@@ -1,33 +1,33 @@
 import numpy
 
-from deampy import FormatFunctions as Support
-from deampy import Statistics as Stat
+from deampy import format_functions as form
+from deampy import statistics as stat
 
 
 def print_results(stat):
-    print('   Average =', Support.format_number(stat.get_mean(), deci=3))
-    print('   St Dev =', Support.format_number(stat.get_stdev(), deci=3))
-    print('   Min =', Support.format_number(stat.get_min(), deci=3))
-    print('   Max =', Support.format_number(stat.get_max(), deci=3))
-    print('   Median =', Support.format_number(stat.get_percentile(50), deci=3))
+    print('   Average =', form.format_number(stat.get_mean(), deci=3))
+    print('   St Dev =', form.format_number(stat.get_stdev(), deci=3))
+    print('   Min =', form.format_number(stat.get_min(), deci=3))
+    print('   Max =', form.format_number(stat.get_max(), deci=3))
+    print('   Median =', form.format_number(stat.get_percentile(50), deci=3))
     print('   95% Mean Confidence Interval (t-based) =',
-          Support.format_interval(stat.get_t_CI(0.05), 3))
+          form.format_interval(stat.get_t_CI(0.05), 3))
     print('   95% Mean Confidence Interval (bootstrap) =',
-          Support.format_interval(stat.get_bootstrap_CI(0.05, 1000), 3))
+          form.format_interval(stat.get_bootstrap_CI(0.05, 1000), 3))
     print('   95% Percentile Interval =',
-          Support.format_interval(stat.get_PI(0.05), 3))
+          form.format_interval(stat.get_PI(0.05), 3))
 
 
 def mytest_summary_stat(data):
     # define a summary statistics
-    sum_stat = Stat.SummaryStat(data=data, name='Test summary statistics',)
+    sum_stat = stat.SummaryStat(data=data, name='Test summary statistics', )
     print('Testing summary statistics:')
     print_results(sum_stat)
 
 
 def mytest_discrete_time(data):
     # define a discrete-time statistics
-    discrete_stat = Stat.DiscreteTimeStat('Test discrete-time statistics')
+    discrete_stat = stat.DiscreteTimeStat('Test discrete-time statistics')
     # record data points
     for point in data:
         discrete_stat.record(point)
@@ -38,7 +38,7 @@ def mytest_discrete_time(data):
 
 def mytest_continuous_time(times, observations):
     # define a continuous-time statistics
-    continuous_stat = Stat.ContinuousTimeStat(initial_time=0, name='Test continuous-time statistics')
+    continuous_stat = stat.ContinuousTimeStat(initial_time=0, name='Test continuous-time statistics')
 
     for obs in range(0, len(times)):
         # find the increment
@@ -55,28 +55,28 @@ def mytest_continuous_time(times, observations):
 
 def mytest_diff_stat_indp(x, y):
     # define
-    stat = Stat.DifferenceStatIndp(x, y, name='Test DifferenceStatIndp')
+    stat = stat.DifferenceStatIndp(x, y, name='Test DifferenceStatIndp')
     print('Testing DifferenceStatIndp:')
     print_results(stat)
 
 
 def mytest_diff_stat_paired(x, y):
     # define
-    stat = Stat.DifferenceStatPaired(x, y, name='Test DifferenceStatPaired')
+    stat = stat.DifferenceStatPaired(x, y, name='Test DifferenceStatPaired')
     print('Testing DifferenceStatPaired:')
     print_results(stat)
 
 
 def mytest_ratio_stat_indp(x, y):
     # define
-    stat = Stat.RatioStatIndp(x, y, name='Test RatioStatIndp')
+    stat = stat.RatioStatIndp(x, y, name='Test RatioStatIndp')
     print('Testing RatioStatIndp:')
     print_results(stat)
 
 
 def mytest_ratio_stat_paied(x, y):
     # define
-    stat = Stat.RatioStatPaired(x, y, name='Test RatioStatPaired')
+    stat = stat.RatioStatPaired(x, y, name='Test RatioStatPaired')
 
     print('Testing RatioStatPaired:')
     print_results(stat)
@@ -84,14 +84,14 @@ def mytest_ratio_stat_paied(x, y):
 
 def mytest_relativeDiff_stat_paied(x, y):
     # define
-    stat = Stat.RelativeDifferencePaired(x, y, name='Test RelativeDifferencePaired')
+    stat = stat.RelativeDifferencePaired(x, y, name='Test RelativeDifferencePaired')
 
     print('Testing RelativeDifferencePaired:')
     print_results(stat)
 
 def mytest_relativeDiff_stat_indp(x, y):
     # define
-    stat = Stat.RelativeDifferenceIndp(x, y, name='Test RelativeDifferenceIndp')
+    stat = stat.RelativeDifferenceIndp(x, y, name='Test RelativeDifferenceIndp')
 
     print('Testing RelativeDifferenceIndp:')
     print_results(stat)
