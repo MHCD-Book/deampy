@@ -512,7 +512,7 @@ class CEA(_EconEval):
 
     def add_ce_plane_to_ax(self, ax,
                            x_range=None, y_range=None,
-                           add_clouds=True, show_legend=True,
+                           add_clouds=True, show_legend=True, show_frontier=True,
                            center_s=50, cloud_s=10, transparency=0.1,
                            cost_multiplier=1, effect_multiplier=1,
                            cost_decimals=None, effect_decimals=None,
@@ -525,6 +525,7 @@ class CEA(_EconEval):
         :param y_range: (tuple) range of y-axis
         :param add_clouds: (bool) if to add the probability clouds
         :param show_legend: (bool) if to show the legend
+        :param show_frontier: (bool) if to show the cost-effectivness frontier
         :param center_s: (float) the size of the dot showing (x,y) of a strategy
         :param cloud_s: (float) the size of dots building the probability clouds
         :param transparency: (float) the transparency of dots building the probability clouds
@@ -577,7 +578,7 @@ class CEA(_EconEval):
                             fmt='none', color=s.color, linewidth=1, alpha=interval_transparency)
 
         # add the frontier line
-        if len(self.get_strategies_on_frontier()) > 1:
+        if show_frontier and len(self.get_strategies_on_frontier()) > 1:
             ax.plot(frontier_d_effect, frontier_d_costs,
                     color=CE_FRONTIER_COLOR,  # color
                     alpha=CE_FRONTIER_TRANSPARENCY,  # transparency
