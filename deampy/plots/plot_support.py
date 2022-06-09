@@ -63,7 +63,7 @@ def format_x_axis(ax, min_x, max_x, delta_x, buffer=0, form=None, deci=None):
     ax.set_xlim([min_x-buffer, max_x+buffer])
 
 
-def add_labels_to_panels(axarr, x_coord=-0.2, y_coord=1, font_size=8):
+def add_labels_to_panels(axarr, x_coord=-0.2, y_coord=1.1, font_size=8):
     """
     adds A), B), etc. labels to panels
     :param axarr: (array) of panels
