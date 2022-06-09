@@ -1835,7 +1835,7 @@ class BCHO(_EconEval):
     def add_plot_to_ax(self, ax, title=None,
                        delta_budget=None, x_label=None,
                        y_label=None, y_range=None, y_axis_multiplier=1, effect_decimals=None,
-                       show_evpi=False, show_legend=True, show_frontier=True,
+                       show_evpi=False, show_legend=True, show_frontier=True, show_labels_on_frontier=False
                        ):
         """
         :param ax: axis
@@ -1849,6 +1849,7 @@ class BCHO(_EconEval):
         :param show_evpi: (bool) to show the expected value of perfect information (EVPI) curve
         :param show_legend: (bool) to show legends
         :param show_frontier: (bool) to show the frontier (curves with maximum effect or NMB)
+        :param show_labels_on_frontier: (bool) to show labels on the frontier
         :return:
         """
 
@@ -1863,6 +1864,7 @@ class BCHO(_EconEval):
             transparency_lines=1, transparency_intervals=NMB_INTERVAL_TRANSPARENCY,
             show_legend=show_legend,
             show_frontier=show_frontier,
+            show_labels_on_frontier=show_labels_on_frontier,
             curve_line_width=NMB_LINE_WIDTH, frontier_line_width=NMB_FRONTIER_LINE_WIDTH,
             if_format_y_numbers=True if effect_decimals is not None else False,
             legend_font_size=LEGEND_FONT_SIZE,
