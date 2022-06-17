@@ -197,15 +197,15 @@ class Dirichlet(_Parameter):
 class AnOutcomeOfAMultiVariateDist(_Parameter):
     # a parameter that is defined on one outcome of a multi-variate parameter
     # such as multinomial or Dirichlet distributions
-    def __init__(self, par_multivariante, outcome_index, id=None, name=None):
+    def __init__(self, par_multivariate, outcome_index, id=None, name=None):
         """
-        :param par_multivariante: (Parameter) a multivariate parameter such as multinomial or Dirichlet
+        :param par_multivariate: (Parameter) a multivariate parameter such as multinomial or Dirichlet
         :param outcome_index: (int) index of the outcome of interest
         :param id: (int) id of a parameter
         :param name: (string) name of a parameter
         """
         _Parameter.__init__(self, id=id, name=name)
-        self.multivariate = par_multivariante
+        self.multivariate = par_multivariate
         self.i = outcome_index
 
     def sample(self, rng=None, time=None):
