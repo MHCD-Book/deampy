@@ -4,6 +4,35 @@ import os
 import numpy as numpy
 
 
+class TextFile:
+    """
+    class to create a text file to add text to
+    """
+
+    def __init__(self, filename):
+        """
+        :param filename: (string) filename to save the text file as
+        """
+
+        # make the directory if does not exist
+        make_directory(filename)
+
+        # open file
+        self.file = open(filename, 'w')
+
+    def write(self, text):
+        """
+        :param text: (string) text to add to the text file
+        """
+
+        self.file.write(text)
+
+    def close(self):
+        """ closes the text file """
+
+        self.file.close()
+
+
 def make_directory(filename):
     """
     creates a directory to save the file for which the filename is provided
@@ -37,17 +66,12 @@ def write_csv(rows, file_name='csvfile.csv', delimiter=',', directory='', delete
     # create a new file
     file_name = os.path.join(directory, file_name)
 
-    # get directory
-    directory_path = os.path.dirname(file_name)
-
     # delete existing files
     if delete_existing_files:
         delete_files(extension='.csv', path=os.getcwd() + '/' + directory)
 
     # create the directory if does not exist
-    if directory_path != '':
-        if not os.path.exists(directory_path):
-            os.makedirs(directory_path)
+    make_directory(filename=file_name)
 
     with open(file_name, "w", newline='') as file:
         csv_file = csv.writer(file, delimiter=delimiter)
@@ -56,7 +80,6 @@ def write_csv(rows, file_name='csvfile.csv', delimiter=',', directory='', delete
             csv_file.writerow(row)
 
         file.close()
-
 
 def write_columns_to_csv(cols, file_name='csvfile.csv', delimiter=',', directory='', delete_existing_files=False):
     """ write a list of columns to a csv file
