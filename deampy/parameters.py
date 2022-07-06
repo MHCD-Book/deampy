@@ -43,7 +43,15 @@ class _Parameter:
         return False
 
 
-class Constant(_Parameter):
+class _SingleVariate(_Parameter):
+    pass
+
+
+class _MultiVariate(_Parameter):
+    pass
+
+
+class Constant(_SingleVariate):
     def __init__(self, value, id=None, name=None):
         """
         :param value: (float) constant value of this parameter
@@ -51,14 +59,14 @@ class Constant(_Parameter):
         :param name: (string) name of a parameter
         """
 
-        _Parameter.__init__(self, id=id, name=name)
+        _SingleVariate.__init__(self, id=id, name=name)
         self.value = value
 
     def sample(self, rng=None, time=None):
         return self.value
 
 
-class Uniform(_Parameter):
+class Uniform(_SingleVariate):
     def __init__(self, minimum=0, maximum=1, id=None, name=None):
         """
         :param minimum: (float) minimum value of a parameter with uniform distribution
@@ -74,7 +82,7 @@ class Uniform(_Parameter):
         return self.value
 
 
-class UniformDiscrete(_Parameter):
+class UniformDiscrete(_SingleVariate):
     def __init__(self, minimum=0, maximum=1, id=None, name=None):
         """
         :param minimum: (float) inclusive minimum value
@@ -90,7 +98,7 @@ class UniformDiscrete(_Parameter):
         return self.value
 
 
-class Beta(_Parameter):
+class Beta(_SingleVariate):
     def __init__(self, mean, st_dev, minimum=0, maximum=1, id=None, name=None):
         """
         :param mean: (float) mean value of a parameter with beta distribution
@@ -113,7 +121,7 @@ class Beta(_Parameter):
         return self.value
 
 
-class Gamma(_Parameter):
+class Gamma(_SingleVariate):
     def __init__(self, mean, st_dev, id=None, name=None):
         """
         :param mean: (float) mean value of a parameter with beta distribution
@@ -131,7 +139,7 @@ class Gamma(_Parameter):
         return self.value
 
 
-class Equal(_Parameter):
+class Equal(_SingleVariate):
     # value = value of another parameter
 
     def __init__(self, par, id=None, name=None):
@@ -152,7 +160,7 @@ class Equal(_Parameter):
         return self.value
 
 
-class Multinomial(_Parameter):
+class Multinomial(_MultiVariate):
     def __init__(self, par_n, p_values, id=None, name=None):
         """
         :param par_n: (Parameter) number of trials
@@ -174,7 +182,7 @@ class Multinomial(_Parameter):
         return self.value
 
 
-class Dirichlet(_Parameter):
+class Dirichlet(_MultiVariate):
     def __init__(self, par_ns, if_ignore_0s=False, id=None, name=None):
         """
         :param par_ns: (list) number of
@@ -194,7 +202,7 @@ class Dirichlet(_Parameter):
         return self.value
 
 
-class AnOutcomeOfAMultiVariateDist(_Parameter):
+class AnOutcomeOfAMultiVariateDist(_SingleVariate):
     # a parameter that is defined on one outcome of a multi-variate parameter
     # such as multinomial or Dirichlet distributions
     def __init__(self, par_multivariate, outcome_index, id=None, name=None):
@@ -204,6 +212,11 @@ class AnOutcomeOfAMultiVariateDist(_Parameter):
         :param id: (int) id of a parameter
         :param name: (string) name of a parameter
         """
+
+        assert isinstance(par_multivariate, _MultiVariate), \
+            "par_multivariate should be multivariate parameter such as multinomial or Dirichlet. A {} is " \
+            "provided instead.".format(type(par_multivariate))
+
         _Parameter.__init__(self, id=id, name=name)
         self.multivariate = par_multivariate
         self.i = outcome_index
@@ -213,7 +226,7 @@ class AnOutcomeOfAMultiVariateDist(_Parameter):
         return self.value
 
 
-class Inverse(_Parameter):
+class Inverse(_SingleVariate):
     # value = 1 / value of another parameter
 
     def __init__(self, par, id=None, name=None):
@@ -230,7 +243,7 @@ class Inverse(_Parameter):
         return self.value
 
 
-class OneMinus(_Parameter):
+class OneMinus(_SingleVariate):
     # value = 1 - value of another parameter
 
     def __init__(self, par, id=None, name=None):
@@ -247,7 +260,7 @@ class OneMinus(_Parameter):
         return self.value
 
 
-class OneMinusTimes(_Parameter):
+class OneMinusTimes(_SingleVariate):
     # value = (1- par1) * par2
 
     def __init__(self, par1, par2, id=None, name=None):
@@ -266,7 +279,7 @@ class OneMinusTimes(_Parameter):
         return self.value
 
 
-class TenToPower(_Parameter):
+class TenToPower(_SingleVariate):
     # 10^(value of another parameter)
 
     def __init__(self, par, id=None, name=None):
@@ -283,7 +296,7 @@ class TenToPower(_Parameter):
         return self.value
 
 
-class Logit(_Parameter):
+class Logit(_SingleVariate):
     # p/(1-p)
 
     def __init__(self, par, id=None, name=None):
@@ -300,7 +313,7 @@ class Logit(_Parameter):
         return self.value
 
 
-class RateToOccur(_Parameter):
+class RateToOccur(_SingleVariate):
     """ determines rate of an event such that it occurs with certain probability during a certain period """
     def __init__(self, par_probability, delta_t, id=None, name=None):
         """
@@ -317,7 +330,7 @@ class RateToOccur(_Parameter):
         return self.value
 
 
-class Division(_Parameter):
+class Division(_SingleVariate):
     # p1 / p2
     def __init__(self, par_numerator, par_denominator, id=None, name=None):
         """
@@ -335,7 +348,7 @@ class Division(_Parameter):
         return self.value
 
 
-class LinearCombination(_Parameter):
+class LinearCombination(_SingleVariate):
     # linear combination of multiple parameters
 
     def __init__(self, parameters, coefficients=None, id=None, name=None):
@@ -362,7 +375,7 @@ class LinearCombination(_Parameter):
         return self.value
 
 
-class OneMinusSum(_Parameter):
+class OneMinusSum(_SingleVariate):
     # 1 - sum of of multiple parameters
 
     def __init__(self, parameters, id=None, name=None):
@@ -390,7 +403,7 @@ class OneMinusSum(_Parameter):
         return self.value
 
 
-class Product(_Parameter):
+class Product(_SingleVariate):
     # product of multiple parameters
 
     def __init__(self, parameters, id=None, name=None):
@@ -417,7 +430,7 @@ class Product(_Parameter):
         return self.value
 
 
-class Surge(_Parameter):
+class Surge(_SingleVariate):
     # f(t) = base.value * ( 1 + percentChange(t))
     # percentChange(t) = A * (1 - cos(2*pi*(t1-t)/(t1-t0)) / 2
     # A is maximum % change
@@ -461,7 +474,7 @@ class Surge(_Parameter):
         return self.value
 
 
-class SigmoidOnModelOutput(_Parameter):
+class SigmoidOnModelOutput(_SingleVariate):
     # f(h) = min + (max-min) * 1 / (1 + exp(-b * h))
 
     def __init__(self, par_b, par_min=None, par_max=None, id=None, name=None):
@@ -499,7 +512,7 @@ class SigmoidOnModelOutput(_Parameter):
         return self.value
 
 
-class TimeDependentSigmoid(_Parameter):
+class TimeDependentSigmoid(_SingleVariate):
     # f(t) = min + (max-min) * 1 / (1 + exp(-b * (t - t_middle - t_min)) if t > t_min
     # returns min for t = -inf and max for t = inf if b >= 0
 
@@ -533,7 +546,7 @@ class TimeDependentSigmoid(_Parameter):
         return self.value
 
 
-class TimeDependentCosine(_Parameter):
+class TimeDependentCosine(_SingleVariate):
     # f(t) = a0 + a1 * Cos (2 * pi * (t - phase)/scale)
 
     def __init__(self, par_phase=None, par_scale=None, par_a0=None, par_a1=None, id=None, name=None):
@@ -561,7 +574,7 @@ class TimeDependentCosine(_Parameter):
         return self.value
 
 
-class TimeDependentStepWise(_Parameter):
+class TimeDependentStepWise(_SingleVariate):
     # f(t) = 0  for       t < t0
     #      = v0 for t0 <= t < t1
     #      = v1 for t1 <= t < t2
@@ -599,7 +612,7 @@ class TimeDependentStepWise(_Parameter):
         return self.value
 
 
-class MatrixOfParams(_Parameter):
+class MatrixOfParams(_SingleVariate):
     def __init__(self, matrix_of_params_or_values, id=None, name=None):
         """
         :param matrix_of_params_or_values: (list of list) of numbers or Parameters
@@ -648,7 +661,7 @@ class MatrixOfParams(_Parameter):
         return self.value
 
 
-class ValuesOfParams(_Parameter):
+class ValuesOfParams(_MultiVariate):
     """ returns the values of a list of parameters """
 
     def __init__(self, parameters, id=None, name=None):
