@@ -791,7 +791,7 @@ class RatioStatIndp(_RatioStat):
 
         self._XOverYSimulated = False
 
-    def _simulated_x_over_y(self):
+    def _simulate_x_over_y(self):
 
         # generate random realizations for random variable X/Y
         np.random.seed(1)
@@ -800,14 +800,15 @@ class RatioStatIndp(_RatioStat):
         x_resample = np.random.choice(self._x, size=max_n, replace=True)
         y_resample = np.random.choice(self._y_ref, size=max_n, replace=True)
 
+        self._XOverYSimulated = True
+        self._ifComputable = True
         try:
-            self._sum_stat_sample_ratio = SummaryStat(data=np.divide(x_resample, y_resample))
+            self._sum_stat_sample_ratio = SummaryStat(
+                data=np.divide(x_resample, y_resample), name=self.name)
         except ZeroDivisionError:
             warnings.warn("For ratio statistics '{}', "
                           "one element of y_ref is 0.".format(self.name))
             self._ifComputable = False
-
-        self._XOverYSimulated = True
 
     def get_mean(self):
         """
@@ -828,18 +829,18 @@ class RatioStatIndp(_RatioStat):
 
     def get_min(self):
 
+        if not self._XOverYSimulated:
+            self._simulate_x_over_y()
         if self._ifComputable:
-            if not self._XOverYSimulated:
-                self._simulated_x_over_y()
             return self._sum_stat_sample_ratio.get_min()
         else:
             return math.nan
 
     def get_max(self):
 
+        if not self._XOverYSimulated:
+            self._simulate_x_over_y()
         if self._ifComputable:
-            if not self._XOverYSimulated:
-                self._simulated_x_over_y()
             return self._sum_stat_sample_ratio.get_max()
         else:
             return math.nan
@@ -850,18 +851,19 @@ class RatioStatIndp(_RatioStat):
         :param q: the percentile want to return, in [0,100]
         :return: qth percentile of sample (x/y)
         """
+
+        if not self._XOverYSimulated:
+            self._simulate_x_over_y()
         if self._ifComputable:
-            if not self._XOverYSimulated:
-                self._simulated_x_over_y()
             return self._sum_stat_sample_ratio.get_percentile(q)
         else:
             return math.nan
 
     def get_t_half_length(self, alpha):
 
+        if not self._XOverYSimulated:
+            self._simulate_x_over_y()
         if self._ifComputable:
-            if not self._XOverYSimulated:
-                self._simulated_x_over_y()
             return self._sum_stat_sample_ratio.get_t_half_length(alpha)
         else:
             return math.nan
@@ -899,6 +901,10 @@ class RatioStatIndp(_RatioStat):
         return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
 
     def get_PI(self, alpha):
+
+        if not self._XOverYSimulated:
+            self._simulate_x_over_y()
+
         if self._ifComputable:
             return self._sum_stat_sample_ratio.get_PI(alpha)
         else:
@@ -980,6 +986,12 @@ class RelativeDifferencePaired(_RelativeDifference):
         else:
             return math.nan
 
+    def get_t_CI(self, alpha):
+        if self._ifComputable:
+            return self._relativeDiffStat.get_t_CI(alpha)
+        else:
+            return [math.nan, math.nan]
+
     def get_bootstrap_CI(self, alpha, num_samples):
         if self._ifComputable:
             return self._relativeDiffStat.get_bootstrap_CI(alpha, num_samples)
@@ -1002,30 +1014,45 @@ class RelativeDifferenceIndp(_RelativeDifference):
         """
         _RelativeDifference.__init__(self, x, y_ref, order, name)
 
-        # make sure no 0 in the denominator variable y
-        if not (self._y_ref != 0).all():
-            warnings.warn("For ratio statistics '{}', "
-                          "one element of y_ref is 0. The ratio is not computable".format(name))
-            self._ifComputable = False
+        self._XMinusYOverYSimulated = False
 
+    def _simulate_x_minus_y_over_y(self):
+
+        # generate random realizations for random variable (X-Y)/Y
+        np.random.seed(1)
+        # find the maximum of the number of observations
+        max_n = max(self._x_n, self._y_n, NUM_BOOTSTRAP_SAMPLES)
+        x_resample = np.random.choice(self._x, size=max_n, replace=True)
+        y_resample = np.random.choice(self._y_ref, size=max_n, replace=True)
+
+        self._XMinusYOverYSimulated = True
+        self._ifComputable = True
+        if self._order == 0:
+            try:
+                self._sum_stat_sample_relativeRatio = SummaryStat(
+                    np.divide(x_resample-y_resample, y_resample), self.name)
+            except ZeroDivisionError:
+                warnings.warn("For ratio statistics '{}', "
+                              "one element of y_ref is 0.".format(self.name))
+                self._ifComputable = False
         else:
-            # generate random realizations for random variable (X-Y)/Y
-            np.random.seed(1)
-            # find the maximum of the number of observations
-            max_n = max(self._x_n, self._y_n, 1000)
-            x_resample = np.random.choice(self._x, size=max_n, replace=True)
-            y_resample = np.random.choice(self._y_ref, size=max_n, replace=True)
-
-            if self._order == 0:
-                self._sum_stat_sample_relativeRatio = SummaryStat(np.divide(x_resample, y_resample) - 1, name)
-            else:
-                self._sum_stat_sample_relativeRatio = SummaryStat(1 - np.divide(x_resample, y_resample), name)
+            try:
+                self._sum_stat_sample_relativeRatio = SummaryStat(
+                    np.divide(y_resample-x_resample, y_resample), self.name)
+            except ZeroDivisionError:
+                warnings.warn("For ratio statistics '{}', "
+                              "one element of y_ref is 0.".format(self.name))
+                self._ifComputable = False
 
     def get_mean(self):
-        if self._ifComputable:
-            return self._sum_stat_sample_relativeRatio.get_mean()
+        """
+        for independent variable x and y, E((x-y)/y) = E(x)*E(1/y) - 1
+        :return: E((x-y)/y) or E((y-x)/y)
+        """
+        if self._order == 0:
+            return np.average(self._x) * np.average(1 / self._y_ref) - 1
         else:
-            return math.nan
+            return 1 - np.average(self._x) * np.average(1 / self._y_ref)
 
     def get_stdev(self):
         """
@@ -1041,12 +1068,18 @@ class RelativeDifferenceIndp(_RelativeDifference):
             return math.nan
 
     def get_min(self):
+
+        if not self._XMinusYOverYSimulated:
+            self._simulate_x_minus_y_over_y()
         if self._ifComputable:
             return self._sum_stat_sample_relativeRatio.get_min()
         else:
             return math.nan
 
     def get_max(self):
+
+        if not self._XMinusYOverYSimulated:
+            self._simulate_x_minus_y_over_y()
         if self._ifComputable:
             return self._sum_stat_sample_relativeRatio.get_max()
         else:
@@ -1058,20 +1091,29 @@ class RelativeDifferenceIndp(_RelativeDifference):
         :param q: the percentile want to return, in [0,100]
         :return: qth percentile of sample (x-y)/y
         """
+
+        if not self._XMinusYOverYSimulated:
+            self._simulate_x_minus_y_over_y()
         if self._ifComputable:
             return self._sum_stat_sample_relativeRatio.get_percentile(q)
         else:
             return [math.nan, math.nan]
 
     def get_t_half_length(self, alpha):
+
+        if not self._XMinusYOverYSimulated:
+            self._simulate_x_minus_y_over_y()
         if self._ifComputable:
             return self._sum_stat_sample_relativeRatio.get_t_half_length(alpha)
         else:
             return math.nan
 
     def get_t_CI(self, alpha):
-        if self._ifComputable:
-            return self._sum_stat_sample_relativeRatio.get_t_CI(alpha)
+
+        if self._x_n > 1 and self._y_n>1:
+            mean = self.get_mean()
+            hl = self.get_t_half_length(alpha)
+            return [mean - hl, mean + hl]
         else:
             return [math.nan, math.nan]
 
@@ -1081,26 +1123,27 @@ class RelativeDifferenceIndp(_RelativeDifference):
         :param num_samples: number of samples
         :return: empirical bootstrap confidence interval
         """
-        if self._ifComputable:
-            # set random number generator seed
-            np.random.seed(1)
 
-            # initialize ratio array
-            ratio = np.zeros(num_samples)
+        # set random number generator seed
+        np.random.seed(1)
 
-            # obtain bootstrap samples
-            n = max(self._x_n, self._y_n)
-            for i in range(num_samples):
-                x_i = np.random.choice(self._x, size=n, replace=True)
-                y_i = np.random.choice(self._y_ref, size=n, replace=True)
-                r_temp = np.divide(x_i, y_i) - 1
-                ratio[i] = np.mean(r_temp)
+        # initialize ratio array
+        ratio = np.zeros(num_samples)
 
-            return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
-        else:
-            return [math.nan, math.nan]
+        # obtain bootstrap samples
+        n = max(self._x_n, self._y_n)
+        for i in range(num_samples):
+            x_i = np.random.choice(self._x, size=n, replace=True)
+            y_i = np.random.choice(self._y_ref, size=n, replace=True)
+            r_temp = np.divide(x_i, y_i) - 1
+            ratio[i] = np.mean(r_temp)
+
+        return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
 
     def get_PI(self, alpha):
+
+        if not self._XMinusYOverYSimulated:
+            self._simulate_x_minus_y_over_y()
         if self._ifComputable:
             return self._sum_stat_sample_relativeRatio.get_PI(alpha)
         else:
