@@ -139,19 +139,19 @@ for i in range(0, 100):
 # # test statistics for the difference of two independent samples
 # mytest_diff_stat_paired(x=x_diff, y=y, expected_value=INCREASE, st_dev=INCREASE_SD)
 
-# test statistics for the ratio of two independent samples
-mytest_diff_stat_indp(x=x_diff, y=y,
-                      expected_value=INCREASE,
-                      st_dev=numpy.sqrt(pow(INCREASE_SD, 2) + 2*pow(Y_SD, 2)))
+# # test statistics for the ratio of two independent samples
+# mytest_diff_stat_indp(x=x_diff, y=y,
+#                       expected_value=INCREASE,
+#                       st_dev=numpy.sqrt(pow(INCREASE_SD, 2) + 2*pow(Y_SD, 2)))
 #
 # # test statistics for the difference of two paired samples
 # mytest_ratio_stat_paied(x=x_ratio, y=y, expected_value=RATIO, st_dev=RATIO_SD)
 #
-# # test statistics for the relative difference of two paired samples
-# mytest_ratio_stat_indp(x=x_ratio, y=y, expected_value=RATIO, st_dev=RATIO_SD)
+# test statistics for the relative difference of two paired samples
+mytest_ratio_stat_indp(x=x_ratio, y=y, expected_value=RATIO, st_dev=RATIO_SD)
 #
-# # test statistics for the ratio of two paired samples
-# mytest_relativeDiff_stat_paied(x=x_relative_ratio, y=y, expected_value=RATIO + 1, st_dev=RATIO_SD)
+# test statistics for the ratio of two paired samples
+mytest_relativeDiff_stat_paied(x=x_relative_ratio, y=y, expected_value=RATIO + 1, st_dev=RATIO_SD)
 #
-# # test statistics for the relative difference of two independent samples
-# mytest_relativeDiff_stat_indp(x=x_relative_ratio, y=y, expected_value=RATIO + 1, st_dev=RATIO_SD)
+# test statistics for the relative difference of two independent samples
+mytest_relativeDiff_stat_indp(x=x_relative_ratio, y=y, expected_value=RATIO + 1, st_dev=RATIO_SD)
