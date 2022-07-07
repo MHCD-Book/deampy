@@ -576,7 +576,7 @@ class DifferenceStatIndp(_DifferenceStat):
         # this will be used for calculating the projection interval
         np.random.seed(1)
         # find the maximum of the number of observations
-        max_n = max(self._x_n, self._y_n, 1000)
+        max_n = max(self._x_n, self._y_n, NUM_BOOTSTRAP_SAMPLES)
         x_i = np.random.choice(self._x, size=max_n, replace=True)
         y_i = np.random.choice(self._y_ref, size=max_n, replace=True)
         self._sum_stat_sample_delta = SummaryStat(x_i - y_i, self.name)
@@ -758,6 +758,12 @@ class RatioStatPaired(_RatioStat):
         else:
             return math.nan
 
+    def get_t_CI(self, alpha):
+        if self._ifComputable:
+            return self._ratioStat.get_t_CI(alpha)
+        else:
+            return math.nan
+
     def get_bootstrap_CI(self, alpha, num_samples):
         if self._ifComputable:
             return self._ratioStat.get_bootstrap_CI(alpha, num_samples)
@@ -777,52 +783,63 @@ class RatioStatIndp(_RatioStat):
         """
         :param x: list or numpy.array of first set of observations
         :param y_ref: list or numpy.array of second set of observations (reference)
+
+        https://en.wikipedia.org/wiki/Ratio_distribution
         """
 
         _RatioStat.__init__(self, x, y_ref, name)
 
-        # make sure no 0 in the denominator variable
-        if not (self._y_ref != 0).all():
+        self._XOverYSimulated = False
+
+    def _simulated_x_over_y(self):
+
+        # generate random realizations for random variable X/Y
+        np.random.seed(1)
+        # find the maximum of the number of observations
+        max_n = max(self._x_n, self._y_n, NUM_BOOTSTRAP_SAMPLES)
+        x_resample = np.random.choice(self._x, size=max_n, replace=True)
+        y_resample = np.random.choice(self._y_ref, size=max_n, replace=True)
+
+        try:
+            self._sum_stat_sample_ratio = SummaryStat(data=np.divide(x_resample, y_resample))
+        except ZeroDivisionError:
             warnings.warn("For ratio statistics '{}', "
-                          "one element of y_ref is 0. The ratio is not computable".format(name))
+                          "one element of y_ref is 0.".format(self.name))
             self._ifComputable = False
 
-        else:
-            # generate random realizations for random variable X/Y
-            np.random.seed(1)
-            # find the maximum of the number of observations
-            max_n = max(self._x_n, self._y_n, 1000)
-            x_resample = np.random.choice(self._x, size=max_n, replace=True)
-            y_resample = np.random.choice(self._y_ref, size=max_n, replace=True)
-
-            self._sum_stat_sample_ratio = SummaryStat(np.divide(x_resample, y_resample), name)
+        self._XOverYSimulated = True
 
     def get_mean(self):
-        if self._ifComputable:
-            return self._sum_stat_sample_ratio.get_mean()
-        else:
-            return math.nan
+        """
+        for independent variable x and y, E(x/y) = E(x)*E(1/y)
+        :return: E(x/y)
+        """
+
+        return np.average(self._x)*np.average(1/self._y_ref)
 
     def get_stdev(self):
         """
         for independent variable x and y, var(x/y) = E(x^2)*E(1/y^2)-E(x)^2*(E(1/y)^2)
         :return: std(x/y)
         """
-        if self._ifComputable:
-            var = np.mean(self._x ** 2) * np.mean(1.0 / self._y_ref ** 2) - \
-                  (np.mean(self._x) ** 2) * (np.mean(1.0 / self._y_ref) ** 2)
-            return np.sqrt(var)
-        else:
-            return math.nan
+        var = np.mean(self._x ** 2) * np.mean(1.0 / self._y_ref ** 2) - \
+              (np.mean(self._x) ** 2) * (np.mean(1.0 / self._y_ref) ** 2)
+        return np.sqrt(var)
 
     def get_min(self):
+
         if self._ifComputable:
+            if not self._XOverYSimulated:
+                self._simulated_x_over_y()
             return self._sum_stat_sample_ratio.get_min()
         else:
             return math.nan
 
     def get_max(self):
+
         if self._ifComputable:
+            if not self._XOverYSimulated:
+                self._simulated_x_over_y()
             return self._sum_stat_sample_ratio.get_max()
         else:
             return math.nan
@@ -834,19 +851,27 @@ class RatioStatIndp(_RatioStat):
         :return: qth percentile of sample (x/y)
         """
         if self._ifComputable:
+            if not self._XOverYSimulated:
+                self._simulated_x_over_y()
             return self._sum_stat_sample_ratio.get_percentile(q)
         else:
             return math.nan
 
     def get_t_half_length(self, alpha):
+
         if self._ifComputable:
+            if not self._XOverYSimulated:
+                self._simulated_x_over_y()
             return self._sum_stat_sample_ratio.get_t_half_length(alpha)
         else:
             return math.nan
 
     def get_t_CI(self, alpha):
-        if self._ifComputable:
-            return self._sum_stat_sample_ratio.get_t_CI(alpha)
+
+        if self._x_n > 1 and self._y_n>1:
+            mean = self.get_mean()
+            hl = self.get_t_half_length(alpha)
+            return [mean - hl, mean + hl]
         else:
             return [math.nan, math.nan]
 
@@ -856,25 +881,22 @@ class RatioStatIndp(_RatioStat):
         :param num_samples: number of samples
         :return: empirical bootstrap confidence interval
         """
-        if self._ifComputable:
-            # set random number generator seed
-            np.random.seed(1)
 
-            # initialize ratio array
-            ratio = np.zeros(num_samples)
+        # set random number generator seed
+        np.random.seed(1)
 
-            # obtain bootstrap samples
-            n = max(self._x_n, self._y_n)
-            for i in range(num_samples):
-                x_i = np.random.choice(self._x, size=n, replace=True)
-                y_i = np.random.choice(self._y_ref, size=n, replace=True)
-                r_temp = np.divide(x_i, y_i)
-                ratio[i] = np.mean(r_temp)
+        # initialize ratio array
+        ratio = np.zeros(num_samples)
 
-            return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
+        # obtain bootstrap samples
+        n = max(self._x_n, self._y_n)
+        for i in range(num_samples):
+            x_i = np.random.choice(self._x, size=n, replace=True)
+            y_i = np.random.choice(self._y_ref, size=n, replace=True)
+            r_temp = np.divide(x_i, y_i)
+            ratio[i] = np.mean(r_temp)
 
-        else:
-            return [math.nan, math.nan]
+        return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
 
     def get_PI(self, alpha):
         if self._ifComputable:

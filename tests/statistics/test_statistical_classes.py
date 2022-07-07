@@ -96,7 +96,9 @@ def mytest_relativeDiff_stat_indp(x, y, expected_value, st_dev):
     print('Testing RelativeDifferenceIndp (E = {}, sd = {}):'.format(expected_value, st_dev))
     print_results(relative_stat)
 
-
+# x_deff = y + increase
+# x_ratio = y * ratio
+# x_relative_ratio = y * (ration + 1)
 Y_MEAN, Y_SD = 10, 4
 INCREASE, INCREASE_SD = 3, 1
 RATIO, RATIO_SD = 2, 0.5
@@ -146,12 +148,12 @@ for i in range(0, 100):
 #
 # # test statistics for the difference of two paired samples
 # mytest_ratio_stat_paied(x=x_ratio, y=y, expected_value=RATIO, st_dev=RATIO_SD)
-#
-# test statistics for the relative difference of two paired samples
-mytest_ratio_stat_indp(x=x_ratio, y=y, expected_value=RATIO, st_dev=RATIO_SD)
-#
-# test statistics for the ratio of two paired samples
-mytest_relativeDiff_stat_paied(x=x_relative_ratio, y=y, expected_value=RATIO + 1, st_dev=RATIO_SD)
-#
-# test statistics for the relative difference of two independent samples
-mytest_relativeDiff_stat_indp(x=x_relative_ratio, y=y, expected_value=RATIO + 1, st_dev=RATIO_SD)
+# #
+# # test statistics for the relative difference of two paired samples
+# mytest_ratio_stat_indp(x=x_ratio, y=y, expected_value='Unknown', st_dev='Unknown')
+# #
+# # test statistics for the ratio of two paired samples
+# mytest_relativeDiff_stat_paied(x=x_relative_ratio, y=y, expected_value=RATIO + 1, st_dev=RATIO_SD)
+# #
+# # test statistics for the relative difference of two independent samples
+# mytest_relativeDiff_stat_indp(x=x_relative_ratio, y=y, expected_value=RATIO + 1, st_dev=RATIO_SD)
