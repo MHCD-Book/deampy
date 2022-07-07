@@ -527,7 +527,7 @@ class DifferenceStatPaired(_DifferenceStat):
         # create a summary statistics for the element-wise difference
 
         if len(self._x) != len(self._y_ref):
-            raise ValueError('Two samples should have the same size.')
+            raise ValueError('Two samples (x and y_ref) should have the same size.')
 
         self._dStat = SummaryStat(self._x - self._y_ref, name)
 
@@ -701,20 +701,17 @@ class RatioStatPaired(_RatioStat):
         _RatioStat.__init__(self, x, y_ref, name)
 
         if len(self._x) != len(self._y_ref):
-            raise ValueError('Two samples should have the same size.')
+            raise ValueError('Two samples (x and y_ref) should have the same size.')
 
         # add element-wise ratio
         ratio = np.zeros(len(self._x))
         for i in range(len(self._x)):
             # for 0 in the denominator variable, check whether numerator is also 0
             if self._y_ref[i] == 0:
-                if self._x[i] == 0:  # set 0/0 = 1
-                    ratio[i] = 1
-                else:  # else raise error
-                    ratio[i] = math.nan
-                    warnings.warn('For ' + name
-                                  + ', the denominator of ratio with index {} is 0.'.format(i))
-                    self._ifComputable = False
+                ratio[i] = math.nan
+                warnings.warn('For ' + name
+                              + ', the denominator of ratio with index {} is 0.'.format(i))
+                self._ifComputable = False
             else:
                 # for non-zero denominators, calculate ratio
                 ratio[i] = 1.0*self._x[i] / self._y_ref[i]
@@ -726,10 +723,16 @@ class RatioStatPaired(_RatioStat):
         return self._ratioStat.get_n()
 
     def get_mean(self):
-        return self._ratioStat.get_mean()
+        if self._ifComputable:
+            return self._ratioStat.get_mean()
+        else:
+            return math.nan
 
     def get_stdev(self):
-        return self._ratioStat.get_stdev()
+        if self._ifComputable:
+            return self._ratioStat.get_stdev()
+        else:
+            return math.nan
 
     def get_min(self):
         return self._ratioStat.get_min()
@@ -738,13 +741,22 @@ class RatioStatPaired(_RatioStat):
         return self._ratioStat.get_max()
 
     def get_percentile(self, q):
-        return self._ratioStat.get_percentile(q)
+        if self._ifComputable:
+            return self._ratioStat.get_percentile(q)
+        else:
+            return math.nan
 
     def get_bootstrap_CI(self, alpha, num_samples):
-        return self._ratioStat.get_bootstrap_CI(alpha, num_samples)
+        if self._ifComputable:
+            return self._ratioStat.get_bootstrap_CI(alpha, num_samples)
+        else:
+            return math.nan
 
     def get_PI(self, alpha):
-        return self._ratioStat.get_PI(alpha)
+        if self._ifComputable:
+            return self._ratioStat.get_PI(alpha)
+        else:
+            return [math.nan, math.nan]
 
 
 class RatioStatIndp(_RatioStat):
@@ -767,6 +779,8 @@ class RatioStatIndp(_RatioStat):
         max_n = max(self._x_n, self._y_n, 1000)
         x_resample = np.random.choice(self._x, size=max_n, replace=True)
         y_resample = np.random.choice(self._y_ref, size=max_n, replace=True)
+
+        if any(y_resample) ==
 
         self._sum_stat_sample_ratio = SummaryStat(np.divide(x_resample, y_resample), name)
 
