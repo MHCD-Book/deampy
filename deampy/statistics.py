@@ -635,11 +635,13 @@ class DifferenceStatIndp(_DifferenceStat):
         # set random number generator seed
         np.random.seed(1)
 
+        # find number of bootstrap samples
+        n = max(self._x_n, self._y_n, n)
+
         # initialize difference array
         diff = np.zeros(n)
 
         # obtain bootstrap samples
-        n = max(self._x_n, self._y_n, n)
         for i in range(n):
             x_i = np.random.choice(self._x, size=n, replace=True)
             y_i = np.random.choice(self._y_ref, size=n, replace=True)
