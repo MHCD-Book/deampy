@@ -55,46 +55,46 @@ def mytest_continuous_time(times, observations):
 
 def mytest_diff_stat_indp(x, y):
     # define
-    stat = stat.DifferenceStatIndp(x, y, name='Test DifferenceStatIndp')
+    diff_stat = stat.DifferenceStatIndp(x, y, name='Test DifferenceStatIndp')
     print('Testing DifferenceStatIndp:')
-    print_results(stat)
+    print_results(diff_stat)
 
 
 def mytest_diff_stat_paired(x, y):
     # define
-    stat = stat.DifferenceStatPaired(x, y, name='Test DifferenceStatPaired')
+    diff_stat = stat.DifferenceStatPaired(x, y, name='Test DifferenceStatPaired')
     print('Testing DifferenceStatPaired:')
-    print_results(stat)
+    print_results(diff_stat)
 
 
 def mytest_ratio_stat_indp(x, y):
     # define
-    stat = stat.RatioStatIndp(x, y, name='Test RatioStatIndp')
+    ratio_stat = stat.RatioStatIndp(x, y, name='Test RatioStatIndp')
     print('Testing RatioStatIndp:')
-    print_results(stat)
+    print_results(ratio_stat)
 
 
 def mytest_ratio_stat_paied(x, y):
     # define
-    stat = stat.RatioStatPaired(x, y, name='Test RatioStatPaired')
+    ratio_stat = stat.RatioStatPaired(x, y, name='Test RatioStatPaired')
 
     print('Testing RatioStatPaired:')
-    print_results(stat)
+    print_results(ratio_stat)
 
 
 def mytest_relativeDiff_stat_paied(x, y):
     # define
-    stat = stat.RelativeDifferencePaired(x, y, name='Test RelativeDifferencePaired')
+    relative_stat = stat.RelativeDifferencePaired(x, y, name='Test RelativeDifferencePaired')
 
     print('Testing RelativeDifferencePaired:')
-    print_results(stat)
+    print_results(relative_stat)
 
 def mytest_relativeDiff_stat_indp(x, y):
     # define
-    stat = stat.RelativeDifferenceIndp(x, y, name='Test RelativeDifferenceIndp')
+    relative_stat = stat.RelativeDifferenceIndp(x, y, name='Test RelativeDifferenceIndp')
 
     print('Testing RelativeDifferenceIndp:')
-    print_results(stat)
+    print_results(relative_stat)
 
 
 # generate sample data
@@ -125,14 +125,14 @@ mytest_discrete_time(x)
 # test continuous-time statistics
 mytest_continuous_time(sampleT, sampleObs)
 # test statistics for the difference of two independent samples
-mytest_diff_stat_indp(x, y_ind)
-# test statistics for the difference of two paired samples
 mytest_diff_stat_paired(x, y_diff_paired)
 # test statistics for the ratio of two independent samples
-mytest_ratio_stat_indp(x, y_ind)
-# test statistics for the ratio of two paired samples
+mytest_diff_stat_indp(x, y_ind)
+# test statistics for the difference of two paired samples
 mytest_ratio_stat_paied(x, y_ratio_paired)
 # test statistics for the relative difference of two paired samples
+mytest_ratio_stat_indp(x, y_ind)
+# test statistics for the ratio of two paired samples
 mytest_relativeDiff_stat_paied(x, y_relativeRatio_paired)
 # test statistics for the relative difference of two independent samples
 mytest_relativeDiff_stat_indp(x, y_ind)

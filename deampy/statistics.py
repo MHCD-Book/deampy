@@ -581,7 +581,7 @@ class DifferenceStatIndp(_DifferenceStat):
         y_i = np.random.choice(self._y_ref, size=max_n, replace=True)
         self._sum_stat_sample_delta = SummaryStat(x_i - y_i, self.name)
 
-        self._XMinusYSimulated = False
+        self._XMinusYSimulated = True
 
     def get_mean(self):
         """
@@ -600,10 +600,16 @@ class DifferenceStatIndp(_DifferenceStat):
         return np.sqrt(var_x + var_y)
 
     def get_min(self):
-        return None
+
+        if not self._XMinusYSimulated:
+            self._simulate_x_minus_y()
+        return self._sum_stat_sample_delta.get_min()
 
     def get_max(self):
-        return None
+
+        if not self._XMinusYSimulated:
+            self._simulate_x_minus_y()
+        return self._sum_stat_sample_delta.get_max()
 
     def get_percentile(self, q):
         """
@@ -617,21 +623,24 @@ class DifferenceStatIndp(_DifferenceStat):
 
         return self._sum_stat_sample_delta.get_percentile(q)
 
-    def get_bootstrap_CI(self, alpha, num_samples):
+    def get_bootstrap_CI(self, alpha, num_samples=None):
         """
         :param alpha: confidence level
         :param num_samples: number of bootstrap samples
         :return: empirical bootstrap confidence interval
         """
+
+        n = NUM_BOOTSTRAP_SAMPLES if num_samples is None else num_samples
+
         # set random number generator seed
         np.random.seed(1)
 
         # initialize difference array
-        diff = np.zeros(num_samples)
+        diff = np.zeros(n)
 
         # obtain bootstrap samples
-        n = max(self._x_n, self._y_n, 1000)
-        for i in range(num_samples):
+        n = max(self._x_n, self._y_n, n)
+        for i in range(n):
             x_i = np.random.choice(self._x, size=n, replace=True)
             y_i = np.random.choice(self._y_ref, size=n, replace=True)
             d_temp = x_i - y_i
@@ -709,8 +718,9 @@ class RatioStatPaired(_RatioStat):
             # for 0 in the denominator variable, check whether numerator is also 0
             if self._y_ref[i] == 0:
                 ratio[i] = math.nan
-                warnings.warn('For ' + name
-                              + ', the denominator of ratio with index {} is 0.'.format(i))
+                warnings.warn("For ratio statistics '{}', "
+                              "the denominator of ratio with index {} is 0."
+                              "The ratio is not computable.".format(name, i))
                 self._ifComputable = False
             else:
                 # for non-zero denominators, calculate ratio
@@ -771,39 +781,49 @@ class RatioStatIndp(_RatioStat):
 
         # make sure no 0 in the denominator variable
         if not (self._y_ref != 0).all():
-            raise ValueError('invalid value of y_ref, the ratio is not computable')
+            warnings.warn("For ratio statistics '{}', "
+                          "one element of y_ref is 0. The ratio is not computable".format(name))
+            self._ifComputable = False
 
-        # generate random realizations for random variable X/Y
-        np.random.seed(1)
-        # find the maximum of the number of observations
-        max_n = max(self._x_n, self._y_n, 1000)
-        x_resample = np.random.choice(self._x, size=max_n, replace=True)
-        y_resample = np.random.choice(self._y_ref, size=max_n, replace=True)
+        else:
+            # generate random realizations for random variable X/Y
+            np.random.seed(1)
+            # find the maximum of the number of observations
+            max_n = max(self._x_n, self._y_n, 1000)
+            x_resample = np.random.choice(self._x, size=max_n, replace=True)
+            y_resample = np.random.choice(self._y_ref, size=max_n, replace=True)
 
-        if any(y_resample) ==
-
-        self._sum_stat_sample_ratio = SummaryStat(np.divide(x_resample, y_resample), name)
+            self._sum_stat_sample_ratio = SummaryStat(np.divide(x_resample, y_resample), name)
 
     def get_mean(self):
-        return self._sum_stat_sample_ratio.get_mean()
+        if self._ifComputable:
+            return self._sum_stat_sample_ratio.get_mean()
+        else:
+            return math.nan
 
     def get_stdev(self):
         """
         for independent variable x and y, var(x/y) = E(x^2)*E(1/y^2)-E(x)^2*(E(1/y)^2)
         :return: std(x/y)
         """
-        if self._y_ref.mean() == 0:
-            raise ValueError('invalid value of mean of y_ref, the ratio is not computable')
-
-        var = np.mean(self._x ** 2) * np.mean(1.0 / self._y_ref ** 2) - \
-              (np.mean(self._x) ** 2) * (np.mean(1.0 / self._y_ref) ** 2)
-        return np.sqrt(var)
+        if self._ifComputable:
+            var = np.mean(self._x ** 2) * np.mean(1.0 / self._y_ref ** 2) - \
+                  (np.mean(self._x) ** 2) * (np.mean(1.0 / self._y_ref) ** 2)
+            return np.sqrt(var)
+        else:
+            return math.nan
 
     def get_min(self):
-        return self._sum_stat_sample_ratio.get_min()
+        if self._ifComputable:
+            return self._sum_stat_sample_ratio.get_min()
+        else:
+            return math.nan
 
     def get_max(self):
-        return self._sum_stat_sample_ratio.get_max()
+        if self._ifComputable:
+            return self._sum_stat_sample_ratio.get_max()
+        else:
+            return math.nan
 
     def get_percentile(self, q):
         """
@@ -811,13 +831,22 @@ class RatioStatIndp(_RatioStat):
         :param q: the percentile want to return, in [0,100]
         :return: qth percentile of sample (x/y)
         """
-        return self._sum_stat_sample_ratio.get_percentile(q)
+        if self._ifComputable:
+            return self._sum_stat_sample_ratio.get_percentile(q)
+        else:
+            return math.nan
 
     def get_t_half_length(self, alpha):
-        return self._sum_stat_sample_ratio.get_t_half_length(alpha)
+        if self._ifComputable:
+            return self._sum_stat_sample_ratio.get_t_half_length(alpha)
+        else:
+            return math.nan
 
     def get_t_CI(self, alpha):
-        return self._sum_stat_sample_ratio.get_t_CI(alpha)
+        if self._ifComputable:
+            return self._sum_stat_sample_ratio.get_t_CI(alpha)
+        else:
+            return [math.nan, math.nan]
 
     def get_bootstrap_CI(self, alpha, num_samples):
         """
@@ -825,24 +854,31 @@ class RatioStatIndp(_RatioStat):
         :param num_samples: number of samples
         :return: empirical bootstrap confidence interval
         """
-        # set random number generator seed
-        np.random.seed(1)
+        if self._ifComputable:
+            # set random number generator seed
+            np.random.seed(1)
 
-        # initialize ratio array
-        ratio = np.zeros(num_samples)
+            # initialize ratio array
+            ratio = np.zeros(num_samples)
 
-        # obtain bootstrap samples
-        n = max(self._x_n, self._y_n)
-        for i in range(num_samples):
-            x_i = np.random.choice(self._x, size=n, replace=True)
-            y_i = np.random.choice(self._y_ref, size=n, replace=True)
-            r_temp = np.divide(x_i, y_i)
-            ratio[i] = np.mean(r_temp)
+            # obtain bootstrap samples
+            n = max(self._x_n, self._y_n)
+            for i in range(num_samples):
+                x_i = np.random.choice(self._x, size=n, replace=True)
+                y_i = np.random.choice(self._y_ref, size=n, replace=True)
+                r_temp = np.divide(x_i, y_i)
+                ratio[i] = np.mean(r_temp)
 
-        return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
+            return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
+
+        else:
+            return [math.nan, math.nan]
 
     def get_PI(self, alpha):
-        return self._sum_stat_sample_ratio.get_PI(alpha)
+        if self._ifComputable:
+            return self._sum_stat_sample_ratio.get_PI(alpha)
+        else:
+            return [math.nan, math.nan]
 
 
 class _RelativeDifference(_ComparativeStat):
@@ -856,6 +892,7 @@ class _RelativeDifference(_ComparativeStat):
         """
         _ComparativeStat.__init__(self, x, y_ref, name)
         self._order = order
+        self._ifComputable = True  # if any element of the denominator is 0, ratio is not computable
 
 
 class RelativeDifferencePaired(_RelativeDifference):
@@ -877,10 +914,11 @@ class RelativeDifferencePaired(_RelativeDifference):
         for i in range(len(self._x)):
             # for 0 in the denominator variable, check whether numerator is also 0
             if self._y_ref[i] == 0:
-                if self._x[i] == 0: # set 0/0 = 1
-                    ratio[i] = 1
-                else: # else raise error
-                    raise ValueError('invalid value of y_ref, the ratio is not computable')
+                ratio[i] = math.nan
+                warnings.warn("For ratio statistics '{}', "
+                              "the denominator of ratio with index {} is 0."
+                              "The ratio is not computable.".format(name, i))
+                self._ifComputable = False
             # for non-zero denominators, calculate ratio
             else:
                 ratio[i] = 1.0*self._x[i] / self._y_ref[i]
@@ -895,10 +933,16 @@ class RelativeDifferencePaired(_RelativeDifference):
         return self._relativeDiffStat.get_n()
 
     def get_mean(self):
-        return self._relativeDiffStat.get_mean()
+        if self._ifComputable:
+            return self._relativeDiffStat.get_mean()
+        else:
+            return math.nan
 
     def get_stdev(self):
-        return self._relativeDiffStat.get_stdev()
+        if self._ifComputable:
+            return self._relativeDiffStat.get_stdev()
+        else:
+            return math.nan
 
     def get_min(self):
         return self._relativeDiffStat.get_min()
@@ -907,13 +951,22 @@ class RelativeDifferencePaired(_RelativeDifference):
         return self._relativeDiffStat.get_max()
 
     def get_percentile(self, q):
-        return self._relativeDiffStat.get_percentile(q)
+        if self._ifComputable:
+            return self._relativeDiffStat.get_percentile(q)
+        else:
+            return math.nan
 
     def get_bootstrap_CI(self, alpha, num_samples):
-        return self._relativeDiffStat.get_bootstrap_CI(alpha, num_samples)
+        if self._ifComputable:
+            return self._relativeDiffStat.get_bootstrap_CI(alpha, num_samples)
+        else:
+            return [math.nan, math.nan]
 
     def get_PI(self, alpha):
-        return self._relativeDiffStat.get_PI(alpha)
+        if self._ifComputable:
+            return self._relativeDiffStat.get_PI(alpha)
+        else:
+            return [math.nan, math.nan]
 
 
 class RelativeDifferenceIndp(_RelativeDifference):
@@ -927,22 +980,28 @@ class RelativeDifferenceIndp(_RelativeDifference):
 
         # make sure no 0 in the denominator variable y
         if not (self._y_ref != 0).all():
-            raise ValueError('invalid value of y_ref, the ratio is not computable')
+            warnings.warn("For ratio statistics '{}', "
+                          "one element of y_ref is 0. The ratio is not computable".format(name))
+            self._ifComputable = False
 
-        # generate random realizations for random variable (X-Y)/Y
-        np.random.seed(1)
-        # find the maximum of the number of observations
-        max_n = max(self._x_n, self._y_n, 1000)
-        x_resample = np.random.choice(self._x, size=max_n, replace=True)
-        y_resample = np.random.choice(self._y_ref, size=max_n, replace=True)
-
-        if self._order == 0:
-            self._sum_stat_sample_relativeRatio = SummaryStat(np.divide(x_resample, y_resample) - 1, name)
         else:
-            self._sum_stat_sample_relativeRatio = SummaryStat(1 - np.divide(x_resample, y_resample), name)
+            # generate random realizations for random variable (X-Y)/Y
+            np.random.seed(1)
+            # find the maximum of the number of observations
+            max_n = max(self._x_n, self._y_n, 1000)
+            x_resample = np.random.choice(self._x, size=max_n, replace=True)
+            y_resample = np.random.choice(self._y_ref, size=max_n, replace=True)
+
+            if self._order == 0:
+                self._sum_stat_sample_relativeRatio = SummaryStat(np.divide(x_resample, y_resample) - 1, name)
+            else:
+                self._sum_stat_sample_relativeRatio = SummaryStat(1 - np.divide(x_resample, y_resample), name)
 
     def get_mean(self):
-        return self._sum_stat_sample_relativeRatio.get_mean()
+        if self._ifComputable:
+            return self._sum_stat_sample_relativeRatio.get_mean()
+        else:
+            return math.nan
 
     def get_stdev(self):
         """
@@ -950,18 +1009,24 @@ class RelativeDifferenceIndp(_RelativeDifference):
         and var(x/y - 1) = var(x/y)
         :return: std(x/y - 1)
         """
-        if self._y_ref.mean() == 0:
-            raise ValueError('invalid value of mean of y_ref, the ratio is not computable')
-
-        var = np.mean(self._x ** 2) * np.mean(1.0 / self._y_ref ** 2) - \
-              (np.mean(self._x) ** 2) * (np.mean(1.0 / self._y_ref) ** 2)
-        return np.sqrt(var)
+        if self._ifComputable:
+            var = np.mean(self._x ** 2) * np.mean(1.0 / self._y_ref ** 2) - \
+                  (np.mean(self._x) ** 2) * (np.mean(1.0 / self._y_ref) ** 2)
+            return np.sqrt(var)
+        else:
+            return math.nan
 
     def get_min(self):
-        return self._sum_stat_sample_relativeRatio.get_min()
+        if self._ifComputable:
+            return self._sum_stat_sample_relativeRatio.get_min()
+        else:
+            return math.nan
 
     def get_max(self):
-        return self._sum_stat_sample_relativeRatio.get_max()
+        if self._ifComputable:
+            return self._sum_stat_sample_relativeRatio.get_max()
+        else:
+            return math.nan
 
     def get_percentile(self, q):
         """
@@ -969,13 +1034,22 @@ class RelativeDifferenceIndp(_RelativeDifference):
         :param q: the percentile want to return, in [0,100]
         :return: qth percentile of sample (x-y)/y
         """
-        return self._sum_stat_sample_relativeRatio.get_percentile(q)
+        if self._ifComputable:
+            return self._sum_stat_sample_relativeRatio.get_percentile(q)
+        else:
+            return [math.nan, math.nan]
 
     def get_t_half_length(self, alpha):
-        return self._sum_stat_sample_relativeRatio.get_t_half_length(alpha)
+        if self._ifComputable:
+            return self._sum_stat_sample_relativeRatio.get_t_half_length(alpha)
+        else:
+            return math.nan
 
     def get_t_CI(self, alpha):
-        return self._sum_stat_sample_relativeRatio.get_t_CI(alpha)
+        if self._ifComputable:
+            return self._sum_stat_sample_relativeRatio.get_t_CI(alpha)
+        else:
+            return [math.nan, math.nan]
 
     def get_bootstrap_CI(self, alpha, num_samples):
         """
@@ -983,22 +1057,27 @@ class RelativeDifferenceIndp(_RelativeDifference):
         :param num_samples: number of samples
         :return: empirical bootstrap confidence interval
         """
-        # set random number generator seed
-        np.random.seed(1)
+        if self._ifComputable:
+            # set random number generator seed
+            np.random.seed(1)
 
-        # initialize ratio array
-        ratio = np.zeros(num_samples)
+            # initialize ratio array
+            ratio = np.zeros(num_samples)
 
-        # obtain bootstrap samples
-        n = max(self._x_n, self._y_n)
-        for i in range(num_samples):
-            x_i = np.random.choice(self._x, size=n, replace=True)
-            y_i = np.random.choice(self._y_ref, size=n, replace=True)
-            r_temp = np.divide(x_i, y_i) - 1
-            ratio[i] = np.mean(r_temp)
+            # obtain bootstrap samples
+            n = max(self._x_n, self._y_n)
+            for i in range(num_samples):
+                x_i = np.random.choice(self._x, size=n, replace=True)
+                y_i = np.random.choice(self._y_ref, size=n, replace=True)
+                r_temp = np.divide(x_i, y_i) - 1
+                ratio[i] = np.mean(r_temp)
 
-        return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
+            return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
+        else:
+            return [math.nan, math.nan]
 
     def get_PI(self, alpha):
-        return self._sum_stat_sample_relativeRatio.get_PI(alpha)
-
+        if self._ifComputable:
+            return self._sum_stat_sample_relativeRatio.get_PI(alpha)
+        else:
+            return [math.nan, math.nan]
