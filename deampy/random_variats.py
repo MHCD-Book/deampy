@@ -151,6 +151,26 @@ class Beta(RVG):
         # report results in the form of a dictionary
         return {"a": a, "b": b, "loc": L, "scale": U - L, "AIC": aic}
 
+    @staticmethod
+    def get_uncertainty_interval(alpha, mean, st_dev, minimum=0, maximum=1):
+        """
+        :param alpha: significance level (use 5% to get 95% uncertainty interval)
+        :param mean: sample mean
+        :param st_dev: sample standard deviation
+        :param minimum: fixed minimum
+        :param maximum: fixed maximum
+        :return: (list) with specified percentiles
+        """
+
+        beta_par = Beta.fit_mm(mean=mean, st_dev=st_dev, minimum=minimum, maximum=maximum)
+
+        l = stat.beta.ppf(q=alpha/2,
+                          a=beta_par['a'], b=beta_par['b'], loc=beta_par['loc'], scale=beta_par['scale'])
+        u = stat.beta.ppf(q=1-alpha/2,
+                          a=beta_par['a'], b=beta_par['b'], loc=beta_par['loc'], scale=beta_par['scale'])
+
+        return [l, u]
+
 
 class BetaBinomial(RVG):
     def __init__(self, n, a, b, loc=0):
