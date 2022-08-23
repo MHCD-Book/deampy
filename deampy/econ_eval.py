@@ -601,9 +601,6 @@ class CEA(_EconEval):
                            zorder=1
                            )
 
-        ax.set_xlim(x_range)  # x-axis range
-        ax.set_ylim(y_range)  # y-axis range
-
         # format x-axis
         if effect_decimals is not None:
             vals_x = ax.get_xticks()
@@ -615,6 +612,9 @@ class CEA(_EconEval):
             vals_y = ax.get_yticks()
             ax.set_yticks(vals_y)
             ax.set_yticklabels(['{:,.{prec}f}'.format(x, prec=cost_decimals) for x in vals_y])
+
+        ax.set_xlim(x_range)  # x-axis range
+        ax.set_ylim(y_range)  # y-axis range
 
         ax.axhline(y=0, c='k', linestyle='--', linewidth=0.5)
         ax.axvline(x=0, c='k', linestyle='--', linewidth=0.5)
@@ -1336,7 +1336,7 @@ class CBA(_EconEval):
             self.evpi.append(average(max_nmbs))
 
         # curve
-        self.inmbCurves.append(EVPI(xs=self.wtpValues, ys=self.evpi, label='EVPI', color='k'))
+        self.inmbCurves.append(EVPI(xs=self.wtpValues, ys=self.evpi, label='PI', color='k'))
 
     def plot_incremental_nmbs(self,
                               title='Incremental Net Monetary Benefit',
@@ -1512,7 +1512,8 @@ class CBA(_EconEval):
                          y_range=y_range, show_legend=show_legend,
                          transparency_lines=CEAC_NMB_TRANSPARENCY,
                          curve_line_width=CEAC_LINE_WIDTH, frontier_line_width=CEAF_LINE_WIDTH,
-                         legend_font_size=LEGEND_FONT_SIZE)
+                         legend_font_size=LEGEND_FONT_SIZE,
+                         if_y_axis_prob=True)
 
     def add_expected_loss_curves_to_ax(
             self, ax, wtp_delta=None, y_range=None, show_legend=True, legends=None,
@@ -1793,7 +1794,7 @@ class BCHO(_EconEval):
             self.evpi.append(average(max_effects))
 
         # curve
-        self.curves.append(EVPI(xs=self.budget_values, ys=self.evpi, label='EVPI', color='k'))
+        self.curves.append(EVPI(xs=self.budget_values, ys=self.evpi, label='PI', color='k'))
 
     def plot(self,
              title='Expected Increase in Effect',
