@@ -26,10 +26,9 @@ CE_FRONTIER_TRANSPARENCY = 0.6
 CE_FRONTIER_LINE_WIDTH = 2
 CE_EDGE_COLOR = 'w'
 
+CEAC_NMB_TRANSPARENCY = 0.75
 CEAC_LINE_WIDTH = 0.75
 CEAF_LINE_WIDTH = 2.5
-
-# for constrained optimization and NMB
 NMB_LINE_WIDTH = 0.75
 NMB_INTERVAL_TRANSPARENCY = 0.5
 NMB_FRONTIER_LINE_WIDTH = 2.5
@@ -1430,7 +1429,7 @@ class CBA(_EconEval):
                          y_label=y_label, y_range=y_range, x_delta=delta_wtp,
                          y_axis_decimal=y_axis_decimal,
                          y_axis_multiplier=y_axis_multiplier,
-                         transparency_lines=1,
+                         transparency_lines=CEAC_NMB_TRANSPARENCY,
                          transparency_intervals=NMB_INTERVAL_TRANSPARENCY,
                          show_legend=show_legend,
                          show_labels_on_frontier=show_labels_on_frontier,
@@ -1511,6 +1510,7 @@ class CBA(_EconEval):
                          x_range=[self.wtpValues[0], self.wtpValues[-1]],
                          x_delta=wtp_delta,
                          y_range=y_range, show_legend=show_legend,
+                         transparency_lines=CEAC_NMB_TRANSPARENCY,
                          curve_line_width=CEAC_LINE_WIDTH, frontier_line_width=CEAF_LINE_WIDTH,
                          legend_font_size=LEGEND_FONT_SIZE)
 
@@ -1538,7 +1538,8 @@ class CBA(_EconEval):
                          x_range=[self.wtpValues[0], self.wtpValues[-1]],
                          x_delta=wtp_delta,
                          y_range=y_range, show_legend=show_legend,
-                         curve_line_width=CEAC_LINE_WIDTH, frontier_line_width=CEAF_LINE_WIDTH,
+                         transparency_lines=CEAC_NMB_TRANSPARENCY,
+                         curve_line_width=NMB_LINE_WIDTH, frontier_line_width=NMB_FRONTIER_LINE_WIDTH,
                          legend_font_size=LEGEND_FONT_SIZE,
                          y_axis_multiplier=y_axis_multiplier, y_axis_decimal=y_axis_decimal,
                          if_y_axis_prob=False)
