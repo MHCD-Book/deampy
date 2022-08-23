@@ -57,44 +57,13 @@ def format_ax(ax,
         ax.axhline(y=0, c='k', ls='--', linewidth=0.5)
 
 
-def old_add_curves_to_ax(ax, curves, legends, x_range, x_delta, y_range, show_legend,
-                         line_width, opt_line_width, legend_font_size,
-                         y_axis_multiplier=1, y_axis_decimal=1,
-                         opt='max', if_y_axis_prob=True):
-
-    for i, curve in enumerate(curves):
-        # plot line
-        if legends is None:
-            ax.plot(curve.xs, curve.ys*y_axis_multiplier, c=curve.color, alpha=1,
-                    label=curve.label, linewidth=line_width)
-        else:
-            ax.plot(curve.xs, curve.ys*y_axis_multiplier, c=curve.color, alpha=1,
-                    label=legends[i], linewidth=line_width)
-
-        if opt == 'max':
-            ax.plot(curve.maxXs, curve.maxYs*y_axis_multiplier, c=curve.color, linewidth=opt_line_width)
-        elif opt == 'min':
-            ax.plot(curve.minXs, curve.minYs*y_axis_multiplier, c=curve.color, linewidth=opt_line_width)
-        else:
-            raise ValueError('opt parameter should be min or max.')
-
-    format_ax(ax=ax, y_range=y_range,
-              x_range=x_range,
-              x_delta=x_delta,
-              if_y_axis_prob=if_y_axis_prob,
-              if_format_y_numbers=True,
-              y_axis_decimal=y_axis_decimal)
-
-    if show_legend:
-        ax.legend(fontsize=legend_font_size)  # xx-small, x-small, small, medium, large, x-large, xx-large
-
-
-def add_curves_to_ax(ax, curves, title,
-                     x_values, x_label, y_label, y_range=None,
+def add_curves_to_ax(ax, curves, title=None,
+                     x_range=None, x_label=None, y_label=None, y_range=None,
                      y_axis_multiplier=1, y_axis_decimal=1,
                      x_delta=None,
                      transparency_lines=0.4,
                      transparency_intervals=0.2,
+                     legends=None,
                      show_legend=False,
                      show_frontier=True,
                      show_labels_on_frontier=False,
@@ -105,11 +74,13 @@ def add_curves_to_ax(ax, curves, title,
                      frontier_label_shift_x=-0.01,
                      frontier_label_shift_y=0.01):
 
-    for curve in curves:
+    for i, curve in enumerate(curves):
+
+        label = curve.label if legends is None else legends
         # plot line
         ax.plot(curve.xs, curve.ys * y_axis_multiplier,
                 c=curve.color, alpha=transparency_lines,
-                linewidth=curve_line_width, linestyle=curve.linestyle, label=curve.label)
+                linewidth=curve_line_width, linestyle=curve.linestyle, label=label)
 
         # plot intervals
         if curve.l_errs is not None and curve.u_errs is not None:
@@ -140,7 +111,7 @@ def add_curves_to_ax(ax, curves, title,
         for curve in curves:
             if curve.maxXs is not None and len(curve.maxXs) > 0:
                 if curve.maxYs[0] is not None and curve.maxYs[-1] is not None:
-                    x_axis_length = x_values[-1] - x_values[0]
+                    x_axis_length = x_range[1] - x_range[0]
                     x = 0.5 * (curve.maxXs[0] + curve.maxXs[-1]) + frontier_label_shift_x * x_axis_length
                     y = 0.5 * (curve.maxYs[0] + curve.maxYs[-1]) * y_axis_multiplier \
                         + frontier_label_shift_y * y_axis_length
@@ -148,7 +119,7 @@ def add_curves_to_ax(ax, curves, title,
 
     # do the other formatting
     format_ax(ax=ax, y_range=y_range,
-              x_range=[x_values[0], x_values[-1]], x_delta=x_delta,
+              x_range=x_range, x_delta=x_delta,
               if_y_axis_prob=if_y_axis_prob,
               if_format_y_numbers=if_format_y_numbers,
               y_axis_decimal=y_axis_decimal)

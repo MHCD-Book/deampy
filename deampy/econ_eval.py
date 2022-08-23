@@ -11,7 +11,7 @@ from scipy.stats import sem
 
 import deampy.format_functions as F
 import deampy.in_out_functions as IO
-from deampy.plots.econ_eval_plots import old_add_curves_to_ax, add_curves_to_ax
+from deampy.plots.econ_eval_plots import add_curves_to_ax
 from deampy.statistics import SummaryStat
 from deampy.support.econ_eval_support import *
 from deampy.support.misc_classes import *
@@ -1391,7 +1391,7 @@ class CBA(_EconEval):
 
         # add the incremental NMB curves
         add_curves_to_ax(ax=ax, curves=self.inmbCurves,
-                         x_values=self.wtpValues,
+                         x_range=[self.wtpValues[0], self.wtpValues[-1]],
                          title=title, x_label=x_label,
                          y_label=y_label, y_range=y_range, x_delta=delta_wtp,
                          y_axis_multiplier=y_axis_multiplier,
@@ -1427,7 +1427,7 @@ class CBA(_EconEval):
         if show_evpi:
             self.calculate_evpi_curve()
 
-        add_curves_to_ax(ax=ax, curves=self.inmbCurves, x_values=self.wtpValues,
+        add_curves_to_ax(ax=ax, curves=self.inmbCurves, x_range=[self.wtpValues[0], self.wtpValues[-1]],
                          title=title, x_label=x_label,
                          y_label=y_label, y_range=y_range, x_delta=delta_wtp,
                          y_axis_decimal=y_axis_decimal,
@@ -1507,14 +1507,14 @@ class CBA(_EconEval):
         if len(self.acceptabilityCurves) == 0:
             self.build_acceptability_curves()
 
-        old_add_curves_to_ax(ax=ax,
-                             curves=self.acceptabilityCurves,
-                             legends=legends,
-                             x_range=[self.wtpValues[0], self.wtpValues[-1]],
-                             x_delta=wtp_delta,
-                             y_range=y_range, show_legend=show_legend,
-                             line_width=CEAC_LINE_WIDTH, opt_line_width=CEAF_LINE_WIDTH,
-                             legend_font_size=LEGEND_FONT_SIZE, opt='max')
+        add_curves_to_ax(ax=ax,
+                         curves=self.acceptabilityCurves,
+                         legends=legends,
+                         x_range=[self.wtpValues[0], self.wtpValues[-1]],
+                         x_delta=wtp_delta,
+                         y_range=y_range, show_legend=show_legend,
+                         curve_line_width=CEAC_LINE_WIDTH, frontier_line_width=CEAF_LINE_WIDTH,
+                         legend_font_size=LEGEND_FONT_SIZE)
 
     def add_expected_loss_curves_to_ax(
             self, ax, wtp_delta=None, y_range=None, show_legend=True, legends=None,
@@ -1534,16 +1534,16 @@ class CBA(_EconEval):
         if len(self.expectedLossCurves) == 0:
             self.build_expected_loss_curves()
 
-        old_add_curves_to_ax(ax=ax,
-                             curves=self.expectedLossCurves,
-                             legends=legends,
-                             x_range=[self.wtpValues[0], self.wtpValues[-1]],
-                             x_delta=wtp_delta,
-                             y_range=y_range, show_legend=show_legend,
-                             line_width=CEAC_LINE_WIDTH, opt_line_width=CEAF_LINE_WIDTH,
-                             legend_font_size=LEGEND_FONT_SIZE,
-                             y_axis_multiplier=y_axis_multiplier, y_axis_decimal=y_axis_decimal,
-                             if_y_axis_prob=False, opt='min')
+        add_curves_to_ax(ax=ax,
+                         curves=self.expectedLossCurves,
+                         legends=legends,
+                         x_range=[self.wtpValues[0], self.wtpValues[-1]],
+                         x_delta=wtp_delta,
+                         y_range=y_range, show_legend=show_legend,
+                         curve_line_width=CEAC_LINE_WIDTH, frontier_line_width=CEAF_LINE_WIDTH,
+                         legend_font_size=LEGEND_FONT_SIZE,
+                         y_axis_multiplier=y_axis_multiplier, y_axis_decimal=y_axis_decimal,
+                         if_y_axis_prob=False)
 
     def get_w_starts(self):
 
@@ -1817,16 +1817,16 @@ class BCHO(_EconEval):
             self.calculate_evpi_curve()
 
         # add plot to the ax
-        self._add_curves_to_ax(ax=ax,
-                               curves=self.curves,
-                               x_values=self.budget_values,
-                               title=title, x_label=x_label,
-                               y_label=y_label, y_range=y_range, x_delta=delta_budget,
-                               y_axis_multiplier=y_axis_multiplier,
-                               transparency_lines=transparency_lines,
-                               transparency_intervals=transparency_intervals,
-                               show_legend=show_legend,
-                               if_format_y_numbers=False)
+        add_curves_to_ax(ax=ax,
+                         curves=self.curves,
+                         x_range=[self.budget_values[0], self.budget_values[-1]],
+                         title=title, x_label=x_label,
+                         y_label=y_label, y_range=y_range, x_delta=delta_budget,
+                         y_axis_multiplier=y_axis_multiplier,
+                         transparency_lines=transparency_lines,
+                         transparency_intervals=transparency_intervals,
+                         show_legend=show_legend,
+                         if_format_y_numbers=False)
 
         fig.show()
         if file_name is not None:
@@ -1858,7 +1858,7 @@ class BCHO(_EconEval):
 
         add_curves_to_ax(
             ax=ax, curves=self.curves, title=title,
-            x_values=self.budget_values,
+            x_range=[self.budget_values[0], self.budget_values[-1]],
             x_delta=delta_budget, x_label=x_label,
             y_label=y_label, y_axis_decimal=effect_decimals, y_range=y_range, y_axis_multiplier=y_axis_multiplier,
             transparency_lines=1, transparency_intervals=NMB_INTERVAL_TRANSPARENCY,
