@@ -1149,8 +1149,8 @@ class CBA(_EconEval):
         # find the optimal strategy for each wtp value
         for wtp_idx, wtp in enumerate(self.wtpValues):
             opt_idx = self.idxHighestExpNMB[wtp_idx]
-            self.acceptabilityCurves[opt_idx].maxXs.append(wtp)
-            self.acceptabilityCurves[opt_idx].maxYs.append(
+            self.acceptabilityCurves[opt_idx].frontierXs.append(wtp)
+            self.acceptabilityCurves[opt_idx].frontierYs.append(
                 self.acceptabilityCurves[opt_idx].ys[wtp_idx])
 
         for c in self.acceptabilityCurves:
@@ -1175,32 +1175,30 @@ class CBA(_EconEval):
 
         n_obs = len(self.strategies[0].costObs)
 
-        # for each WTP value, calculate the number of times that
-        # each strategy has the highest NMB value
-        for i, w in enumerate(self.wtpValues):
+        # for each WTP value, calculate the expected loss in NMB for each strategy
+        for w_idx, w in enumerate(self.wtpValues):
 
-            mean_max_nmb = 0
+            mean_max_nmb = 0  # mean of the maximum NMB
             for obs_idx in range(n_obs):
 
-                # find which strategy has the maximum nmb:
+                # find which strategy has the maximum nmb for this observation:
                 max_nmb = float('-inf')
-                max_s_i = 0  # index of the optimal strategy for this observation
                 for s_i, s in enumerate(self.strategies):
                     d_effect = (s.effectObs[obs_idx] - self.strategies[0].effectObs[obs_idx]) * self._u_or_d
                     d_cost = s.costObs[obs_idx] - self.strategies[0].costObs[obs_idx]
                     nmb = w * d_effect - d_cost
                     if nmb > max_nmb:
                         max_nmb = nmb
-                        max_s_i = s_i
 
                 mean_max_nmb += max_nmb
 
-            # calculate probabilities that each strategy has been optimal
+            # estimate the expected maximum NMB
             mean_max_nmb = mean_max_nmb / n_obs
 
+            # store x and y values for this expected loss in NMB curve
             for s_i in range(self._n):
                 self.expectedLossCurves[s_i].xs.append(w)
-                self.expectedLossCurves[s_i].ys.append(mean_max_nmb - self.inmbCurves[s_i].ys[i])
+                self.expectedLossCurves[s_i].ys.append(mean_max_nmb - self.inmbCurves[s_i].ys[w_idx])
 
         if len(self.idxLowestExpLoss) == 0:
             self.idxLowestExpLoss = update_curves_with_lowest_values(
@@ -1752,11 +1750,11 @@ class BCHO(_EconEval):
                         max_s_i = s_i
 
             if max_s_i is None:
-                self.curves[0].maxXs.append(b)
-                self.curves[0].maxYs.append(None)
+                self.curves[0].frontierXs.append(b)
+                self.curves[0].frontierYs.append(None)
             else:
-                self.curves[max_s_i].maxXs.append(b)
-                self.curves[max_s_i].maxYs.append(max_effect)
+                self.curves[max_s_i].frontierXs.append(b)
+                self.curves[max_s_i].frontierYs.append(max_effect)
 
         # convert lists to arrays
         for c in self.curves:

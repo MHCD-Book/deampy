@@ -91,9 +91,9 @@ def add_curves_to_ax(ax, curves, title=None,
         # plot frontier
         if show_frontier:
             # check if this strategy is not dominated
-            if curve.maxXs is not None and len(curve.maxXs) > 0:
-                y = [y*y_axis_multiplier if y is not None else None for y in curve.maxYs]
-                ax.plot(curve.maxXs, y,
+            if curve.frontierXs is not None and len(curve.frontierXs) > 0:
+                y = [y*y_axis_multiplier if y is not None else None for y in curve.frontierYs]
+                ax.plot(curve.frontierXs, y,
                         c=curve.color, alpha=1, linewidth=frontier_line_width)
 
     if show_legend:
@@ -109,11 +109,11 @@ def add_curves_to_ax(ax, curves, title=None,
         y_min, y_max = ax.get_ylim()
         y_axis_length = y_max - y_min
         for curve in curves:
-            if curve.maxXs is not None and len(curve.maxXs) > 0:
-                if curve.maxYs[0] is not None and curve.maxYs[-1] is not None:
+            if curve.frontierXs is not None and len(curve.frontierXs) > 0:
+                if curve.frontierYs[0] is not None and curve.frontierYs[-1] is not None:
                     x_axis_length = x_range[1] - x_range[0]
-                    x = 0.5 * (curve.maxXs[0] + curve.maxXs[-1]) + frontier_label_shift_x * x_axis_length
-                    y = 0.5 * (curve.maxYs[0] + curve.maxYs[-1]) * y_axis_multiplier \
+                    x = 0.5 * (curve.frontierXs[0] + curve.frontierXs[-1]) + frontier_label_shift_x * x_axis_length
+                    y = 0.5 * (curve.frontierYs[0] + curve.frontierYs[-1]) * y_axis_multiplier \
                         + frontier_label_shift_y * y_axis_length
                     ax.text(x=x, y=y, s=curve.label, fontsize=legend_font_size+1, c=curve.color)
 
