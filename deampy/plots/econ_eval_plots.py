@@ -1,3 +1,6 @@
+import numpy as np
+from scipy.interpolate import interp1d
+
 
 def format_ax(ax,
               x_range=None, x_delta=None,
@@ -77,8 +80,21 @@ def add_curves_to_ax(ax, curves, title=None,
     for i, curve in enumerate(curves):
 
         label = curve.label if legends is None else legends
+
+        # if to interpolate points to create a smooth curve
+        interpolate = False
+        if interpolate:
+            f2 = interp1d(curve.xs, curve.ys * y_axis_multiplier, kind='cubic')
+            x_smooth = np.linspace(curve.xs.min(), curve.xs.max(), 100)
+            y_smooth = f2(x_smooth)
+            xs = x_smooth
+            ys = y_smooth
+        else:
+            xs = curve.xs
+            ys = curve.ys * y_axis_multiplier
+
         # plot line
-        ax.plot(curve.xs, curve.ys * y_axis_multiplier,
+        ax.plot(xs, ys,
                 c=curve.color, alpha=transparency_lines,
                 linewidth=curve_line_width, linestyle=curve.linestyle, label=label)
 
