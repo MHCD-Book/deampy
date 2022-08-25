@@ -1,6 +1,8 @@
 import random
 
 import numpy as np
+# import required libraries
+from scipy.stats import norm
 
 
 def proper_file_name(text):
@@ -164,8 +166,58 @@ def get_percentile_of_empirical_dist(xs, probs, q):
                     return xs_nonzero_prob[i - 1]
                 i -= 1
 
-#
-# print(get_percentile_of_empirical_dist(xs=[1, 2, 3, 4], probs=[0.1, 0.2, 0.7, 0], q=0.05))
-# print(get_percentile_of_empirical_dist(xs=[1, 2, 3, 4], probs=[0.1, 0.2, 0.7, 0], q=0.4))
-# print(get_percentile_of_empirical_dist(xs=[1, 2, 3, 4], probs=[0.1, 0.2, 0.7, 0], q=1))
-# print(get_percentile_of_empirical_dist(xs=[1, 2, 3, 4], probs=[0.1, 0.2, 0.7, 0], q=0.6))
+
+def get_prob_normal_greater_0(mean, st_dev):
+    """
+    :param mean: (float) mean of the normal distribution
+    :param st_dev: (float) standard deviation of the normal distribution
+    :return: the probability of the random variable following this normal distribution is greater than 0
+    """
+
+    return 1 - norm(loc=mean, scale=st_dev).cdf(0)
+
+
+def get_prob_x_greater_than_y(x_mean, x_st_dev, y_mean, y_st_dev, corr=0):
+    """
+    :param x_mean: (float) the mean of x, which follows a normal distribution
+    :param x_st_dev: (float) the standard deviation of x
+    :param y_mean: (float)the mean of y, which follows a normal distribution
+    :param y_st_dev: (float) the standard deviation of y
+    :param corr: (float) the correlation between x and y
+    :return: the probability that x > y
+    """
+
+    return get_prob_normal_greater_0(
+        mean=x_mean - y_mean, st_dev=np.sqrt(x_st_dev**2 + y_st_dev**2 + 2*corr*x_st_dev*y_st_dev))
+
+
+def get_prob_x_greater_than_ys(x_mean, x_st_dev, y_means, y_st_devs):
+    """
+    :param x_mean: (float) the mean of x, which follows a normal distribution
+    :param x_st_dev: (float) the standard deviation of x
+    :param y_means: (list) the means of ys, which follow normal distributions
+    :param y_st_devs: (list) the standard deviations of ys
+    :return: the probability that x is greater than all ys (i.e., x > y_1 and x > y_2, and ...)
+        (note all distributions should be independent)
+    """
+
+    prob = 1
+    for i in range(len(y_means)):
+        prob *= get_prob_normal_greater_0(
+            mean=x_mean - y_means[i],
+            st_dev=np.sqrt(x_st_dev**2 + y_st_devs[i]**2))
+
+    return prob
+
+
+if __name__ == "__main__":
+    print(get_percentile_of_empirical_dist(xs=[1, 2, 3, 4], probs=[0.1, 0.2, 0.7, 0], q=0.05))
+    print(get_percentile_of_empirical_dist(xs=[1, 2, 3, 4], probs=[0.1, 0.2, 0.7, 0], q=0.4))
+    print(get_percentile_of_empirical_dist(xs=[1, 2, 3, 4], probs=[0.1, 0.2, 0.7, 0], q=1))
+    print(get_percentile_of_empirical_dist(xs=[1, 2, 3, 4], probs=[0.1, 0.2, 0.7, 0], q=0.6))
+
+    print(get_prob_normal_greater_0(-1, 1))
+    print(get_prob_x_greater_than_y(x_mean=10, x_st_dev=2,
+                                    y_mean=9, y_st_dev=2))
+    print(get_prob_x_greater_than_ys(x_mean=10, x_st_dev=2,
+                                     y_means=[9, 11], y_st_devs=[2, 2]))

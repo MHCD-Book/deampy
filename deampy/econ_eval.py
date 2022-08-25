@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import scipy.stats as stat
 from numpy import exp, power, average
 from numpy.random import RandomState
+from scipy.stats import pearsonr
 from scipy.stats import sem
 
 import deampy.format_functions as F
@@ -15,7 +16,7 @@ from deampy.plots.econ_eval_plots import add_curves_to_ax
 from deampy.statistics import SummaryStat
 from deampy.support.econ_eval_support import *
 from deampy.support.misc_classes import *
-from deampy.support.misc_functions import convert_lnl_to_prob
+from deampy.support.misc_functions import convert_lnl_to_prob, get_prob_x_greater_than_ys
 
 # warnings.filterwarnings("always")
 NUM_OF_BOOTSTRAPS = 1000  # number of bootstrap samples to calculate confidence intervals for ICER
@@ -1093,9 +1094,11 @@ class CBA(_EconEval):
         self.idxHighestExpNMB = update_curves_with_highest_values(
             wtp_values=self.wtpValues, curves=self.inmbCurves)
 
-    def build_acceptability_curves(self):
+    def build_acceptability_curves(self, normal_approximation=False):
         """
         prepares the information needed to plot the cost-effectiveness acceptability curves
+        :param normal_approximation: (bool) set to True to use normal distributions to approximate the
+            acceptability curves (assumes that all cost and effect estimates are independent across strategies)
         """
 
         if not self._ifPaired:
@@ -1112,34 +1115,87 @@ class CBA(_EconEval):
 
         n_obs = len(self.strategies[0].costObs)
 
+        # if approximation is used
+        if normal_approximation:
+            # find the mean and standard deviation of all strategies
+            # with respect to the base strategy
+            d_cost_means = []
+            d_cost_st_devs = []
+            d_effect_means = []
+            d_effect_st_devs = []
+            cov_d_effect_and_d_cost = []
+            for s in self.strategies:
+                d_cost_means.append(s.dCost.get_mean())
+                d_cost_st_devs.append(s.dCost.get_stdev())
+                d_effect_means.append(s.dEffect.get_mean())
+                d_effect_st_devs.append(s.dEffect.get_stdev())
+                corr = pearsonr(s.dEffectObs, s.dCostObs)[0]
+                if np.isnan(corr):
+                    cov_d_effect_and_d_cost.append(0)
+                else:
+                    cov_d_effect_and_d_cost.append(corr)
+
         # for each WTP value, calculate the number of times that
         # each strategy has the highest NMB value
         for w in self.wtpValues:
 
-            # number of times that each strategy is optimal
-            count_maximum = np.zeros(self._n)
+            # if approximation is used
+            if normal_approximation:
 
-            for obs_idx in range(n_obs):
+                for i in range(self._n):
+                    # make a list of means and st_devs of strategies other than i
+                    nmb_means_others = []
+                    nmb_st_devs_others = []
+                    for j in range(self._n):
+                        if i != j:
+                            # mean and variance of NMB of strategy j
+                            mean = w * d_effect_means[j] - d_cost_means[j]
+                            variance = pow(w * d_effect_st_devs[j], 2) \
+                                       + pow(d_effect_st_devs[j], 2) \
+                                       - 2 * w * cov_d_effect_and_d_cost[j]
+                            nmb_means_others.append(mean)
+                            nmb_st_devs_others.append(np.sqrt(variance))
 
-                # find which strategy has the maximum:
-                max_nmb = float('-inf')
-                max_s_i = 0  # index of the optimal strategy for this observation
-                for s_i, s in enumerate(self.strategies):
-                    d_effect = (s.effectObs[obs_idx] - self.strategies[0].effectObs[obs_idx]) * self._u_or_d
-                    d_cost = s.costObs[obs_idx] - self.strategies[0].costObs[obs_idx]
-                    nmb = w * d_effect - d_cost
-                    if nmb > max_nmb:
-                        max_nmb = nmb
-                        max_s_i = s_i
+                    # find the distribution of strategy i
+                    nmb_mean_i = w * d_effect_means[i] - d_cost_means[i]
+                    nmb_st_dev_i = np.sqrt(
+                        pow(w * d_effect_st_devs[i], 2) \
+                        + pow(d_effect_st_devs[i], 2) \
+                        - 2 * w * cov_d_effect_and_d_cost[i]
+                    )
 
-                count_maximum[max_s_i] += 1
+                    # calculate the probability that i has the highest NMB
+                    prob_i_max = get_prob_x_greater_than_ys(
+                        x_mean=nmb_mean_i, x_st_dev=nmb_st_dev_i,
+                        y_means=nmb_means_others, y_st_devs=nmb_st_devs_others)
 
-            # calculate probabilities that each strategy has been optimal
-            prob_maximum = count_maximum / n_obs
+                    self.acceptabilityCurves[i].xs.append(w)
+                    self.acceptabilityCurves[i].ys.append(prob_i_max)
 
-            for i in range(self._n):
-                self.acceptabilityCurves[i].xs.append(w)
-                self.acceptabilityCurves[i].ys.append(prob_maximum[i])
+            else:
+
+                # number of times that each strategy is optimal
+                count_maximum = np.zeros(self._n)
+
+                for obs_idx in range(n_obs):
+
+                    # find which strategy has the maximum:
+                    max_nmb = float('-inf')
+                    max_s_i = 0  # index of the optimal strategy for this observation
+                    for s_i, s in enumerate(self.strategies):
+                        nmb = w * s.dEffectObs[obs_idx] - s.dCostObs[obs_idx]
+                        if nmb > max_nmb:
+                            max_nmb = nmb
+                            max_s_i = s_i
+
+                    count_maximum[max_s_i] += 1
+
+                # calculate probabilities that each strategy has been optimal
+                prob_maximum = count_maximum / n_obs
+
+                for i in range(self._n):
+                    self.acceptabilityCurves[i].xs.append(w)
+                    self.acceptabilityCurves[i].ys.append(prob_maximum[i])
 
         if len(self.idxHighestExpNMB) == 0:
             self.idxHighestExpNMB = update_curves_with_highest_values(
@@ -1488,7 +1544,7 @@ class CBA(_EconEval):
             fig.savefig(file_name, bbox_inches='tight', dpi=300)
 
     def add_acceptability_curves_to_ax(
-            self, ax, wtp_delta=None, y_range=None, show_legend=True, legends=None):
+            self, ax, wtp_delta=None, y_range=None, show_legend=True, legends=None, normal_approximation=False):
         """
         adds the acceptability curves to the provided ax
         :param ax: axis
@@ -1496,13 +1552,15 @@ class CBA(_EconEval):
         :param y_range: (tuple) range of y-axis
         :param show_legend: (bool) if to show the legend
         :param legends: (list of strings) texts for legends
+        :param normal_approximation: (bool) set to True to use normal distributions to approximate
+            the acceptability curves
         """
 
         if len(self.inmbCurves) == 0:
             self.build_inmb_curves(interval_type='n')
 
         if len(self.acceptabilityCurves) == 0:
-            self.build_acceptability_curves()
+            self.build_acceptability_curves(normal_approximation=normal_approximation)
 
         add_curves_to_ax(ax=ax,
                          curves=self.acceptabilityCurves,
