@@ -8,7 +8,6 @@ import scipy.stats as stat
 from numpy import exp, power, average
 from numpy.random import RandomState
 from scipy.stats import pearsonr
-from scipy.stats import sem
 
 import deampy.format_functions as F
 import deampy.in_out_functions as IO
@@ -2132,17 +2131,22 @@ class ICER_Paired(_ICER):
                                     num=num_wtp_thresholds)
             lnl_weights = []
             mean_d_effect = self._delta_ave_effect
-            st_err_d_effect = sem(self._deltaEffects)
+            st_d_effect = np.std(self._deltaEffects, ddof=1)
             mean_d_cost = self._delta_ave_cost
-            st_err_d_cost = sem(self._deltaCosts)
+            st_d_cost = np.std(self._deltaCosts, ddof=1)
+            rho = pearsonr(self._deltaCosts, self._deltaEffects)
 
             # lnl of observing NMB = 0 given the sampled lambda_0s
             for lambda_0 in lambda_0s:
+                variance = lambda_0 ** 2 * st_d_effect ** 2 \
+                           + st_d_cost ** 2  \
+                           + 2 * lambda_0 * rho[0] * st_d_effect * st_d_cost
+
                 lnl_weight = 0
                 lnl_weight += stat.norm.logpdf(
                     x=0,
                     loc=lambda_0 * mean_d_effect - mean_d_cost,
-                    scale=lambda_0 * st_err_d_effect + st_err_d_cost)
+                    scale=np.sqrt(variance/n_obs))
 
                 lnl_weights.append(lnl_weight)
 
