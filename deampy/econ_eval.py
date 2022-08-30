@@ -2142,8 +2142,7 @@ class ICER_Paired(_ICER):
                            + st_d_cost ** 2  \
                            + 2 * lambda_0 * rho[0] * st_d_effect * st_d_cost
 
-                lnl_weight = 0
-                lnl_weight += stat.norm.logpdf(
+                lnl_weight = stat.norm.logpdf(
                     x=0,
                     loc=lambda_0 * mean_d_effect - mean_d_cost,
                     scale=np.sqrt(variance/n_obs))
