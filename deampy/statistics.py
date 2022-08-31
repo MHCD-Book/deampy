@@ -120,15 +120,17 @@ class _Statistics(object):
         else:
             return [math.nan, math.nan]
 
-    def _get_proportion_CI(self, n_of_successes, n_of_trials, alpha):
+    def _get_proportion_CI(self, data, alpha):
         """
-        :param n_of_successes: number of successes
-        :param n_of_trials: number of trials
         :param alpha: significance level (between 0 and 1)
         :return: Wilon score interval in the format of list [l, u]
         """
 
-        return proportion_confint(count=n_of_successes, nobs=n_of_trials, alpha=alpha, method='wilson')
+        # observations should be either 0 or 1
+        for d in data:
+            if d not in (0, 1):
+                raise ValueError('Wilson score interval can only be calculated for binary (0 or 1) outcomes.')
+        return proportion_confint(count=sum(data), nobs=self._n, alpha=alpha, method='wilson')
 
     def get_bootstrap_CI(self, alpha, num_samples):
         """ calculates empirical bootstrap confidence interval (abstract method to be overridden in derived classes)
@@ -161,8 +163,9 @@ class _Statistics(object):
     def get_interval(self, interval_type='c', alpha=0.05, multiplier=1):
         """
         :param interval_type: (string) 'c' for t-based confidence interval,
-                                       'cb' for bootstrap confidence interval, and
-                                       'p' for percentile interval
+                                       'cb' for bootstrap confidence interval,
+                                       'p' for percentile interval, and
+                                       'w' for Wilson score interval (only for binary outcomes)
         :param alpha: significance level
         :param multiplier: to multiply the estimate and the interval by the provided value
         :return: a list [L, U]
@@ -174,6 +177,12 @@ class _Statistics(object):
             interval = self.get_bootstrap_CI(alpha, NUM_BOOTSTRAP_SAMPLES)
         elif interval_type == 'p':
             interval = self.get_PI(alpha)
+        elif interval_type == 'w':
+            if isinstance(self, SummaryStat) or isinstance(self, DifferenceStatPaired):
+                interval = self.get_proportion_CI(alpha)
+            else:
+                raise ValueError(
+                    'Wilson score interval can only be calculated for SummaryStat or DifferenceStatPaired.')
         elif interval_type == 'n' or None:
             interval = None
         else:
@@ -301,20 +310,15 @@ class SummaryStat(_Statistics):
         # return [l, u]
         return self.get_mean() - np.percentile(delta, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
 
-    def get_proportion_CI(self, alpha):
+    def get_proportion_CI(self, alpha=0.05):
         """
         :param alpha: significance level (between 0 and 1)
         :return: Wilson score interval in the format of list [l, u]
         """
 
-        # observations should be either 0 or 1
-        for d in self._data:
-            if d not in (0, 1):
-                raise ValueError('Wilson score interval can only be calculated for binary (0 or 1) outcomes.')
+        return self._get_proportion_CI(data=self._data, alpha=alpha)
 
-        return self._get_proportion_CI(n_of_successes=sum(self._data), n_of_trials=self._n, alpha=alpha)
-
-    def get_PI(self, alpha):
+    def get_PI(self, alpha=0.05):
         """
         :param alpha: significance level (between 0 and 1)
         :return: percentile interval in the format of list [l, u]
@@ -554,6 +558,9 @@ class DifferenceStatPaired(_DifferenceStat):
 
     def get_bootstrap_CI(self, alpha, num_samples):
         return self._dStat.get_bootstrap_CI(alpha, num_samples)
+
+    def get_proportion_CI(self, alpha=0.05):
+        return self._get_proportion_CI(data=self._x - self._y_ref, alpha=alpha)
 
     def get_PI(self, alpha):
         return self._dStat.get_PI(alpha)
