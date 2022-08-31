@@ -1931,7 +1931,7 @@ class BCHO(_EconEval):
 
 
 class _ComparativeEconMeasure:
-    def __init__(self, name, costs_new, effects_new, costs_base, effects_base, health_measure='u'):
+    def __init__(self, costs_new, effects_new, costs_base, effects_base, health_measure='u', name=''):
         """
         :param costs_new: (list or numpy.array) cost data for the new strategy
         :param effects_new: (list or numpy.array) effect data for the new strategy
@@ -1975,7 +1975,7 @@ class _ComparativeEconMeasure:
 
 
 class _ICER(_ComparativeEconMeasure):
-    def __init__(self, name, costs_new, effects_new, costs_base, effects_base, health_measure='u'):
+    def __init__(self, costs_new, effects_new, costs_base, effects_base, health_measure='u', name=''):
         """
         :param costs_new: (list or numpy.array) cost data for the new strategy
         :param effects_new: (list or numpy.array) effect data for the new strategy
@@ -1989,7 +1989,7 @@ class _ICER(_ComparativeEconMeasure):
         self._isDefined = True  # if ICER cannot be computed, this will change to False
 
         # initialize the base class
-        _ComparativeEconMeasure.__init__(self, name, costs_new, effects_new, costs_base, effects_base, health_measure)
+        _ComparativeEconMeasure.__init__(self, costs_new, effects_new, costs_base, effects_base, health_measure, name)
 
         # calculate ICER
         if not (self._delta_ave_effect > 0 and self._delta_ave_cost >= 0):
@@ -2077,7 +2077,7 @@ class _ICER(_ComparativeEconMeasure):
 
 class ICER_Paired(_ICER):
 
-    def __init__(self, name, costs_new, effects_new, costs_base, effects_base, health_measure='u'):
+    def __init__(self, costs_new, effects_new, costs_base, effects_base, health_measure='u', name=''):
         """
         :param costs_new: (list or numpy.array) cost data for the new strategy
         :param effects_new: (list or numpy.array) health data for the new strategy
@@ -2093,7 +2093,7 @@ class ICER_Paired(_ICER):
             raise ValueError('Paired ICER assume the same number of observations for all cost and health outcomes.')
 
         # initialize the base class
-        _ICER.__init__(self, name, costs_new, effects_new, costs_base, effects_base, health_measure)
+        _ICER.__init__(self, costs_new, effects_new, costs_base, effects_base, health_measure, name)
 
         # incremental observations
         self._deltaCosts = self._costsNew - self._costsBase
@@ -2217,7 +2217,7 @@ class ICER_Paired(_ICER):
 
 class ICER_Indp(_ICER):
 
-    def __init__(self, name, costs_new, effects_new, costs_base, effects_base, health_measure='u'):
+    def __init__(self, costs_new, effects_new, costs_base, effects_base, health_measure='u', name=''):
         """
         :param costs_new: (list or numpy.array) cost data for the new strategy
         :param effects_new: (list or numpy.array) health data for the new strategy
@@ -2234,7 +2234,7 @@ class ICER_Indp(_ICER):
                 'ICER assume the same number of observations for the cost and health outcome of each alternative.')
 
         # initialize the base class
-        _ICER.__init__(self, name, costs_new, effects_new, costs_base, effects_base, health_measure)
+        _ICER.__init__(self, costs_new, effects_new, costs_base, effects_base, health_measure, name)
 
     def get_CI(self, alpha=0.05, method='bootstrap', num_bootstrap_samples=1000, rng=None,
                prior_range=None, num_wtp_thresholds=1000):
@@ -2350,7 +2350,7 @@ class ICER_Indp(_ICER):
 
 class _INMB(_ComparativeEconMeasure):
     # incremental net monetary benefit
-    def __init__(self, name, costs_new, effects_new, costs_base, effects_base, health_measure='u'):
+    def __init__(self, costs_new, effects_new, costs_base, effects_base, health_measure='u', name=''):
         """
         :param costs_new: (list or numpy.array) cost data for the new strategy
         :param effects_new: (list or numpy.array) effect data for the new strategy
@@ -2361,7 +2361,7 @@ class _INMB(_ComparativeEconMeasure):
         (e.g. when DALYS is used)
         """
         # initialize the base class
-        _ComparativeEconMeasure.__init__(self, name, costs_new, effects_new, costs_base, effects_base, health_measure)
+        _ComparativeEconMeasure.__init__(self, costs_new, effects_new, costs_base, effects_base, health_measure, name)
 
     def get_INMB(self, wtp):
         """
@@ -2433,7 +2433,7 @@ class _INMB(_ComparativeEconMeasure):
 
 class INMB_Paired(_INMB):
 
-    def __init__(self, name, costs_new, effects_new, costs_base, effects_base, health_measure='u'):
+    def __init__(self, costs_new, effects_new, costs_base, effects_base, health_measure='u', name=''):
         """
         :param costs_new: (list or numpy.array) cost data for the new strategy
         :param effects_new: (list or numpy.array) health data for the new strategy
@@ -2449,7 +2449,7 @@ class INMB_Paired(_INMB):
             raise ValueError(
                 'Paired incremental NMB assumes the same number of observations for all cost and health outcomes.')
 
-        _INMB.__init__(self, name, costs_new, effects_new, costs_base, effects_base, health_measure)
+        _INMB.__init__(self, costs_new, effects_new, costs_base, effects_base, health_measure, name)
 
         # incremental observations
         self._deltaCost = self._costsNew - self._costsBase
@@ -2490,7 +2490,7 @@ class INMB_Paired(_INMB):
 
 class INMB_Indp(_INMB):
 
-    def __init__(self, name, costs_new, effects_new, costs_base, effects_base, health_measure='u'):
+    def __init__(self, costs_new, effects_new, costs_base, effects_base, health_measure='u', name=''):
         """
         :param costs_new: (list or numpy.array) cost data for the new strategy
         :param effects_new: (list or numpy.array) health data for the new strategy
@@ -2507,7 +2507,7 @@ class INMB_Indp(_INMB):
                 'Independent incremental NMB assumes that for each strategy there are '
                 'the same number of observations for cost and health outcomes.')
 
-        _INMB.__init__(self, name, costs_new, effects_new, costs_base, effects_base, health_measure)
+        _INMB.__init__(self, costs_new, effects_new, costs_base, effects_base, health_measure, name)
 
     def get_CI(self, wtp, alpha=0.05):
         """
