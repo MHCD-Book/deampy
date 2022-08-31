@@ -2157,7 +2157,7 @@ class ICER_Paired(_ICER):
             # print([l, u])
 
             # resamples lambda_0s based on the probabilities
-            sampled_lambda_0s = np.random.choice(
+            sampled_lambda_0s = rng.choice(
                 a=lambda_0s,
                 size=num_wtp_thresholds,
                 replace=True,
