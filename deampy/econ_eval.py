@@ -2122,6 +2122,10 @@ class ICER_Paired(_ICER):
         # check if the Bayesian approach is selected
         if method == 'Bayesian':
 
+            # if ICER is not defined, the confidence interval is not defined either
+            if np.isnan(self._ICER):
+                return [np.nan, np.nan]
+
             if prior_range is None:
                 prior_range = [0, 4*self._ICER]
 
@@ -2141,11 +2145,16 @@ class ICER_Paired(_ICER):
                 variance = lambda_0 ** 2 * st_d_effect ** 2 \
                            + st_d_cost ** 2  \
                            + 2 * lambda_0 * rho[0] * st_d_effect * st_d_cost
+                if np.isnan(variance):
+                    raise ValueError(self.name, st_d_effect, st_d_cost, rho[0])
 
                 lnl_weight = stat.norm.logpdf(
                     x=0,
                     loc=lambda_0 * mean_d_effect - mean_d_cost,
                     scale=np.sqrt(variance/n_obs))
+
+                if np.isnan(lnl_weight):
+                    raise ValueError(self.name, mean_d_effect, mean_d_cost, variance)
 
                 lnl_weights.append(lnl_weight)
 
