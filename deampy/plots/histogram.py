@@ -28,11 +28,11 @@ def add_histogram_to_ax(ax, data, color=None, bin_width=None, x_range=None,
             ax.set_xticklabels(['{:,.{prec}%}'.format(x, prec=format_deci[1]) for x in vals])
 
 
-def plot_histogram(data, title,
+def plot_histogram(data, title=None,
                    x_label=None, y_label=None, bin_width=None,
                    x_range=None, y_range=None, figure_size=None,
                    color=None, legend=None, file_name=None):
-    """ graphs a histogram
+    """ plot a histogram
     :param data: (list) observations
     :param title: (string) title of the figure
     :param x_label: (string) x-axis label
@@ -43,7 +43,7 @@ def plot_histogram(data, title,
     :param figure_size: (tuple) figure size
     :param color: (string) color
     :param legend: string for the legend
-    :param file_name: (string) filename to to save the histogram as (e.g. 'fig.png')
+    :param file_name: (string) filename to save the histogram as (e.g. 'fig.png')
     """
 
     fig, ax = plt.subplots(figsize=figure_size)
