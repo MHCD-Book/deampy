@@ -601,6 +601,9 @@ class CEA(_EconEval):
                            zorder=1
                            )
 
+        ax.set_xlim(x_range)  # x-axis range
+        ax.set_ylim(y_range)  # y-axis range
+
         # format x-axis
         if effect_decimals is not None:
             vals_x = ax.get_xticks()
@@ -612,9 +615,6 @@ class CEA(_EconEval):
             vals_y = ax.get_yticks()
             ax.set_yticks(vals_y)
             ax.set_yticklabels(['{:,.{prec}f}'.format(x, prec=cost_decimals) for x in vals_y])
-
-        ax.set_xlim(x_range)  # x-axis range
-        ax.set_ylim(y_range)  # y-axis range
 
         ax.axhline(y=0, c='k', linestyle='--', linewidth=0.5)
         ax.axvline(x=0, c='k', linestyle='--', linewidth=0.5)
