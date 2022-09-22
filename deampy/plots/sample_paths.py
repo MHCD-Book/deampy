@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-import deampy.plots.plot_support as Fig
+from deampy.plots.plot_support import output_figure
 from deampy.sample_path import *
 
 
@@ -44,7 +44,7 @@ def plot_sample_path(sample_path,
         ax.set_xlim(left=0.5)
 
     # output figure
-    Fig.output_figure(fig, file_name)
+    output_figure(fig, file_name)
 
 
 def plot_sample_paths(sample_paths,
@@ -101,7 +101,7 @@ def plot_sample_paths(sample_paths,
     # set the minimum of y-axis to zero
     ax.set_ylim(bottom=0)  # the minimum has to be set after plotting the values
     # output figure
-    Fig.output_figure(fig, file_name)
+    output_figure(fig, file_name)
 
 
 def plot_sets_of_sample_paths(sets_of_sample_paths,
@@ -148,7 +148,7 @@ def plot_sets_of_sample_paths(sets_of_sample_paths,
     # set the minimum of y-axis to zero
     ax.set_ylim(bottom=0)  # the minimum has to be set after plotting the values
     # output figure
-    Fig.output_figure(fig, file_name)
+    output_figure(fig, file_name)
 
 
 def add_sample_path_to_ax(sample_path, ax, color_code=None, legend=None, transparency=1, connect='step'):

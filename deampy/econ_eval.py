@@ -12,6 +12,7 @@ from scipy.stats import pearsonr
 import deampy.format_functions as F
 import deampy.in_out_functions as IO
 from deampy.plots.econ_eval_plots import add_curves_to_ax
+from deampy.plots.plot_support import output_figure
 from deampy.statistics import SummaryStat
 from deampy.support.econ_eval_support import *
 from deampy.support.misc_classes import *
@@ -682,7 +683,7 @@ class CEA(_EconEval):
         if file_name is None or file_name == '':
             fig.show()
         else:
-            fig.savefig(file_name, dpi=300)
+            output_figure(plt=fig, filename=file_name)
 
     def create_pairwise_ceas(self):
         """
