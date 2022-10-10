@@ -366,6 +366,28 @@ class CEA(_EconEval):
         
         return [s for s in self.strategies if s.ifDominated]
 
+    def get_wtp_thresholds(self,  with_confidence_intervals=True):
+        """
+        :parameter with_confidence_intervals (bool) set to False if confidence intervals should not be calculated
+        :return: (dictionary) of strategies on the frontier with the estimate of WTP threshold
+            at which the strategy becomes the optimal option.
+            key: strategy name and value: [wtp threshold, confidence interval].
+        """
+
+        dic_of_strategies = {}
+        for s in self.get_strategies_on_frontier():
+            if s.icer is not None:
+                if with_confidence_intervals:
+                    dic_of_strategies[s.name] = [
+                        s.icer.get_ICER(),
+                        s.icer.get_CI(alpha=0.05,
+                                      method='Bayesian',
+                                      num_wtp_thresholds=1000)]
+                else:
+                    dic_of_strategies[s.name] = [s.icer.get_ICER()]
+
+        return dic_of_strategies
+
     def build_CE_table(self,
                        interval_type='c',
                        alpha=0.05, method='bootstrap', num_bootstrap_samples=1000, rng=None,
@@ -874,7 +896,7 @@ class CEA(_EconEval):
             for j in range(i+1, self._n):
                 if self.strategies[i].dCost.get_mean() >= self.strategies[j].dCost.get_mean():
                     self.strategies[i].ifDominated = True
-                    break;
+                    break
 
         # select all non-dominated strategies
         select_strategies = [s for s in self.strategies if not s.ifDominated]
@@ -887,7 +909,7 @@ class CEA(_EconEval):
             for j in range(i + 1, len(select_strategies)):
                 if select_strategies[i].dEffect.get_mean() <= select_strategies[j].dEffect.get_mean():
                     select_strategies[i].ifDominated = True
-                    break;
+                    break
 
         # apply criteria 2 (weak dominance)
         # select all non-dominated strategies
@@ -942,7 +964,7 @@ class CEA(_EconEval):
         # frontier is calculated
         self._ifFrontierIsCalculated = True
 
-        # calcualte the incremental outcomes
+        # calculate the incremental outcomes
         self.__calculate_incremental_outcomes()
 
     def __calculate_incremental_outcomes(self):
@@ -1260,6 +1282,8 @@ class CBA(_EconEval):
                 wtp_values=self.wtpValues, curves=self.expectedLossCurves)
 
     def find_optimal_switching_wtp_values(self, interval_type='n', deci=0):
+
+        raise ValueError('This needs to be updated and debugged.')
 
         w_stars = []  # wtp values to switch between strategies
         w_star_intervals = [] # confidence or projection intervals of optimal wtp values

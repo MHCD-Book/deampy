@@ -4,17 +4,44 @@ import numpy as np
 from deampy.plots.plot_support import output_figure
 
 
-def add_histogram_to_ax(ax, data, color=None, bin_width=None, x_range=None,
-                        transparency=1.0, label=None, format_deci=None):
+def add_histogram_to_ax(ax, data, title=None, color=None, bin_width=None, x_range=None,
+                        transparency=1.0, label=None, format_deci=None, remove_y_labels=False,
+                        linewidth=1, x_delta=None):
+    """
+    :param ax: (axis)
+    :param data: (list) of observations
+    :param title: (strig) title of the histogram
+    :param color:
+    :param bin_width:
+    :param x_range:
+    :param transparency:
+    :param label:
+    :param format_deci: [a, b] where a could be ',', '$', or '%' and b is the decimal point
+    :param remove_y_labels: (bool) set to True to remove ticks and labels of the y-axis
+    :param linewidth: (double)
+    :return:
+    """
 
     ax.hist(data,
             bins=find_bins(data, x_range, bin_width),
             color=color,
             edgecolor='black',
-            linewidth=1,
+            linewidth=linewidth,
             alpha=transparency,
             label=label)
     ax.set_xlim(x_range)
+    ax.set_title(title)
+    ax.yaxis.set_visible(not remove_y_labels)
+
+    if x_delta:
+        vals_x = []
+        if x_delta:
+            vals_x = []
+            x = x_range[0]
+            while x <= x_range[1]:
+                vals_x.append(x)
+                x += x_delta
+        ax.set_xticks(vals_x)
 
     if format_deci is not None:
         vals = ax.get_xticks()
