@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import scipy.stats as stat
 from numpy import exp, power, average
 from numpy.random import RandomState
+from scipy import optimize
 from scipy.stats import pearsonr
 
 import deampy.format_functions as F
@@ -188,13 +189,14 @@ def get_bayesian_ci_for_switch_wtp(
     return sum_stat.get_interval(interval_type='p', alpha=alpha)
 
 
-def get_prob(wtp_error, mean_d_effect, var_plus_error, var_minus_error, n):
+def get_diff(n, power, wtp_error, mean_d_effect, var_plus_error, var_minus_error):
 
     return stat.norm.cdf(x=0, loc=-wtp_error*mean_d_effect, scale=np.sqrt(var_plus_error/n)) \
-            - stat.norm.cdf(x=0, loc=wtp_error*mean_d_effect, scale=np.sqrt(var_minus_error/n))
+            - stat.norm.cdf(x=0, loc=wtp_error*mean_d_effect, scale=np.sqrt(var_minus_error/n)) \
+            - power
 
 
-def get_n(true_wtp, wtp_error, delta_costs, delta_effects, alpha=0.05):
+def get_min_monte_carlo_samples(true_wtp, wtp_error, delta_costs, delta_effects, power=0.95):
 
     mean_d_effect = np.average(delta_effects)
 
@@ -203,9 +205,15 @@ def get_n(true_wtp, wtp_error, delta_costs, delta_effects, alpha=0.05):
     var_minus_error = get_variance_of_incr_nmb(
         wtp=true_wtp - wtp_error, delta_costs=delta_costs, delta_effects=delta_effects)
 
-    n = 500
-    print(get_prob(wtp_error=wtp_error, mean_d_effect=mean_d_effect,
-                   var_plus_error=var_plus_error, var_minus_error=var_minus_error, n=100))
+    root = optimize.newton(func=get_diff, args=(power, wtp_error, mean_d_effect, var_plus_error, var_minus_error),
+                           x0=10, maxiter=1000)
+
+    diff = get_diff(n=root, power=power, wtp_error=wtp_error,
+                    mean_d_effect=mean_d_effect, var_plus_error=var_plus_error, var_minus_error=var_minus_error)
+    if abs(diff) > 0.01:
+        raise ValueError('A sample size that satisfies the power conditions could not be identified.')
+
+    return round(root)+1
 
 class Strategy:
     def __init__(self, name, cost_obs, effect_obs, color=None, marker='o', label=None, short_label=None):

@@ -4,9 +4,9 @@ import deampy.econ_eval as EconEval
 
 np.random.seed(573)
 
-cost_base = np.random.normal(loc=10000, scale=100, size=1000)
+cost_base = np.random.normal(loc=10000, scale=1000, size=1000)
 effect_base = np.random.normal(loc=1, scale=.1, size=1000)
-cost_intervention = np.random.normal(loc=20000, scale=200, size=1000)
+cost_intervention = np.random.normal(loc=20000, scale=2000, size=1000)
 effect_intervention = np.random.normal(loc=2, scale=.2, size=1000)
 
 print('')
@@ -27,8 +27,10 @@ print('Paired ICER:'
       ICER_paired.get_CI(0.05, method='Bayesian'),
       ICER_paired.get_PI(0.05)))
 
-EconEval.get_n(true_wtp=10000, wtp_error=500,
-               delta_costs=ICER_paired._deltaCosts, delta_effects=ICER_paired._deltaEffects)
+for beta in (0.5, 0.7, 0.9, 0.95, 0.99):
+    print(EconEval.get_min_monte_carlo_samples(
+        power=beta, true_wtp=10000, wtp_error=500,
+        delta_costs=ICER_paired._deltaCosts, delta_effects=ICER_paired._deltaEffects))
 
 # ICER calculation assuming independent observations
 ICER_indp = EconEval.ICER_Indp(costs_new=cost_intervention,
