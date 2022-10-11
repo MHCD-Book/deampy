@@ -27,6 +27,9 @@ print('Paired ICER:'
       ICER_paired.get_CI(0.05, method='Bayesian'),
       ICER_paired.get_PI(0.05)))
 
+EconEval.get_n(true_wtp=10000, wtp_error=500,
+               delta_costs=ICER_paired._deltaCosts, delta_effects=ICER_paired._deltaEffects)
+
 # ICER calculation assuming independent observations
 ICER_indp = EconEval.ICER_Indp(costs_new=cost_intervention,
                                effects_new=effect_intervention,

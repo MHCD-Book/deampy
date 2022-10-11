@@ -103,6 +103,110 @@ def equivalent_annual_value(present_value, discount_rate, discount_period):
     return discount_rate*present_value/(1-power(1+discount_rate, -discount_period))
 
 
+def get_variance_of_incr_nmb(wtp, delta_costs, delta_effects):
+    """
+    :param wtp: (double) willingness-to-pay threshold
+    :param delta_costs: (list) of incremental cost observations
+    :param delta_effects: (list) of incremental effect observations
+    :return: the variance of incremental NMB
+    """
+
+    st_d_cost = np.std(delta_costs, ddof=1)
+    st_d_effect = np.std(delta_effects, ddof=1)
+    rho = pearsonr(delta_costs, delta_effects)
+
+    variance = wtp ** 2 * st_d_effect ** 2 + st_d_cost ** 2 + 2 * wtp * rho[0] * st_d_effect * st_d_cost
+
+    if np.isnan(variance):
+        raise ValueError(st_d_effect, st_d_cost, rho[0])
+
+    return variance
+
+
+def get_bayesian_ci_for_switch_wtp(
+        delta_costs, delta_effects, alpha=0.05,
+        num_wtp_thresholds=1000, prior_range=None, rng=None):
+    """
+    assumes that cost and effect observations are paired
+    :param delta_costs: (list) of incremental cost observations
+    :param delta_effects: (list) of incremental effect observations
+    :param alpha: (double) significance level, a value from [0, 1]
+    :param num_wtp_thresholds: (int) number of willingness-to-pay thresholds to evaluate posterior
+            when 'Bayesian' approach is selected
+    :param prior_range: (tuple) in form of (l, u) for the prior range of willingness-to-pay
+            threshold that makes NMB zero (if prior is not provided [0, 4 * ICER] will be used.
+    :param rng: random number generator to generate empirical bootstrap samples
+    :return: bayesian confidence interval in the format of list [l, u]
+    """
+
+    mean_d_cost = np.average(delta_costs)
+    mean_d_effect = np.average(delta_effects)
+    estimated_switch_wtp = mean_d_cost/mean_d_effect
+    n_obs = len(delta_costs)
+
+    # create a new random number generator if one is not provided.
+    if rng is None:
+        rng = RandomState(seed=1)
+
+    if prior_range is None:
+        prior_range = [0, 4 * estimated_switch_wtp]
+
+    # lambda0 s
+    lambda_0s = np.linspace(start=prior_range[0],
+                            stop=prior_range[1],
+                            num=num_wtp_thresholds)
+    lnl_weights = []
+    # lnl of observing NMB = 0 given the sampled lambda_0s
+    for lambda_0 in lambda_0s:
+        variance = get_variance_of_incr_nmb(
+            wtp=lambda_0,
+            delta_costs=delta_costs,
+            delta_effects=delta_effects)
+
+        lnl_weight = stat.norm.logpdf(
+            x=0,
+            loc=lambda_0 * mean_d_effect - mean_d_cost,
+            scale=np.sqrt(variance / n_obs))
+
+        if np.isnan(lnl_weight):
+            raise ValueError(mean_d_effect, mean_d_cost, variance)
+
+        lnl_weights.append(lnl_weight)
+
+    # convert likelihoods to probabilities
+    probs = convert_lnl_to_prob(lnl_weights)
+
+    # resamples lambda_0s based on the probabilities
+    sampled_lambda_0s = rng.choice(
+        a=lambda_0s,
+        size=num_wtp_thresholds,
+        replace=True,
+        p=probs)
+
+    # report CI
+    sum_stat = SummaryStat(data=sampled_lambda_0s)
+    return sum_stat.get_interval(interval_type='p', alpha=alpha)
+
+
+def get_prob(wtp_error, mean_d_effect, var_plus_error, var_minus_error, n):
+
+    return stat.norm.cdf(x=0, loc=-wtp_error*mean_d_effect, scale=np.sqrt(var_plus_error/n)) \
+            - stat.norm.cdf(x=0, loc=wtp_error*mean_d_effect, scale=np.sqrt(var_minus_error/n))
+
+
+def get_n(true_wtp, wtp_error, delta_costs, delta_effects, alpha=0.05):
+
+    mean_d_effect = np.average(delta_effects)
+
+    var_plus_error = get_variance_of_incr_nmb(
+        wtp=true_wtp + wtp_error, delta_costs=delta_costs, delta_effects=delta_effects)
+    var_minus_error = get_variance_of_incr_nmb(
+        wtp=true_wtp - wtp_error, delta_costs=delta_costs, delta_effects=delta_effects)
+
+    n = 500
+    print(get_prob(wtp_error=wtp_error, mean_d_effect=mean_d_effect,
+                   var_plus_error=var_plus_error, var_minus_error=var_minus_error, n=100))
+
 class Strategy:
     def __init__(self, name, cost_obs, effect_obs, color=None, marker='o', label=None, short_label=None):
         """
@@ -2127,7 +2231,7 @@ class ICER_Paired(_ICER):
     def get_CI(self, alpha=0.05, method='bootstrap', num_bootstrap_samples=1000, rng=None,
                prior_range=None, num_wtp_thresholds=1000):
         """
-        :param alpha: significance level, a value from [0, 1]
+        :param alpha: (double) significance level, a value from [0, 1]
          :param method: (string) 'bootstrap' or 'Bayesian'
         :param num_bootstrap_samples: number of bootstrap samples when 'bootstrap' method is selected
         :param rng: random number generator to generate empirical bootstrap samples
@@ -2151,55 +2255,14 @@ class ICER_Paired(_ICER):
             if np.isnan(self._ICER):
                 return [np.nan, np.nan]
 
-            if prior_range is None:
-                prior_range = [0, 4*self._ICER]
-
-            # lambda0 s
-            lambda_0s = np.linspace(start=prior_range[0],
-                                    stop=prior_range[1],
-                                    num=num_wtp_thresholds)
-            lnl_weights = []
-            mean_d_effect = self._delta_ave_effect
-            st_d_effect = np.std(self._deltaEffects, ddof=1)
-            mean_d_cost = self._delta_ave_cost
-            st_d_cost = np.std(self._deltaCosts, ddof=1)
-            rho = pearsonr(self._deltaCosts, self._deltaEffects)
-
-            # lnl of observing NMB = 0 given the sampled lambda_0s
-            for lambda_0 in lambda_0s:
-                variance = lambda_0 ** 2 * st_d_effect ** 2 \
-                           + st_d_cost ** 2  \
-                           + 2 * lambda_0 * rho[0] * st_d_effect * st_d_cost
-                if np.isnan(variance):
-                    raise ValueError(self.name, st_d_effect, st_d_cost, rho[0])
-
-                lnl_weight = stat.norm.logpdf(
-                    x=0,
-                    loc=lambda_0 * mean_d_effect - mean_d_cost,
-                    scale=np.sqrt(variance/n_obs))
-
-                if np.isnan(lnl_weight):
-                    raise ValueError(self.name, mean_d_effect, mean_d_cost, variance)
-
-                lnl_weights.append(lnl_weight)
-
-            # convert likelihoods to probabilities
-            probs = convert_lnl_to_prob(lnl_weights)
-
-            # l = get_percentile_of_empirical_dist(xs=lambda_0s, probs=probs, q=alpha / 2)
-            # u = get_percentile_of_empirical_dist(xs=lambda_0s, probs=probs, q=1 - alpha / 2)
-            # print([l, u])
-
-            # resamples lambda_0s based on the probabilities
-            sampled_lambda_0s = rng.choice(
-                a=lambda_0s,
-                size=num_wtp_thresholds,
-                replace=True,
-                p=probs)
-
-            # report CI
-            sum_stat = SummaryStat(data=sampled_lambda_0s)
-            return sum_stat.get_interval(interval_type='p', alpha=alpha)
+            return get_bayesian_ci_for_switch_wtp(
+                delta_costs=self._deltaCosts,
+                delta_effects=self._deltaEffects,
+                alpha=alpha,
+                num_wtp_thresholds=num_wtp_thresholds,
+                prior_range=prior_range,
+                rng=rng
+            )
 
         elif method == 'bootstrap':
             # bootstrap algorithm
@@ -2431,39 +2494,6 @@ class _INMB(_ComparativeEconMeasure):
 
         return wtp
 
-    def get_switch_wtp_and_interval(self, wtp_range, interval_type='n'):
-
-        wtp = self.get_switch_wtp()
-
-        if interval_type == 'n':
-            return wtp, None
-        elif interval_type == 'c':
-            interval_at_min_wtp = self.get_CI(wtp=wtp_range[0])
-            interval_at_max_wtp = self.get_CI(wtp=wtp_range[1])
-        elif interval_type == 'p':
-            interval_at_min_wtp = self.get_PI(wtp=wtp_range[0])
-            interval_at_max_wtp = self.get_PI(wtp=wtp_range[1])
-        else:
-            raise ValueError('Invalid value for interval_type.')
-
-        line_lower_err = Line(x1=wtp_range[0],
-                              x2=wtp_range[1],
-                              y1=interval_at_min_wtp[0],
-                              y2=interval_at_max_wtp[0])
-        line_upper_err = Line(x1=wtp_range[0],
-                              x2=wtp_range[1],
-                              y1=interval_at_min_wtp[1],
-                              y2=interval_at_max_wtp[1])
-
-        if self.get_ave_d_effect() >= 0:
-            interval = [line_upper_err.get_intercept_with_x_axis(),
-                        line_lower_err.get_intercept_with_x_axis()]
-        else:
-            interval = [line_lower_err.get_intercept_with_x_axis(),
-                        line_upper_err.get_intercept_with_x_axis()]
-
-        return wtp, interval
-
 
 class INMB_Paired(_INMB):
 
@@ -2486,12 +2516,12 @@ class INMB_Paired(_INMB):
         _INMB.__init__(self, costs_new, effects_new, costs_base, effects_base, health_measure, name)
 
         # incremental observations
-        self._deltaCost = self._costsNew - self._costsBase
-        self._deltaHealth = (self._effectsNew - self._effectsBase) * self._effect_multiplier
+        self._deltaCosts = self._costsNew - self._costsBase
+        self._deltaEffects = (self._effectsNew - self._effectsBase) * self._effect_multiplier
 
         self._n = len(costs_new)
-        self._statDeltaCost = Stat.SummaryStat(name=self.name, data=self._deltaCost)
-        self._statDeltaHealth = Stat.SummaryStat(name=self.name, data=self._deltaHealth)
+        self._statDeltaCost = Stat.SummaryStat(name=self.name, data=self._deltaCosts)
+        self._statDeltaEffect = Stat.SummaryStat(name=self.name, data=self._deltaEffects)
 
     def get_CI(self, wtp, alpha=0.05):
         """
@@ -2505,7 +2535,7 @@ class INMB_Paired(_INMB):
         if self._n > 1:
             t = stat.t.ppf(1 - alpha / 2, self._n - 1)
 
-        st_dev = math.sqrt(wtp ** 2 * self._statDeltaHealth.get_var() + self._statDeltaCost.get_var())
+        st_dev = math.sqrt(wtp ** 2 * self._statDeltaEffect.get_var() + self._statDeltaCost.get_var())
         st_err = st_dev/math.sqrt(self._n)
 
         l = mean - t * st_err
@@ -2519,7 +2549,37 @@ class INMB_Paired(_INMB):
         :return: percentile interval in the format of list [l, u]
         """
         return Stat.SummaryStat(name=self.name,
-                                data=wtp * self._deltaHealth - self._deltaCost).get_PI(alpha)
+                                data=wtp * self._deltaEffects - self._deltaCosts).get_PI(alpha)
+
+    def get_switch_wtp_and_ci_interval(self, alpha=0.05, interval_type='n',
+                                       num_wtp_thresholds=1000, prior_range=None, rng=None):
+        """
+        :param alpha: (double) significance level, a value from [0, 1]
+        :param interval_type: (string) 'n' for none and 'c' for confidence interval
+        :param num_wtp_thresholds: (int) number of willingness-to-pay thresholds to evaluate posterior
+            when 'Bayesian' approach is selected
+        :param prior_range: (tuple) in form of (l, u) for the prior range of willingness-to-pay
+            threshold that makes NMB zero (if prior is not provided [0, 4 * ICER] will be used.
+        :param rng: random number generator to generate empirical bootstrap samples
+        :return: bayesian confidence interval in the format of list [l, u]
+        """
+
+        wtp = self.get_switch_wtp()
+
+        if interval_type == 'n':
+            return wtp, None
+        elif interval_type == 'c':
+            return wtp, get_bayesian_ci_for_switch_wtp(
+                delta_costs=self._deltaCosts,
+                delta_effects=self._deltaEffects,
+                alpha=alpha,
+                num_wtp_thresholds=num_wtp_thresholds,
+                prior_range=prior_range, rng=rng
+            )
+        elif interval_type == 'p':
+            raise ValueError('Not yet implemented.')
+        else:
+            raise ValueError('Invalid value for interval_type.')
 
 
 class INMB_Indp(_INMB):
