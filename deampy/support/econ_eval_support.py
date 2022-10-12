@@ -59,6 +59,7 @@ def get_index(strategy):
 
 
 def find_intersecting_wtp(w0, u_new, u_base):
+    # to find the intersecting WTP threshold for a general utility function
 
     if u_new(w0) > u_base(w0):
         return None

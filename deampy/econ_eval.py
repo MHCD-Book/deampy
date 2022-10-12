@@ -137,7 +137,8 @@ def get_bayesian_ci_for_switch_wtp(
     :param prior_range: (tuple) in form of (l, u) for the prior range of willingness-to-pay
             threshold that makes NMB zero (if prior is not provided [0, 4 * ICER] will be used.
     :param rng: random number generator to generate empirical bootstrap samples
-    :return: bayesian confidence interval in the format of list [l, u]
+    :return: bayesian confidence interval in the format of list [l, u] for the estimated WTP where
+        the NMB lines of two strategies intersect.
     """
 
     mean_d_cost = np.average(delta_costs)
@@ -189,32 +190,99 @@ def get_bayesian_ci_for_switch_wtp(
     return sum_stat.get_interval(interval_type='p', alpha=alpha)
 
 
-def get_diff(n, power, wtp_error, mean_d_effect, var_plus_error, var_minus_error):
+def get_prob_minus_power(n, power, true_wtp, wtp_error, mean_d_cost, mean_d_effect, var_plus_error, var_minus_error):
+    """
+    :param n: (int) the number of Monte Carlo samples
+    :param power: (double) between (0, 1), the minimum value we want
+        Pr{|true_wtp - estimated_wtp| < wtp_error} to be
+    :param true_wtp: (double) true wtp value
+    :param wtp_error: the error in estimating the true WTP value at which NMB lines of two alternatives intersect
+    :param mean_d_cost: (double) mean of incremental cost
+    :param mean_d_effect: (double) mean of incremental effect
+    :param var_plus_error: (double) variance of incremental NMB if true intersecting WTP is
+        true_wtp_intersection + wtp_error
+    :param var_minus_error: (double) variance of incremental NMB if true intersecting WTP is
+        true_wtp_intersection - wtp_error
+    :return: Pr{|true_wtp - estimated_wtp| < true_wtp * wtp_percent_error} - power for the given n
+    """
 
-    return stat.norm.cdf(x=0, loc=-wtp_error*mean_d_effect, scale=np.sqrt(var_plus_error/n)) \
-            - stat.norm.cdf(x=0, loc=wtp_error*mean_d_effect, scale=np.sqrt(var_minus_error/n)) \
-            - power
+    prob_plus_error_less_than_0 = stat.norm.cdf(
+        x=0, loc=mean_d_cost - (true_wtp + wtp_error) * mean_d_effect,
+        scale=np.sqrt(var_plus_error/n))
+
+    prob_minus_error_less_then_0 = stat.norm.cdf(
+        x=0, loc=mean_d_cost - (true_wtp - wtp_error) * mean_d_effect,
+        scale=np.sqrt(var_minus_error/n))
+
+    if mean_d_effect > 0:
+        return (prob_plus_error_less_than_0 - prob_minus_error_less_then_0) - power
+    else:
+        return -(prob_plus_error_less_than_0 - prob_minus_error_less_then_0) - power
 
 
-def get_min_monte_carlo_samples(true_wtp, wtp_percent_error, delta_costs, delta_effects, power=0.95):
+def get_min_monte_carlo_samples(
+        est_wtp_intersection, wtp_percent_error, delta_costs, delta_effects, power=0.95, n0=10):
+    """
+    calculates the minimum Monte Carlo samples that are needed for
+        Pr{estimated_wtp * (1-wtp_percent_error) < estimated_wtp < estimated_wtp * (1+wtp_percent_error)} > power
+    :param est_wtp_intersection: (double)
+        the estimated wtp threshold at which the NMB lines of two alternatives intersect.
+    :param wtp_percent_error: (double) % error in estimating the true WTP value at which NMB lines of two
+        alternatives intersect.
+    :param delta_costs: (list) of incremental cost observations
+    :param delta_effects: (list) of incremental effect observations
+    :param power: (double) between (0, 1), the minimum value we want
+        Pr{|true_wtp - estimated_wtp| < true_wtp * wtp_percent_error} to be
+    :return: (int) the minimum Monte Carlo samples needed for
+        Pr{|true_wtp - estimated_wtp| < true_wtp * wtp_percent_error} > power
+    """
 
+    if not (0 < wtp_percent_error <= 1):
+        raise ValueError('wtp_percent_error should be greater than 0 and less than or equal to 1.')
+    if est_wtp_intersection <= 0:
+        raise ValueError('est_wtp_intersection should be greater than 0.')
+
+    mean_d_cost = np.average(delta_costs)
     mean_d_effect = np.average(delta_effects)
 
+    # get variance of incremental NMB if true intersecting WTP is true_wtp_intersection * (1 + wtp_percent_error)
     var_plus_error = get_variance_of_incr_nmb(
-        wtp=true_wtp * (1+wtp_percent_error), delta_costs=delta_costs, delta_effects=delta_effects)
+        wtp=est_wtp_intersection * (1 + wtp_percent_error), delta_costs=delta_costs, delta_effects=delta_effects)
+
+    # get variance of incremental NMB if true intersecting WTP is true_wtp_intersection * (1 - wtp_percent_error)
     var_minus_error = get_variance_of_incr_nmb(
-        wtp=true_wtp * (1-wtp_percent_error), delta_costs=delta_costs, delta_effects=delta_effects)
+        wtp=est_wtp_intersection * (1 - wtp_percent_error), delta_costs=delta_costs, delta_effects=delta_effects)
 
-    root = optimize.newton(func=get_diff,
-                           args=(power, true_wtp*wtp_percent_error, mean_d_effect, var_plus_error, var_minus_error),
-                           x0=10, maxiter=1000)
+    # find the number of Monte Carlo samples where
+    # Pr{|true_wtp - estimated_wtp| < true_wtp * wtp_percent_error} > power
+    try:
+        root = optimize.newton(
+            func=get_prob_minus_power,
+            args=(power,
+                  est_wtp_intersection,
+                  est_wtp_intersection * wtp_percent_error,
+                  mean_d_cost,
+                  mean_d_effect,
+                  var_plus_error,
+                  var_minus_error),
+            x0=n0, maxiter=1000)
+    except RuntimeError:
+        root = n0
 
-    diff = get_diff(n=root, power=power, wtp_error=true_wtp*wtp_percent_error,
-                    mean_d_effect=mean_d_effect, var_plus_error=var_plus_error, var_minus_error=var_minus_error)
-    if abs(diff) > 0.01:
-        raise ValueError('A sample size that satisfies the power conditions could not be identified.')
+    # this is to check to make sure the condition
+    # Pr{|true_wtp - estimated_wtp| < true_wtp * wtp_percent_error} > power
+    # is satisfied for the calculated sample size
+    diff = get_prob_minus_power(
+        n=round(root) + 1, power=power,
+        true_wtp=est_wtp_intersection, wtp_error=est_wtp_intersection * wtp_percent_error,
+        mean_d_cost=mean_d_cost, mean_d_effect=mean_d_effect,
+        var_plus_error=var_plus_error, var_minus_error=var_minus_error)
+    if diff < 0:
+        raise ValueError('A sample size that satisfies the power conditions could not be identified. '
+                         'Changing the n0 parameter of this function might help.')
 
-    return round(root)+1
+    # round the estimated number of required Monte Carlo samples and increment it by 1
+    return round(root) + 1
 
 
 class Strategy:
@@ -321,7 +389,8 @@ class Strategy:
 
 
 class _EconEval:
-    """ super class for cost-effective analysis (CEA) and cost-benefit analysis (CBA) """
+    """ super class for cost-effective analysis (CEA),  cost-benefit analysis (CBA),
+        and budget-constrain health optimization (BCHO)"""
 
     def __init__(self, strategies, if_paired, health_measure='u', if_reset_strategies=False):
         """
@@ -428,6 +497,38 @@ class _EconEval:
                                       costs_base=self.strategies[0].costObs,
                                       effects_base=self.strategies[0].effectObs,
                                       health_measure=self._healthMeasure)
+
+    def find_minimum_monte_carlo_samples(
+            self, true_wtp_values=None, wtp_range=None, n=100, wtp_percent_error=0.1, power=0.95):
+
+        if true_wtp_values is None:
+            if wtp_range is None:
+                raise ValueError('Either true_wtp_values or wtp_range should be provided.')
+            else:
+                wtp_values = np.linspace(wtp_range[0], wtp_range[1], num=n, endpoint=True)
+        else:
+            wtp_values = true_wtp_values
+
+        # find the minimum required number of Monte Carlo samples for each true WTP value
+        ns = []
+        for w_true in wtp_values:
+            # minimum number of required Monte Carlo samples can be calculated only when true wtp value > 0
+            if w_true > 0:
+                max_n = 0
+                for i in range(self._n):
+                    for j in range(i+1, self._n):
+                        n = get_min_monte_carlo_samples(
+                            est_wtp_intersection=w_true,
+                            wtp_percent_error=wtp_percent_error,
+                            delta_costs=self.strategies[j].costObs - self.strategies[i].costObs,
+                            delta_effects=(self.strategies[j].effectObs - self.strategies[i].effectObs)*self._u_or_d,
+                            power=power)
+
+                        max_n = max(max_n, n)
+
+                ns.append(max_n)
+
+        return ns
 
 
 class CEA(_EconEval):
@@ -1170,7 +1271,6 @@ class CBA(_EconEval):
         self.acceptabilityCurves = []  # the list of acceptability curves
         self.expectedLossCurves = []  # the list of expected loss curves
         self.evpi = None
-        self.requiredMonteCarloSamples = 0
 
         # use net monetary benefit for utility by default
         if health_measure == 'u':
@@ -1397,14 +1497,12 @@ class CBA(_EconEval):
                 wtp_values=self.wtpValues, curves=self.expectedLossCurves)
 
     def find_optimal_switching_wtp_values(
-            self, interval_type='n', deci=0, alpha=0.05, num_wtp_thresholds=1000,
-            power_and_wtp_error=(0.95, 500)):
+            self, interval_type='n', deci=0, alpha=0.05, num_wtp_thresholds=1000):
 
         w_stars = []  # wtp values to switch between strategies
         w_star_intervals = [] # confidence intervals of optimal wtp values
         s_stars = []  # indices of optimal strategies between wtp values
         s_star_names = []   # names of optimal strategies
-        self.requiredMonteCarloSamples = 0
 
         # working wtp value
         w = self.wtpValues[0]
@@ -1445,15 +1543,6 @@ class CBA(_EconEval):
                         if w_star < w_min:
                             w_min = w_star
                             next_s_star = s.idx
-
-                            if power_and_wtp_error is not None:
-                                n = get_min_monte_carlo_samples(
-                                    true_wtp=w_min,
-                                    wtp_percent_error=power_and_wtp_error[1],
-                                    delta_costs=s.costObs-self.strategies[s_star].costObs,
-                                    delta_effects=(s.effectObs-self.strategies[s_star].effectObs)*self._u_or_d,
-                                    power=power_and_wtp_error[0])
-                                self.requiredMonteCarloSamples = max(self.requiredMonteCarloSamples, n)
 
             w = w_min
             s_star = next_s_star

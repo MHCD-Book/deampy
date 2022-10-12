@@ -27,10 +27,13 @@ print('Paired ICER:'
       ICER_paired.get_CI(0.05, method='Bayesian'),
       ICER_paired.get_PI(0.05)))
 
-for beta in (0.5, 0.7, 0.9, 0.95, 0.99):
-    print(EconEval.get_min_monte_carlo_samples(
-        power=beta, true_wtp=10000, wtp_percent_error=0.05,
-        delta_costs=ICER_paired._deltaCosts, delta_effects=ICER_paired._deltaEffects))
+print('Error', 'Beta', 'N')
+for error in (0.05, 0.1, 0.2):
+    for beta in (0.8, 0.9, 0.95, 0.99):
+        n = EconEval.get_min_monte_carlo_samples(
+            power=beta, est_wtp_intersection=ICER_paired.get_ICER(), wtp_percent_error=error,
+            delta_costs=ICER_paired._deltaCosts, delta_effects=ICER_paired._deltaEffects)
+        print(error, beta, n)
 
 # ICER calculation assuming independent observations
 ICER_indp = EconEval.ICER_Indp(costs_new=cost_intervention,
