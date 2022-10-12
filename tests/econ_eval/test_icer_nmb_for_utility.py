@@ -29,7 +29,7 @@ print('Paired ICER:'
 
 for beta in (0.5, 0.7, 0.9, 0.95, 0.99):
     print(EconEval.get_min_monte_carlo_samples(
-        power=beta, true_wtp=10000, wtp_error=500,
+        power=beta, true_wtp=10000, wtp_percent_error=0.05,
         delta_costs=ICER_paired._deltaCosts, delta_effects=ICER_paired._deltaEffects))
 
 # ICER calculation assuming independent observations

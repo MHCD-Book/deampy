@@ -196,24 +196,26 @@ def get_diff(n, power, wtp_error, mean_d_effect, var_plus_error, var_minus_error
             - power
 
 
-def get_min_monte_carlo_samples(true_wtp, wtp_error, delta_costs, delta_effects, power=0.95):
+def get_min_monte_carlo_samples(true_wtp, wtp_percent_error, delta_costs, delta_effects, power=0.95):
 
     mean_d_effect = np.average(delta_effects)
 
     var_plus_error = get_variance_of_incr_nmb(
-        wtp=true_wtp + wtp_error, delta_costs=delta_costs, delta_effects=delta_effects)
+        wtp=true_wtp * (1+wtp_percent_error), delta_costs=delta_costs, delta_effects=delta_effects)
     var_minus_error = get_variance_of_incr_nmb(
-        wtp=true_wtp - wtp_error, delta_costs=delta_costs, delta_effects=delta_effects)
+        wtp=true_wtp * (1-wtp_percent_error), delta_costs=delta_costs, delta_effects=delta_effects)
 
-    root = optimize.newton(func=get_diff, args=(power, wtp_error, mean_d_effect, var_plus_error, var_minus_error),
+    root = optimize.newton(func=get_diff,
+                           args=(power, true_wtp*wtp_percent_error, mean_d_effect, var_plus_error, var_minus_error),
                            x0=10, maxiter=1000)
 
-    diff = get_diff(n=root, power=power, wtp_error=wtp_error,
+    diff = get_diff(n=root, power=power, wtp_error=true_wtp*wtp_percent_error,
                     mean_d_effect=mean_d_effect, var_plus_error=var_plus_error, var_minus_error=var_minus_error)
     if abs(diff) > 0.01:
         raise ValueError('A sample size that satisfies the power conditions could not be identified.')
 
     return round(root)+1
+
 
 class Strategy:
     def __init__(self, name, cost_obs, effect_obs, color=None, marker='o', label=None, short_label=None):
@@ -1168,6 +1170,7 @@ class CBA(_EconEval):
         self.acceptabilityCurves = []  # the list of acceptability curves
         self.expectedLossCurves = []  # the list of expected loss curves
         self.evpi = None
+        self.requiredMonteCarloSamples = 0
 
         # use net monetary benefit for utility by default
         if health_measure == 'u':
@@ -1393,14 +1396,15 @@ class CBA(_EconEval):
             self.idxLowestExpLoss = update_curves_with_lowest_values(
                 wtp_values=self.wtpValues, curves=self.expectedLossCurves)
 
-    def find_optimal_switching_wtp_values(self, interval_type='n', deci=0):
-
-        raise ValueError('This needs to be updated and debugged.')
+    def find_optimal_switching_wtp_values(
+            self, interval_type='n', deci=0, alpha=0.05, num_wtp_thresholds=1000,
+            power_and_wtp_error=(0.95, 500)):
 
         w_stars = []  # wtp values to switch between strategies
-        w_star_intervals = [] # confidence or projection intervals of optimal wtp values
+        w_star_intervals = [] # confidence intervals of optimal wtp values
         s_stars = []  # indices of optimal strategies between wtp values
         s_star_names = []   # names of optimal strategies
+        self.requiredMonteCarloSamples = 0
 
         # working wtp value
         w = self.wtpValues[0]
@@ -1425,8 +1429,9 @@ class CBA(_EconEval):
         # find the optimal switching wtp values
         while w <= self.wtpValues[-1] and len(s_stars) < len(self.strategies):
 
-            # find the intersect of the current strategy with other
+            # find the intersection of the current strategy with other
             w_min = float('inf')
+            next_s_star = None
             for s in self.strategies:
                 if s.idx not in s_stars:
 
@@ -1439,9 +1444,19 @@ class CBA(_EconEval):
                     if w_star is not math.nan and w_star >= w:
                         if w_star < w_min:
                             w_min = w_star
-                            s_star = s.idx
+                            next_s_star = s.idx
+
+                            if power_and_wtp_error is not None:
+                                n = get_min_monte_carlo_samples(
+                                    true_wtp=w_min,
+                                    wtp_percent_error=power_and_wtp_error[1],
+                                    delta_costs=s.costObs-self.strategies[s_star].costObs,
+                                    delta_effects=(s.effectObs-self.strategies[s_star].effectObs)*self._u_or_d,
+                                    power=power_and_wtp_error[0])
+                                self.requiredMonteCarloSamples = max(self.requiredMonteCarloSamples, n)
 
             w = w_min
+            s_star = next_s_star
             if w != float('inf'):
                 w_stars.append(w)
                 s_stars.append(s_star)
@@ -1470,9 +1485,10 @@ class CBA(_EconEval):
                     health_measure=self._healthMeasure
                 )
 
-            w_star, interval = inmb.get_switch_wtp_and_interval(
-                wtp_range=[self.wtpValues[0], self.wtpValues[-1]],
-                interval_type=interval_type
+            w_star, interval = inmb.get_switch_wtp_and_ci_interval(
+                alpha=alpha,
+                interval_type=interval_type,
+                num_wtp_thresholds=num_wtp_thresholds,
             )
             w_star_intervals.append(interval)
 
@@ -1529,6 +1545,12 @@ class CBA(_EconEval):
 
         # curve
         self.inmbCurves.append(EVPI(xs=self.wtpValues, ys=self.evpi, label='PI', color='k'))
+
+    def built_table_of_optimal_switch_thresholds(self):
+
+        pass
+        # rows = self.find_optimal_switching_wtp_values(interval_type=, alpha=,num_wtp_thresholds=)
+
 
     def plot_incremental_nmbs(self,
                               title='Incremental Net Monetary Benefit',
