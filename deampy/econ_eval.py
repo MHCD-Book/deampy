@@ -498,37 +498,34 @@ class _EconEval:
                                       effects_base=self.strategies[0].effectObs,
                                       health_measure=self._healthMeasure)
 
-    def find_minimum_monte_carlo_samples(
-            self, true_wtp_values=None, wtp_range=None, n=100, wtp_percent_error=0.1, power=0.95):
-
-        if true_wtp_values is None:
-            if wtp_range is None:
-                raise ValueError('Either true_wtp_values or wtp_range should be provided.')
-            else:
-                wtp_values = np.linspace(wtp_range[0], wtp_range[1], num=n, endpoint=True)
-        else:
-            wtp_values = true_wtp_values
+    def find_minimum_monte_carlo_samples(self, max_wtp, wtp_percent_error=0.1, power=0.95):
 
         # find the minimum required number of Monte Carlo samples for each true WTP value
-        ns = []
-        for w_true in wtp_values:
-            # minimum number of required Monte Carlo samples can be calculated only when true wtp value > 0
-            if w_true > 0:
-                max_n = 0
-                for i in range(self._n):
-                    for j in range(i+1, self._n):
-                        n = get_min_monte_carlo_samples(
-                            est_wtp_intersection=w_true,
-                            wtp_percent_error=wtp_percent_error,
-                            delta_costs=self.strategies[j].costObs - self.strategies[i].costObs,
-                            delta_effects=(self.strategies[j].effectObs - self.strategies[i].effectObs)*self._u_or_d,
-                            power=power)
+        max_n = 0
+        for i in range(self._n):
+            for j in range(i+1, self._n):
 
-                        max_n = max(max_n, n)
+                s_i = self.strategies[i]
+                s_j = self.strategies[j]
 
-                ns.append(max_n)
+                # calculate intersecting wtp value
+                incr_cost = s_j.cost.get_mean() - s_i.cost.get_mean()
+                incr_effect = (s_j.effect.get_mean() - s_i.effect.get_mean()) * self._u_or_d
+                est_wtp_intersection = incr_cost/incr_effect
 
-        return ns
+                if 0 < est_wtp_intersection <= max_wtp:
+                    n = get_min_monte_carlo_samples(
+                        est_wtp_intersection=est_wtp_intersection,
+                        wtp_percent_error=wtp_percent_error,
+                        delta_costs=self.strategies[j].costObs - self.strategies[i].costObs,
+                        delta_effects=(self.strategies[j].effectObs - self.strategies[i].effectObs)*self._u_or_d,
+                        power=power)
+                else:
+                    n = 0
+
+                max_n = max(max_n, n)
+
+        return max_n
 
 
 class CEA(_EconEval):
