@@ -18,7 +18,8 @@ def add_histogram_to_ax(ax, data, title=None, color=None, bin_width=None, x_rang
     :param label:
     :param format_deci: [a, b] where a could be ',', '$', or '%' and b is the decimal point
     :param remove_y_labels: (bool) set to True to remove ticks and labels of the y-axis
-    :param linewidth: (double)
+    :param linewidth: (double) width of histogram lines
+    :param x_delta: (double)
     :return:
     """
 
@@ -33,14 +34,12 @@ def add_histogram_to_ax(ax, data, title=None, color=None, bin_width=None, x_rang
     ax.set_title(title)
     ax.yaxis.set_visible(not remove_y_labels)
 
-    if x_delta:
+    if x_delta is not None and x_range is not None:
         vals_x = []
-        if x_delta:
-            vals_x = []
-            x = x_range[0]
-            while x <= x_range[1]:
-                vals_x.append(x)
-                x += x_delta
+        x = x_range[0]
+        while x <= x_range[1]:
+            vals_x.append(x)
+            x += x_delta
         ax.set_xticks(vals_x)
 
     if format_deci is not None:

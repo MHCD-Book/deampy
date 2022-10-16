@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.interpolate import interp1d
 
-
 def format_ax(ax,
               x_range=None, x_delta=None,
               y_range=None, y_delta=None, if_y_axis_prob=True,
@@ -141,8 +140,23 @@ def add_curves_to_ax(ax, curves, title=None,
               y_axis_decimal=y_axis_decimal)
 
 
-def add_min_monte_carlo_samples_to_ax(ax, dict_of_ns, wtp_percent_errors, powers):
+def add_min_monte_carlo_samples_to_ax(ax, dict_of_ns, wtp_percent_errors, x_range=None, y_range=None):
 
     for power in dict_of_ns:
         ns = [dict_of_ns[power][key] for key in dict_of_ns[power]]
         ax.plot(wtp_percent_errors, ns)
+
+    if x_range:
+        ax.set_xlim(x_range)
+
+    if y_range:
+        ax.set_ylim(y_range)
+    else:
+        ax.set_ylim(0)
+
+    ax.set_xticks(wtp_percent_errors)
+    vals_x = ax.get_xticks()
+    ax.set_xticklabels(['{:.{prec}%}'.format(x, prec=0) for x in vals_x])
+
+    vals_y = ax.get_yticks()
+    ax.set_yticklabels(['{:,.{prec}f}'.format(y, prec=0) for y in vals_y])
