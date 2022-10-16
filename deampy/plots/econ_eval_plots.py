@@ -139,3 +139,10 @@ def add_curves_to_ax(ax, curves, title=None,
               if_y_axis_prob=if_y_axis_prob,
               if_format_y_numbers=if_format_y_numbers,
               y_axis_decimal=y_axis_decimal)
+
+
+def add_min_monte_carlo_samples_to_ax(ax, dict_of_ns, wtp_percent_errors, powers):
+
+    for power in dict_of_ns:
+        ns = [dict_of_ns[power][key] for key in dict_of_ns[power]]
+        ax.plot(wtp_percent_errors, ns)

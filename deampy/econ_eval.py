@@ -11,8 +11,8 @@ from scipy import optimize
 from scipy.stats import pearsonr
 
 import deampy.format_functions as F
-import deampy.in_out_functions as IO
-from deampy.plots.econ_eval_plots import add_curves_to_ax
+from deampy.in_out_functions import write_csv
+from deampy.plots.econ_eval_plots import add_curves_to_ax, add_min_monte_carlo_samples_to_ax
 from deampy.plots.plot_support import output_figure
 from deampy.statistics import SummaryStat
 from deampy.support.econ_eval_support import *
@@ -498,7 +498,16 @@ class _EconEval:
                                       effects_base=self.strategies[0].effectObs,
                                       health_measure=self._healthMeasure)
 
-    def find_minimum_monte_carlo_samples(self, max_wtp, wtp_percent_error=0.1, power=0.95):
+    def get_min_monte_carlo_samples(self, max_wtp, wtp_percent_error=0.1, power=0.95):
+        """
+        :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is reasonable to consider
+        :param wtp_percent_error: (double) % error in estimating the true WTP value at which NMB lines of two
+        alternatives intersect.
+        :param power: (double) between (0, 1), the minimum value we want
+            Pr{|true_wtp - estimated_wtp| < true_wtp * wtp_percent_error} to be
+        :return: (int) the minimum Monte Carlo samples needed for
+                Pr{|true_wtp - estimated_wtp| < true_wtp * wtp_percent_error} > power
+        """
 
         # find the minimum required number of Monte Carlo samples for each true WTP value
         max_n = 0
@@ -526,6 +535,66 @@ class _EconEval:
                 max_n = max(max_n, n)
 
         return max_n
+
+    def get_dict_min_monte_carlo_samples(self, max_wtp, wtp_percent_errors, powers):
+
+        if not isinstance(wtp_percent_errors, list):
+            wtp_percent_errors = [wtp_percent_errors]
+        if not isinstance(powers, list):
+            powers = [powers]
+
+        dic_of_ns = {}
+        for power in powers:
+            dic_of_ns[power] = {}
+            for err in wtp_percent_errors:
+                dic_of_ns[power][err] = self.get_min_monte_carlo_samples(
+                    max_wtp=max_wtp, wtp_percent_error=err, power=power)
+
+        return dic_of_ns
+
+    def print_minimum_monte_carlo_samples(self, max_wtp, wtp_percent_errors, powers, file_name):
+
+        dic_of_ns = self.get_dict_min_monte_carlo_samples(
+            max_wtp=max_wtp, wtp_percent_errors=wtp_percent_errors, powers=powers)
+
+        rows = [['Power\Error']]
+        for err in wtp_percent_errors:
+            rows[0].append(err)
+
+        for power in powers:
+            rows.append([power])
+            for err in wtp_percent_errors:
+                rows[-1].append(dic_of_ns[power][err])
+
+        write_csv(rows=rows, file_name=file_name)
+
+    def plot_min_monte_carlo_samples(self, max_wtp, wtp_percent_errors, powers, fig_size=(4, 4), filename=None):
+
+        dict_of_ns = self.get_dict_min_monte_carlo_samples(
+            max_wtp=max_wtp, wtp_percent_errors=wtp_percent_errors, powers=powers)
+
+        f, ax = plt.subplots(figsize=fig_size)
+        add_min_monte_carlo_samples_to_ax(
+            ax=ax, dict_of_ns=dict_of_ns, wtp_percent_errors=wtp_percent_errors, powers=powers)
+
+        output_figure(plt=f, filename=filename)
+
+        #
+        #
+        # if len(wtp_percent_errors) == 1 and len(powers) == 1:
+        #     return rows[wtp_percent_errors[0]][powers[0]]
+        #
+        # elif len(powers) == 1:
+        #     new_dict = {}
+        #     for err in wtp_percent_errors:
+        #         new_dict[err] = rows[err][powers[0]]
+        #     return new_dict
+        #
+        # elif len(wtp_percent_errors) == 1:
+        #     return rows[wtp_percent_errors[0]]
+        #
+        # else:
+        #     return rows
 
 
 class CEA(_EconEval):
@@ -694,7 +763,7 @@ class CEA(_EconEval):
 
             table.append(row)
 
-        IO.write_csv(file_name=file_name, directory=directory, rows=table, delimiter=',')
+        write_csv(file_name=file_name, directory=directory, rows=table, delimiter=',')
 
         # sort strategies back
         self.strategies.sort(key=get_index)
