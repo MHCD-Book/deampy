@@ -537,14 +537,18 @@ class _EconEval:
 
     def plot_min_monte_carlo_samples(
             self, max_wtp, wtp_percent_errors, powers,
-            y_range=None, fig_size=(4, 4), filename=None):
+            x_range=None, y_range=None, fig_size=(4, 4), filename=None):
 
         dict_of_ns = self.get_dict_min_monte_carlo_samples(
             max_wtp=max_wtp, wtp_percent_errors=wtp_percent_errors, powers=powers)
 
         f, ax = plt.subplots(figsize=fig_size)
         add_min_monte_carlo_samples_to_ax(
-            ax=ax, dict_of_ns=dict_of_ns, wtp_percent_errors=wtp_percent_errors, y_range=y_range)
+            ax=ax, dict_of_ns=dict_of_ns, wtp_percent_errors=wtp_percent_errors,
+            x_range=x_range, y_range=y_range)
+
+        ax.set_xlabel('Error Tolerance ($\epsilon$)')
+        ax.set_ylabel('Required Number of Monte Carlo Samples')
 
         output_figure(plt=f, filename=filename)
 

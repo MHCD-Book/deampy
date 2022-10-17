@@ -140,14 +140,18 @@ def add_curves_to_ax(ax, curves, title=None,
               y_axis_decimal=y_axis_decimal)
 
 
-def add_min_monte_carlo_samples_to_ax(ax, dict_of_ns, wtp_percent_errors, x_range=None, y_range=None):
+def add_min_monte_carlo_samples_to_ax(
+        ax, dict_of_ns, wtp_percent_errors, x_range=None, y_range=None):
 
+    colors = ('purple', 'blue', 'green', 'red')
+    markers = ('o', 'v', '^', 's')
+
+    i = 0
     for power in dict_of_ns:
         ns = [dict_of_ns[power][key] for key in dict_of_ns[power]]
-        ax.plot(wtp_percent_errors, ns)
-
-    if x_range:
-        ax.set_xlim(x_range)
+        ax.scatter(wtp_percent_errors, ns, marker=markers[i], color=colors[i], label=r'$\beta=${:.{prec}%}'.format(power, prec=0))
+        ax.plot(wtp_percent_errors, ns, 'k--', color=colors[i], linewidth=0.5)
+        i += 1
 
     if y_range:
         ax.set_ylim(y_range)
@@ -160,3 +164,8 @@ def add_min_monte_carlo_samples_to_ax(ax, dict_of_ns, wtp_percent_errors, x_rang
 
     vals_y = ax.get_yticks()
     ax.set_yticklabels(['{:,.{prec}f}'.format(y, prec=0) for y in vals_y])
+
+    if x_range:
+        ax.set_xlim(x_range)
+
+    ax.legend(fontsize=8)
