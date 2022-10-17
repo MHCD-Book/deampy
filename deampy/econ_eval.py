@@ -192,11 +192,6 @@ def get_bayesian_ci_for_switch_wtp(
     return sum_stat.get_interval(interval_type='p', alpha=alpha)
 
 
-def get_power(delta_costs, delta_effects, true_wtp):
-    pass
-
-
-
 def get_prob_minus_power(n, power, true_wtp, wtp_error, mean_d_cost, mean_d_effect, var_plus_error, var_minus_error):
     """
     :param n: (int) the number of Monte Carlo samples
@@ -231,7 +226,9 @@ def get_min_monte_carlo_samples(delta_costs, delta_effects, hypothesized_true_wt
     """
     :param delta_costs: (list) of incremental cost observations
     :param delta_effects: (list) of incremental effect observations
-    :param power: (double) between (0, 1)
+    :param hypothesized_true_wtp: (double) the hypothesized true WTP threshold at which the NMB lines cross
+    :param alpha: (double) significance level
+    :param power: (double) between (0, 1) the desired statistical power
     :return: (int) the minimum Monte Carlo samples needed
     """
 
@@ -463,13 +460,12 @@ class _EconEval:
 
     def get_min_monte_carlo_samples(self, max_wtp, wtp_percent_error=0.1, alpha=0.05, power=0.8):
         """
-        :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is reasonable to consider
+        :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
         :param wtp_percent_error: (double) % error in estimating the true WTP value at which NMB lines of two
         alternatives intersect.
-        :param power: (double) between (0, 1), the minimum value we want
-            Pr{|true_wtp - estimated_wtp| < true_wtp * wtp_percent_error} to be
-        :return: (int) the minimum Monte Carlo samples needed for
-                Pr{|true_wtp - estimated_wtp| < true_wtp * wtp_percent_error} > power
+        :param alpha: (double) significance level
+        :param power: (double) between (0, 1) the desired statistical power
+        :return: (int) the minimum Monte Carlo samples needed to achieve the desired statistical power
         """
 
         # find the minimum required number of Monte Carlo samples for each true WTP value
@@ -484,12 +480,16 @@ class _EconEval:
                 incr_effect = (s_j.effect.get_mean() - s_i.effect.get_mean()) * self._u_or_d
                 est_wtp_intersection = incr_cost / incr_effect
 
+                # power calculation is done only when the estimated WTP switch threshold is positive and
+                # below the maximum WTP value considered reasonable
                 if 0 < est_wtp_intersection <= max_wtp:
+                    # minimum number of samples for true_wtp * (1 + error tolerance)
                     n_u = get_min_monte_carlo_samples(
                         delta_costs=s_j.costObs - s_i.costObs,
                         delta_effects=s_j.effectObs - s_i.effectObs,
                         hypothesized_true_wtp=est_wtp_intersection*(1 + wtp_percent_error),
                         alpha=alpha, power=power)
+                    # minimum number of samples for true_wtp * (1 - error tolerance)
                     n_l = get_min_monte_carlo_samples(
                         delta_costs=s_j.costObs - s_i.costObs,
                         delta_effects=s_j.effectObs - s_i.effectObs,
@@ -503,7 +503,16 @@ class _EconEval:
 
         return max_n
 
-    def get_dict_min_monte_carlo_samples(self, max_wtp, wtp_percent_errors, powers=0.8, alpha=0.05):
+    def get_dict_min_monte_carlo_samples(self, max_wtp, wtp_percent_errors, powers=(0.8), alpha=0.05):
+        """
+        :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
+        :param wtp_percent_errors: (list) of % error in estimating the true WTP value at which NMB lines of two
+        alternatives intersect.
+        :param powers: (list) of statistical powers
+        :param alpha: (double) significance level
+        :return: (dictionary) of minimum Monte Carlo samples needed to achieve the desired statistical power
+            first key is power values and the second key is error tolerance
+        """
 
         if not isinstance(wtp_percent_errors, list):
             wtp_percent_errors = [wtp_percent_errors]
@@ -519,7 +528,17 @@ class _EconEval:
 
         return dic_of_ns
 
-    def print_minimum_monte_carlo_samples(self, max_wtp, wtp_percent_errors, powers, file_name):
+    def print_minimum_monte_carlo_samples(self, max_wtp, wtp_percent_errors, powers, file_name, alpha=0.05):
+        """
+        :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
+        :param wtp_percent_errors: (list) of % error in estimating the true WTP value at which NMB lines of two
+        alternatives intersect.
+        :param powers: (list) of statistical powers
+        :param file_name: (string) the filename to save the results as
+        :param alpha: (double) significance level
+        :return: (dictionary) of minimum Monte Carlo samples needed to achieve the desired statistical power
+            first key is power values and the second key is error tolerance
+        """
 
         dic_of_ns = self.get_dict_min_monte_carlo_samples(
             max_wtp=max_wtp, wtp_percent_errors=wtp_percent_errors, powers=powers)
@@ -538,6 +557,17 @@ class _EconEval:
     def plot_min_monte_carlo_samples(
             self, max_wtp, wtp_percent_errors, powers,
             x_range=None, y_range=None, fig_size=(4, 4), filename=None):
+        """ plots the minimum number of Monte Carlo samples needed to achieve the desired statistical power and
+            error tolerance
+        :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
+        :param wtp_percent_errors: (list) of % error in estimating the true WTP value at which NMB lines of two
+        alternatives intersect.
+        :param powers: (list) of statistical powers
+        :param x_range:
+        :param y_range:
+        :param fig_size:
+        :param filename: (string) filename to save the figure as
+        """
 
         dict_of_ns = self.get_dict_min_monte_carlo_samples(
             max_wtp=max_wtp, wtp_percent_errors=wtp_percent_errors, powers=powers)
@@ -551,23 +581,6 @@ class _EconEval:
         ax.set_ylabel('Required Number of Monte Carlo Samples')
 
         output_figure(plt=f, filename=filename)
-
-        #
-        #
-        # if len(wtp_percent_errors) == 1 and len(powers) == 1:
-        #     return rows[wtp_percent_errors[0]][powers[0]]
-        #
-        # elif len(powers) == 1:
-        #     new_dict = {}
-        #     for err in wtp_percent_errors:
-        #         new_dict[err] = rows[err][powers[0]]
-        #     return new_dict
-        #
-        # elif len(wtp_percent_errors) == 1:
-        #     return rows[wtp_percent_errors[0]]
-        #
-        # else:
-        #     return rows
 
 
 class CEA(_EconEval):
@@ -620,12 +633,15 @@ class CEA(_EconEval):
         
         return [s for s in self.strategies if s.ifDominated]
 
-    def get_wtp_thresholds(self,  with_confidence_intervals=True):
+    def get_wtp_switch_thresholds_on_frontier(self, with_confidence_intervals=True, alpha=0.05):
         """
-        :parameter with_confidence_intervals (bool) set to False if confidence intervals should not be calculated
+        :param with_confidence_intervals (bool) set to False
+            if Bayesian confidence intervals should not be calculated
+        :param alpha: (float) significance level
         :return: (dictionary) of strategies on the frontier with the estimate of WTP threshold
             at which the strategy becomes the optimal option.
-            key: strategy name and value: [wtp threshold, confidence interval].
+            key: strategy name and value: [wtp threshold, confidence interval]
+                or wtp threshold when confidence interval is not requested.
         """
 
         dic_of_strategies = {}
@@ -634,11 +650,11 @@ class CEA(_EconEval):
                 if with_confidence_intervals:
                     dic_of_strategies[s.name] = [
                         s.icer.get_ICER(),
-                        s.icer.get_CI(alpha=0.05,
+                        s.icer.get_CI(alpha=alpha,
                                       method='Bayesian',
                                       num_wtp_thresholds=1000)]
                 else:
-                    dic_of_strategies[s.name] = [s.icer.get_ICER()]
+                    dic_of_strategies[s.name] = s.icer.get_ICER()
 
         return dic_of_strategies
 
