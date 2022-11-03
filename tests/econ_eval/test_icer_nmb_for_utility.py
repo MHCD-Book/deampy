@@ -30,12 +30,22 @@ print('Paired ICER:'
 print('WTP', 'Beta', 'N')
 for wtp in (8000, 10000, 20000):
     for beta in (0.8, 0.9, 0.95, 0.99):
-        n = EconEval.get_min_monte_carlo_samples(
+        n = EconEval.get_min_monte_carlo_samples_power_calc(
             delta_costs=ICER_paired._deltaCosts,
             delta_effects=ICER_paired._deltaEffects,
             hypothesized_true_wtp=wtp,
             power=beta, alpha=0.05)
         print(wtp, beta, n)
+
+print('WTP', 'alpha', 'N')
+for wtp in (8000, 10000, 20000):
+    for alpha in (0.01, 0.05, 0.1):
+        n = EconEval.get_min_monte_carlo_samples(
+            delta_costs=ICER_paired._deltaCosts,
+            delta_effects=ICER_paired._deltaEffects,
+            hypothesized_true_wtp=wtp,
+            wtp_error_tolerance=1000, alpha=alpha)
+        print(wtp, alpha, n)
 
 # ICER calculation assuming independent observations
 ICER_indp = EconEval.ICER_Indp(costs_new=cost_intervention,
