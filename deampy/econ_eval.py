@@ -260,11 +260,15 @@ def get_min_monte_carlo_samples(delta_costs, delta_effects, hypothesized_true_wt
     :return: (int) minimum sample size required
     """
 
-    nmbs = delta_costs - hypothesized_true_wtp * delta_effects
-    mean_delta_effect = np.average(delta_effects)
+    # var(C/E) = E[C^2]E[1/E^2] - E^2[X]E^2[1/E]
+    e_c2 = np.average(delta_costs**2)
+    e_1_over_e2 = np.average(np.power(1/delta_effects, 2))
+    e2_c = np.average(delta_costs)**2
+    e2_1_over_e = np.average(1/delta_effects)**2
 
-    var = np.var(nmbs)
-    sample_size = var / pow(wtp_error_tolerance*mean_delta_effect, 2) / alpha
+    var = e_c2 * e_1_over_e2 - e2_c * e2_1_over_e
+
+    sample_size = var / pow(wtp_error_tolerance, 2) / alpha
     return round(sample_size) + 1
 
 
