@@ -565,26 +565,26 @@ class _EconEval:
         dic_of_ns = self.get_dict_min_monte_carlo_samples(
             max_wtp=max_wtp, wtp_percent_errors=wtp_percent_errors, alphas=alphas)
 
-        rows = [['Power\Error']]
+        rows = [['Alpha\Error']]
         for err in wtp_percent_errors:
             rows[0].append(err)
 
-        for power in powers:
-            rows.append([power])
+        for alpha in alphas:
+            rows.append([alpha])
             for err in wtp_percent_errors:
-                rows[-1].append(dic_of_ns[power][err])
+                rows[-1].append(dic_of_ns[alpha][err])
 
         write_csv(rows=rows, file_name=file_name)
 
     def plot_min_monte_carlo_samples(
-            self, max_wtp, wtp_percent_errors, powers,
+            self, max_wtp, wtp_percent_errors, alphas,
             x_range=None, y_range=None, fig_size=(4, 4), filename=None):
         """ plots the minimum number of Monte Carlo samples needed to achieve the desired statistical power and
             error tolerance
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
         :param wtp_percent_errors: (list) of % error in estimating the true WTP value at which NMB lines of two
         alternatives intersect.
-        :param powers: (list) of statistical powers
+        :param alphas: (list) of significance levels
         :param x_range:
         :param y_range:
         :param fig_size:
@@ -592,7 +592,7 @@ class _EconEval:
         """
 
         dict_of_ns = self.get_dict_min_monte_carlo_samples(
-            max_wtp=max_wtp, wtp_percent_errors=wtp_percent_errors, powers=powers)
+            max_wtp=max_wtp, wtp_percent_errors=wtp_percent_errors, alphas=alphas)
 
         f, ax = plt.subplots(figsize=fig_size)
         add_min_monte_carlo_samples_to_ax(

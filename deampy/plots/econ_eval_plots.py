@@ -147,9 +147,10 @@ def add_min_monte_carlo_samples_to_ax(
     markers = ('o', 'v', '^', 's')
 
     i = 0
-    for power in dict_of_ns:
-        ns = [dict_of_ns[power][key] for key in dict_of_ns[power]]
-        ax.scatter(wtp_percent_errors, ns, marker=markers[i], color=colors[i], label=r'$\beta=${:.{prec}%}'.format(power, prec=0))
+    for alpha in dict_of_ns:
+        ns = [dict_of_ns[alpha][key] for key in dict_of_ns[alpha]]
+        ax.scatter(wtp_percent_errors, ns, marker=markers[i], color=colors[i],
+                   label=r'$\alpha=${:.{prec}%}'.format(alpha, prec=0))
         ax.plot(wtp_percent_errors, ns, 'k--', color=colors[i], linewidth=0.5)
         i += 1
 
