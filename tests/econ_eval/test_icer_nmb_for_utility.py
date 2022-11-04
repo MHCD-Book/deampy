@@ -37,15 +37,15 @@ for wtp in (8000, 10000, 20000):
             power=beta, alpha=0.05)
         print(wtp, beta, n)
 
-print('WTP', 'alpha', 'N')
+print('WTP', 'INMB Error', 'N')
 for wtp in (8000, 10000, 20000):
-    for alpha in (0.01, 0.05, 0.1):
+    for inmb_error in (1000, 2000, 5000):
         n = EconEval.get_min_monte_carlo_samples(
             delta_costs=ICER_paired._deltaCosts,
             delta_effects=ICER_paired._deltaEffects,
             hypothesized_true_wtp=wtp,
-            wtp_error_tolerance=1000, alpha=alpha)
-        print(wtp, alpha, n)
+            inmb_error=inmb_error, alpha=0.05)
+        print(wtp, inmb_error, n)
 
 # ICER calculation assuming independent observations
 ICER_indp = EconEval.ICER_Indp(costs_new=cost_intervention,

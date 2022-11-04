@@ -245,7 +245,7 @@ def get_min_monte_carlo_samples_power_calc(delta_costs, delta_effects, hypothesi
     return round(sample_size) + 1
 
 
-def get_min_monte_carlo_samples(delta_costs, delta_effects, hypothesized_true_wtp, wtp_error_tolerance, alpha=0.05):
+def get_min_monte_carlo_samples(delta_costs, delta_effects, hypothesized_true_wtp, inmb_error, alpha=0.05):
     """
     calculates n such that the probability that the estimated incremental NMB at the hypothesized true WTP value
         is greater than a specified threshold is at most alpha:
@@ -255,20 +255,15 @@ def get_min_monte_carlo_samples(delta_costs, delta_effects, hypothesized_true_wt
     :param delta_costs: (list) of incremental cost observations
     :param delta_effects: (list) of incremental effect observations
     :param hypothesized_true_wtp: (double) the hypothesized true WTP threshold at which the NMB lines cross
-    :param wtp_error_tolerance: (double) epsilon in the formulate above
+    :param inmb_error: (double) epsilon in the formulate above
     :param alpha: (double) significance level
     :return: (int) minimum sample size required
     """
 
-    # var(C/E) = E[C^2]E[1/E^2] - E^2[X]E^2[1/E]
-    e_c2 = np.average(delta_costs**2)
-    e_1_over_e2 = np.average(np.power(1/delta_effects, 2))
-    e2_c = np.average(delta_costs)**2
-    e2_1_over_e = np.average(1/delta_effects)**2
+    var = get_variance_of_incr_nmb(
+        wtp=hypothesized_true_wtp, delta_costs=delta_costs, delta_effects=delta_effects)
 
-    var = e_c2 * e_1_over_e2 - e2_c * e2_1_over_e
-
-    sample_size = var / pow(wtp_error_tolerance, 2) / alpha
+    sample_size = var / pow(inmb_error, 2) / alpha
     return round(sample_size) + 1
 
 
@@ -485,11 +480,12 @@ class _EconEval:
                                       effects_base=self.strategies[0].effectObs,
                                       health_measure=self._healthMeasure)
 
-    def get_min_monte_carlo_samples(self, max_wtp, wtp_percent_error=0.1, alpha=0.05):
+    def get_min_monte_carlo_samples(self, max_wtp, wtp_error=1000, inmb_error=50000, alpha=0.05):
         """
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
-        :param wtp_percent_error: (double) % error in estimating the true WTP value at which NMB lines of two
+        :param wtp_error: (double) % error in estimating the true WTP value at which NMB lines of two
         alternatives intersect.
+        :param inmb_error: (double)
         :param alpha: (double) significance level
         :return: (int) the minimum Monte Carlo samples needed
         """
@@ -513,15 +509,15 @@ class _EconEval:
                     n_u = get_min_monte_carlo_samples(
                         delta_costs=s_j.costObs - s_i.costObs,
                         delta_effects=s_j.effectObs - s_i.effectObs,
-                        hypothesized_true_wtp=est_wtp_intersection*(1 + wtp_percent_error),
-                        wtp_error_tolerance=est_wtp_intersection * wtp_percent_error,
+                        hypothesized_true_wtp=est_wtp_intersection + wtp_error,
+                        inmb_error=inmb_error,
                         alpha=alpha)
                     # minimum number of samples for true_wtp * (1 - error tolerance)
                     n_l = get_min_monte_carlo_samples(
                         delta_costs=s_j.costObs - s_i.costObs,
                         delta_effects=s_j.effectObs - s_i.effectObs,
-                        hypothesized_true_wtp=est_wtp_intersection * (1 - wtp_percent_error),
-                        wtp_error_tolerance=est_wtp_intersection * wtp_percent_error,
+                        hypothesized_true_wtp=est_wtp_intersection - wtp_error,
+                        inmb_error=inmb_error,
                         alpha=alpha)
                 else:
                     n_u = 0
@@ -531,64 +527,73 @@ class _EconEval:
 
         return max_n
 
-    def get_dict_min_monte_carlo_samples(self, max_wtp, wtp_percent_errors=0.05, alphas=0.05):
+    def get_dict_min_monte_carlo_samples(
+            self, max_wtp, wtp_errors, inmb_errors, alpha=0.05):
         """
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
-        :param wtp_percent_errors: (list) of % error in estimating the true WTP value at which NMB lines of two
+        :param wtp_errors: (list) of % error in estimating the true WTP value at which NMB lines of two
         alternatives intersect.
-        :param alphas: (list) of significance levels
+        :param inmb_errors: (list)
+        :param alpha: (list) of significance levels
         :return: (dictionary) of minimum Monte Carlo samples needed to achieve the desired statistical power
             first key is power values and the second key is error tolerance
         """
 
-        if not isinstance(wtp_percent_errors, list):
-            wtp_percent_errors = [wtp_percent_errors]
-        if not isinstance(alphas, list):
-            alphas = [alphas]
+        if not isinstance(wtp_errors, list):
+            wtp_errors = [wtp_errors]
+        if not isinstance(inmb_errors, list):
+            inmb_errors = [inmb_errors]
 
         dic_of_ns = {}
-        for alpha in alphas:
-            dic_of_ns[alpha] = {}
-            for err in wtp_percent_errors:
-                dic_of_ns[alpha][err] = self.get_min_monte_carlo_samples(
-                    max_wtp=max_wtp, wtp_percent_error=err, alpha=alpha)
+        for inmb_err in inmb_errors:
+            dic_of_ns[inmb_err] = {}
+            for wtp_err in wtp_errors:
+                dic_of_ns[inmb_err][wtp_err] = self.get_min_monte_carlo_samples(
+                    max_wtp=max_wtp, wtp_error=wtp_err, inmb_error=inmb_err, alpha=alpha)
 
         return dic_of_ns
 
-    def print_minimum_monte_carlo_samples(self, max_wtp, wtp_percent_errors, file_name, alphas=0.05):
+    def print_minimum_monte_carlo_samples(
+            self, max_wtp, wtp_errors, inmb_errors, file_name, alpha=0.05):
         """
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
-        :param wtp_percent_errors: (list) of % error in estimating the true WTP value at which NMB lines of two
+        :param wtp_errors: (list) of % error in estimating the true WTP value at which NMB lines of two
         alternatives intersect.
+        :param inmb_errors:
         :param file_name: (string) the filename to save the results as
-        :param alphas: (list) of significance levels
+        :param alpha: significance level
         :return: (dictionary) of minimum Monte Carlo samples needed to achieve the desired statistical power
             first key is power values and the second key is error tolerance
         """
 
+        if not isinstance(wtp_errors, list):
+            wtp_errors = [wtp_errors]
+        if not isinstance(inmb_errors, list):
+            inmb_errors = [inmb_errors]
+
         dic_of_ns = self.get_dict_min_monte_carlo_samples(
-            max_wtp=max_wtp, wtp_percent_errors=wtp_percent_errors, alphas=alphas)
+            max_wtp=max_wtp, wtp_errors=wtp_errors, inmb_errors=inmb_errors, alpha=alpha)
 
-        rows = [['Alpha\Error']]
-        for err in wtp_percent_errors:
-            rows[0].append(err)
+        rows = [['INMB Error/WTP Error']]
+        for wtp_err in wtp_errors:
+            rows[0].append(wtp_err)
 
-        for alpha in alphas:
-            rows.append([alpha])
-            for err in wtp_percent_errors:
-                rows[-1].append(dic_of_ns[alpha][err])
+        for inmb_err in inmb_errors:
+            rows.append([inmb_err])
+            for wtp_err in wtp_errors:
+                rows[-1].append(dic_of_ns[inmb_err][wtp_err])
 
         write_csv(rows=rows, file_name=file_name)
 
     def plot_min_monte_carlo_samples(
-            self, max_wtp, wtp_percent_errors, alphas,
+            self, max_wtp, wtp_errors, inmb_errors, alpha,
             x_range=None, y_range=None, fig_size=(4, 4), filename=None):
         """ plots the minimum number of Monte Carlo samples needed to achieve the desired statistical power and
             error tolerance
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
-        :param wtp_percent_errors: (list) of % error in estimating the true WTP value at which NMB lines of two
+        :param wtp_errors: (list) of % error in estimating the true WTP value at which NMB lines of two
         alternatives intersect.
-        :param alphas: (list) of significance levels
+        :param inmb_errors: (list) of significance levels
         :param x_range:
         :param y_range:
         :param fig_size:
@@ -596,14 +601,14 @@ class _EconEval:
         """
 
         dict_of_ns = self.get_dict_min_monte_carlo_samples(
-            max_wtp=max_wtp, wtp_percent_errors=wtp_percent_errors, alphas=alphas)
+            max_wtp=max_wtp, wtp_errors=wtp_errors, inmb_errors=inmb_errors, alpha=alpha)
 
         f, ax = plt.subplots(figsize=fig_size)
         add_min_monte_carlo_samples_to_ax(
-            ax=ax, dict_of_ns=dict_of_ns, wtp_percent_errors=wtp_percent_errors,
+            ax=ax, dict_of_ns=dict_of_ns, wtp_percent_errors=wtp_errors,
             x_range=x_range, y_range=y_range)
 
-        ax.set_xlabel('Error Tolerance ($\epsilon$)')
+        ax.set_xlabel('WTP Error Tolerance ($\epsilon$)')
         ax.set_ylabel('Required Number of Monte Carlo Samples')
 
         output_figure(plt=f, filename=filename)
