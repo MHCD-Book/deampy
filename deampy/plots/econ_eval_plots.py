@@ -141,7 +141,7 @@ def add_curves_to_ax(ax, curves, title=None,
 
 
 def add_min_monte_carlo_samples_to_ax(
-        ax, dict_of_ns, wtp_percent_errors, x_range=None, y_range=None):
+        ax, dict_of_ns, epsilons, x_range=None, y_range=None, x_multiplier=1):
 
     colors = ('purple', 'blue', 'green', 'red')
     markers = ('o', 'v', '^', 's')
@@ -149,9 +149,9 @@ def add_min_monte_carlo_samples_to_ax(
     i = 0
     for alpha in dict_of_ns:
         ns = [dict_of_ns[alpha][key] for key in dict_of_ns[alpha]]
-        ax.scatter(wtp_percent_errors, ns, marker=markers[i], color=colors[i],
+        ax.scatter(epsilons, ns, marker=markers[i], color=colors[i],
                    label=r'$\alpha=${:.{prec}%}'.format(alpha, prec=0))
-        ax.plot(wtp_percent_errors, ns, 'k--', color=colors[i], linewidth=0.5)
+        ax.plot(epsilons, ns, 'k--', color=colors[i], linewidth=0.5)
         i += 1
 
     if y_range:
@@ -159,9 +159,9 @@ def add_min_monte_carlo_samples_to_ax(
     else:
         ax.set_ylim(0)
 
-    ax.set_xticks(wtp_percent_errors)
+    ax.set_xticks(epsilons)
     vals_x = ax.get_xticks()
-    ax.set_xticklabels(['{:.{prec}%}'.format(x, prec=0) for x in vals_x])
+    ax.set_xticklabels(['${:,.{prec}f}'.format(x*x_multiplier, prec=0) for x in vals_x])
 
     vals_y = ax.get_yticks()
     ax.set_yticklabels(['{:,.{prec}f}'.format(y, prec=0) for y in vals_y])
