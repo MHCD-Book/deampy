@@ -262,18 +262,15 @@ def get_min_monte_carlo_samples(delta_costs, delta_effects, max_wtp, epsilon, al
 
     mean_delta_cost = np.average(delta_costs)
     mean_delta_effect = np.average(delta_effects)
-    wtp = min(mean_delta_cost/mean_delta_effect, max_wtp)
+    r = mean_delta_cost/mean_delta_effect
 
-    if wtp < 0:
+    if r < 0 or r > max_wtp:
         return 0
-
     else:
         var = get_variance_of_incr_nmb(
-            wtp=wtp, delta_costs=delta_costs, delta_effects=delta_effects)
+            wtp=r, delta_costs=delta_costs, delta_effects=delta_effects)
 
-        d_effect = max(mean_delta_effect, mean_delta_cost/max_wtp)
-
-        sample_size = var / pow(epsilon * d_effect, 2) / alpha
+        sample_size = var / pow(epsilon * mean_delta_effect, 2) / alpha
         return round(sample_size) + 1
 
 
@@ -602,6 +599,8 @@ class _EconEval:
 
         ax.set_xlabel(x_label)
         ax.set_ylabel(y_label)
+
+        f.tight_layout()
 
         output_figure(plt=f, filename=filename)
 
