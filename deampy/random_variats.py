@@ -392,7 +392,7 @@ class Empirical(RVG):
         """
         # this works for both numpy array and list
         # ref:https://stackoverflow.com/questions/4265988/generate-random-numbers-with-a-given-numerical-distribution
-        return rng.choice(range(self.nOutcomes), size=1, p=self.prob)[0]
+        return rng.choice(range(self.nOutcomes), p=self.prob)
 
     @staticmethod
     def fit_mm(data, bin_size=1):
