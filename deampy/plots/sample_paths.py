@@ -15,7 +15,7 @@ def plot_sample_path(sample_path,
     :param x_label: (string) x-axis label
     :param y_label: (string) y-axis label
     :param figure_size: (tuple) figure size
-    :param file_name: (string) filename to to save the histogram as (e.g. 'fig.png')
+    :param file_name: (string) filename to save the histogram as (e.g. 'fig.png')
     :param legend: (string) the legend
     :param color_code: (string) for example: 'b' blue 'g' green 'r' red 'c' cyan 'm' magenta 'y' yellow 'k' black
     :param connect: (string) set to 'step' to produce an step graph and to 'line' to produce a line graph
@@ -26,16 +26,14 @@ def plot_sample_path(sample_path,
             'sample_path should be an instance of PrevalenceSamplePath or PrevalencePathBatchUpdate.')
 
     fig, ax = plt.subplots(figsize=figure_size)
-    ax.set_title(title)  # title
-    ax.set_xlabel(x_label)  # x-axis label
-    ax.set_ylabel(y_label)  # y-axis label
 
     # add a sample path to this ax
     add_sample_path_to_ax(sample_path=sample_path,
                           ax=ax,
                           color_code=color_code,
                           legend=legend,
-                          connect=connect)
+                          connect=connect,
+                          x_label=x_label, y_label=y_label, title=title)
     ax.set_ylim(bottom=0)  # the minimum has to be set after plotting the values
 
     if isinstance(sample_path, PrevalenceSamplePath):
@@ -145,13 +143,16 @@ def plot_sets_of_sample_paths(sets_of_sample_paths,
                                    transparency=transparency,
                                    connect=connect)
 
-    # set the minimum of y-axis to zero
-    ax.set_ylim(bottom=0)  # the minimum has to be set after plotting the values
+    # # set the minimum of y-axis to zero
+    # ax.set_ylim(bottom=0)  # the minimum has to be set after plotting the values
     # output figure
     output_figure(fig, file_name)
 
 
-def add_sample_path_to_ax(sample_path, ax, color_code=None, legend=None, transparency=1, connect='step'):
+def add_sample_path_to_ax(sample_path, ax, color_code=None, legend=None, transparency=1, connect='step',
+                          title=None, x_label=None, y_label=None,
+                          x_range=None, y_range=None,
+                          ):
 
     # x and y values
     if isinstance(sample_path, PrevalenceSamplePath):
@@ -168,6 +169,12 @@ def add_sample_path_to_ax(sample_path, ax, color_code=None, legend=None, transpa
     else:
         ax.plot(x_values, y_values, color=color_code,
                 linewidth=0.75, label=legend, alpha=transparency)
+
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_xlim(x_range)
+    ax.set_ylim(y_range)
 
     # add legend if provided
     if legend is not None:

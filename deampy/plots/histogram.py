@@ -4,8 +4,9 @@ import numpy as np
 from deampy.plots.plot_support import output_figure
 
 
-def add_histogram_to_ax(ax, data, title=None, color=None, bin_width=None, x_range=None,
-                        transparency=1.0, label=None, format_deci=None, remove_y_labels=False,
+def add_histogram_to_ax(ax, data, title=None, color=None, bin_width=None,
+                        x_label=None, y_label=None, x_range=None, y_range=None,
+                        transparency=0.75, format_deci=None, remove_y_labels=False,
                         linewidth=1, x_delta=None):
     """
     :param ax: (axis)
@@ -15,7 +16,6 @@ def add_histogram_to_ax(ax, data, title=None, color=None, bin_width=None, x_rang
     :param bin_width:
     :param x_range:
     :param transparency:
-    :param label:
     :param format_deci: [a, b] where a could be ',', '$', or '%' and b is the decimal point
     :param remove_y_labels: (bool) set to True to remove ticks and labels of the y-axis
     :param linewidth: (double) width of histogram lines
@@ -28,11 +28,14 @@ def add_histogram_to_ax(ax, data, title=None, color=None, bin_width=None, x_rang
             color=color,
             edgecolor='black',
             linewidth=linewidth,
-            alpha=transparency,
-            label=label)
+            alpha=transparency)
     ax.set_xlim(x_range)
     ax.set_title(title)
     ax.yaxis.set_visible(not remove_y_labels)
+
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
 
     if x_delta is not None and x_range is not None:
         vals_x = []
@@ -41,6 +44,9 @@ def add_histogram_to_ax(ax, data, title=None, color=None, bin_width=None, x_rang
             vals_x.append(x)
             x += x_delta
         ax.set_xticks(vals_x)
+
+    ax.set_xlim(x_range)
+    ax.set_ylim(y_range)
 
     if format_deci is not None:
         vals = ax.get_xticks()
@@ -74,20 +80,17 @@ def plot_histogram(data, title=None,
 
     fig, ax = plt.subplots(figsize=figure_size)
 
-    ax.set_title(title)
-    ax.set_xlabel(x_label)
-    ax.set_ylabel(y_label)
-
     # add histogram
     add_histogram_to_ax(ax=ax,
                         data=data,
                         color=color,
                         bin_width=bin_width,
+                        title=title,
+                        x_label=x_label,
+                        y_label=y_label,
                         x_range=x_range,
+                        y_range=y_range,
                         transparency=0.75)
-
-    ax.set_xlim(x_range)
-    ax.set_ylim(y_range)
 
     # add legend if provided
     if legend is not None:
