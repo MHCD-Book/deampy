@@ -30,7 +30,7 @@ def plot_sample_path(sample_path,
     # add a sample path to this ax
     add_sample_path_to_ax(sample_path=sample_path,
                           ax=ax,
-                          color_code=color_code,
+                          color=color_code,
                           legend=legend,
                           connect=connect,
                           x_label=x_label, y_label=y_label, title=title)
@@ -49,7 +49,7 @@ def plot_sample_paths(sample_paths,
                       title=None, x_label=None, y_label=None,
                       x_range=None, y_range=None,
                       figure_size=None, file_name=None,
-                      legends=None, transparency=1,
+                      legends=None, legend_fontsize=8, transparency=1,
                       color_codes=None,
                       common_color_code=None, connect='step'):
     """ graphs multiple sample paths
@@ -60,8 +60,9 @@ def plot_sample_paths(sample_paths,
     :param x_range: (list) [x_min, x_max]
     :param y_range: (list) [y_min, y_max]
     :param figure_size: (tuple) figure size
-    :param file_name: (string) filename to to save the histogram as (e.g. 'fig.png')
+    :param file_name: (string) filename to save the histogram as (e.g. 'fig.png')
     :param legends: (list) of strings for legend
+    :param legend_fontsize: (float) legend font size
     :param transparency: (float) 0.0 transparent through 1.0 opaque
     :param color_codes: (list) of color code for sample paths
     :param common_color_code: (string) color code if all sample paths should have the same color
@@ -92,9 +93,9 @@ def plot_sample_paths(sample_paths,
     # add legend if provided
     if legends is not None:
         if common_color_code is None:
-            ax.legend(legends)
+            ax.legend(legends, fontsize=legend_fontsize)
         else:
-            ax.legend([legends])
+            ax.legend([legends], fontsize=legend_fontsize)
 
     # set the minimum of y-axis to zero
     ax.set_ylim(bottom=0)  # the minimum has to be set after plotting the values
@@ -127,9 +128,6 @@ def plot_sets_of_sample_paths(sets_of_sample_paths,
         raise ValueError('Only one set of sample paths is provided. Use plot_sample_paths instead.')
 
     fig, ax = plt.subplots(figsize=figure_size)
-    ax.set_title(title)  # title
-    ax.set_xlabel(x_label)  # x-axis label
-    ax.set_ylabel(y_label)  # y-axis label
     if x_range is not None:
         ax.set_xlim(x_range)
     if y_range is not None:
@@ -143,15 +141,18 @@ def plot_sets_of_sample_paths(sets_of_sample_paths,
                                    transparency=transparency,
                                    connect=connect)
 
+    ax.set_title(title)  # title
+    ax.set_xlabel(x_label)  # x-axis label
+    ax.set_ylabel(y_label)  # y-axis label
     # # set the minimum of y-axis to zero
     # ax.set_ylim(bottom=0)  # the minimum has to be set after plotting the values
     # output figure
     output_figure(fig, file_name)
 
 
-def add_sample_path_to_ax(sample_path, ax, color_code=None, legend=None, transparency=1, connect='step',
+def add_sample_path_to_ax(sample_path, ax, legend=None, color=None, transparency=1.0, connect='step',
                           title=None, x_label=None, y_label=None,
-                          x_range=None, y_range=None,
+                          x_range=None, y_range=None, legend_fontsize=8
                           ):
 
     # x and y values
@@ -164,10 +165,10 @@ def add_sample_path_to_ax(sample_path, ax, color_code=None, legend=None, transpa
 
     # plot the sample path
     if connect == 'step':
-        ax.step(x=x_values, y=y_values, where='post', color=color_code,
+        ax.step(x=x_values, y=y_values, where='post', color=color,
                 linewidth=0.75, label=legend, alpha=transparency)
     else:
-        ax.plot(x_values, y_values, color=color_code,
+        ax.plot(x_values, y_values, color=color,
                 linewidth=0.75, label=legend, alpha=transparency)
 
     ax.set_title(title)
@@ -178,10 +179,13 @@ def add_sample_path_to_ax(sample_path, ax, color_code=None, legend=None, transpa
 
     # add legend if provided
     if legend is not None:
-        ax.legend()
+        ax.legend(fontsize=legend_fontsize)
 
 
-def add_sample_paths_to_ax(sample_paths, ax, color_codes, common_color_code, transparency, connect):
+def add_sample_paths_to_ax(sample_paths, ax, color_codes=None, common_color_code=None, transparency=0.5,
+                           connect='step', legends=None, legend_fontsize=8,
+                           title=None, x_label=None, y_label=None,
+                           x_range=None, y_range=None):
 
     # add every path
     for i, path in enumerate(sample_paths):
@@ -191,11 +195,22 @@ def add_sample_paths_to_ax(sample_paths, ax, color_codes, common_color_code, tra
             color = common_color_code
         else:
             color = None
+
+        legend = None if legends is None else legends[i]
+
         add_sample_path_to_ax(sample_path=path,
                               ax=ax,
-                              color_code=color,
+                              color=color,
+                              legend=legend,
+                              legend_fontsize=legend_fontsize,
                               transparency=transparency,
                               connect=connect)
+
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_xlim(x_range)
+    ax.set_ylim(y_range)
 
 
 def add_sets_of_sample_paths_to_ax(sets_of_sample_paths, ax, color_codes, legends, transparency, connect):
@@ -213,7 +228,7 @@ def add_sets_of_sample_paths_to_ax(sets_of_sample_paths, ax, color_codes, legend
                 this_color_code = color_codes[i]
             add_sample_path_to_ax(sample_path=path,
                                   ax=ax,
-                                  color_code=this_color_code,
+                                  color=this_color_code,
                                   legend=legend,
                                   transparency=transparency,
                                   connect=connect)
