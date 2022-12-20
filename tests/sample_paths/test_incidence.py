@@ -27,7 +27,7 @@ Path.plot_sample_path(
     x_label='Time Period',
     y_label='observed value',
     legend='Path 1',
-    color_code='r',
+    color='r',
     connect='line')
 
 Path.plot_sample_path(
@@ -36,5 +36,5 @@ Path.plot_sample_path(
     x_label='Time Period',
     y_label='observed value',
     legend='Path 2',
-    color_code='r',
+    color='r',
     connect='line')

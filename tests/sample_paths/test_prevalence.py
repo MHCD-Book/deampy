@@ -31,7 +31,7 @@ Path.plot_sample_path(
     x_label='time',
     y_label='observed value',
     legend='Path 1',
-    color_code='r',
+    color='r',
     connect='step')
 
 # plot path 3 only
@@ -41,7 +41,7 @@ Path.plot_sample_path(
     x_label='time',
     y_label='observed value',
     legend='Path 3',
-    color_code='r')
+    color='r')
 
 # plot both paths
 Path.plot_sample_paths(

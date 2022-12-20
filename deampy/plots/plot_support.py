@@ -5,12 +5,16 @@ import deampy.format_functions as F
 from deampy.support.misc_functions import *
 
 
-def output_figure(plt, filename=None, dpi=300, bbox_inches='tight'):
+def output_figure(plt, filename=None, dpi=300, tight_layout=True, bbox_inches='tight'):
     """
     :param plt: reference to the plot
     :param filename: filename to save this figure as (e.g. 'figure.png') (if None, the figure will be displayed)
     :param dpi: dpi of the figure
     """
+
+    if tight_layout:
+        plt.tight_layout()
+
     # output
     if filename is None:
         plt.show()

@@ -6,20 +6,24 @@ from deampy.plots.plot_support import output_figure
 
 def add_histogram_to_ax(ax, data, title=None, label=None, color=None, bin_width=None,
                         x_label=None, y_label=None, x_range=None, y_range=None,
-                        transparency=0.75, format_deci=None, remove_y_labels=False,
+                        transparency=0.75, format_deci=None, remove_y_labels=True,
                         linewidth=0.5, x_delta=None):
     """
     :param ax: (axis)
-    :param data: (list) of observations
-    :param title: (strig) title of the histogram
-    :param color:
-    :param bin_width:
-    :param x_range:
-    :param transparency:
+    :param data: (list) observations
+    :param title: (string) title of the figure
+    :param label: (string) label of this histogram used in the figure legend
+    :param x_label: (string) x-axis label
+    :param y_label: (string) y-axis label
+    :param color: (string) color
+    :param bin_width: (integer) bin width
+    :param x_range: (list with 2 elements) minimum and maximum of x-axis
+    :param y_range: (list with 2 elements) minimum and maximum of y-axis
+    :param transparency: (float) between 0 and 1 for the transparency of histogram bins
     :param format_deci: [a, b] where a could be ',', '$', or '%' and b is the decimal point
     :param remove_y_labels: (bool) set to True to remove ticks and labels of the y-axis
     :param linewidth: (double) width of histogram lines
-    :param x_delta: (double)
+    :param x_delta: (double) distance between x_axis ticks and labels
     :return:
     """
 
@@ -62,7 +66,7 @@ def add_histogram_to_ax(ax, data, title=None, label=None, color=None, bin_width=
 
 
 def plot_histogram(data, title=None,
-                   x_label=None, y_label=None, bin_width=None,
+                   x_label=None, y_label=None, bin_width=None, transparency=0.5,
                    x_range=None, y_range=None, figure_size=None,
                    color=None, legend=None, file_name=None):
     """ plot a histogram
@@ -71,6 +75,7 @@ def plot_histogram(data, title=None,
     :param x_label: (string) x-axis label
     :param y_label: (string) y-axis label
     :param bin_width: bin width
+    :param transparency: (float) between 0 and 1 for the transparency of histogram bins
     :param x_range: (list with 2 elements) minimum and maximum of x-axis
     :param y_range: (list with 2 elements) minimum and maximum of y-axis
     :param figure_size: (tuple) figure size
@@ -91,7 +96,7 @@ def plot_histogram(data, title=None,
                         y_label=y_label,
                         x_range=x_range,
                         y_range=y_range,
-                        transparency=0.75)
+                        transparency=transparency)
 
     # add legend if provided
     if legend is not None:
@@ -101,7 +106,7 @@ def plot_histogram(data, title=None,
     output_figure(fig, file_name)
 
 
-def add_histograms_to_ax(ax, data_sets, legends, legend_fontsize=8, bin_width=None,
+def add_histograms_to_ax(ax, data_sets, legends=None, legend_fontsize=8, bin_width=None,
                          title=None, x_label=None, y_label=None,
                          x_range=None, y_range=None,
                          color_codes=None, transparency=1):
@@ -112,20 +117,27 @@ def add_histograms_to_ax(ax, data_sets, legends, legend_fontsize=8, bin_width=No
         if color_codes is not None:
             color = color_codes[i]
 
+        labels = []
+        if legends is None:
+            labels = [None]*len(data_sets)
+        else:
+            labels = legends
+
         add_histogram_to_ax(ax=ax,
                             data=data,
                             bin_width=bin_width,
                             x_range=x_range,
                             color=color,
                             transparency=transparency,
-                            label=legends[i])
+                            label=labels[i])
 
     ax.set_title(title)
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
     ax.set_xlim(x_range)
     ax.set_ylim(y_range)
-    ax.legend(fontsize=legend_fontsize)
+    if legends is not None:
+        ax.legend(fontsize=legend_fontsize)
 
 
 def plot_histograms(data_sets, legends, bin_width=None,

@@ -7,7 +7,7 @@ from deampy.sample_path import *
 def plot_sample_path(sample_path,
                      title=None, x_label=None, y_label=None,
                      figure_size=None, file_name=None,
-                     legend=None, color_code=None, connect='step'):
+                     legend=None, color=None, transparency=0.75, connect='step'):
     """
     plot a sample path
     :param sample_path: a sample path
@@ -17,8 +17,9 @@ def plot_sample_path(sample_path,
     :param figure_size: (tuple) figure size
     :param file_name: (string) filename to save the histogram as (e.g. 'fig.png')
     :param legend: (string) the legend
-    :param color_code: (string) for example: 'b' blue 'g' green 'r' red 'c' cyan 'm' magenta 'y' yellow 'k' black
-    :param connect: (string) set to 'step' to produce an step graph and to 'line' to produce a line graph
+    :param color: (string) for example: 'b' blue 'g' green 'r' red 'c' cyan 'm' magenta 'y' yellow 'k' black
+    :param transparency: (float) between 0 and 1 for the transparency of curves
+    :param connect: (string) set to 'step' to produce a step graph and to 'line' to produce a line graph
     """
 
     if not (isinstance(sample_path, IncidenceSamplePath) or isinstance(sample_path, PrevalenceSamplePath)):
@@ -30,7 +31,7 @@ def plot_sample_path(sample_path,
     # add a sample path to this ax
     add_sample_path_to_ax(sample_path=sample_path,
                           ax=ax,
-                          color=color_code,
+                          color=color, transparency=transparency,
                           legend=legend,
                           connect=connect,
                           x_label=x_label, y_label=y_label, title=title)
@@ -213,7 +214,8 @@ def add_sample_paths_to_ax(sample_paths, ax, color_codes=None, common_color_code
     ax.set_ylim(y_range)
 
 
-def add_sets_of_sample_paths_to_ax(sets_of_sample_paths, ax, color_codes, legends, transparency, connect):
+def add_sets_of_sample_paths_to_ax(
+        sets_of_sample_paths, ax, color_codes, legends, transparency, connect='step'):
 
     # add every path
     for i, sample_paths in enumerate(sets_of_sample_paths):
