@@ -98,56 +98,58 @@ def mytest_relative_diff_stat_indp(x, y, expected_value, st_dev):
     print_results(relative_stat)
 
 
-# x_deff = y + increase
-# x_ratio = y * ratio
-# x_relative_ratio = y * (ration + 1)
-Y_MEAN, Y_SD = 10, 4
-INCREASE, INCREASE_SD = 3, 1
-RATIO, RATIO_SD = 2, 0.5
+if __name__ == "__main__":
 
-# generate sample data
-y = numpy.random.normal(Y_MEAN, Y_SD, 5000)
-increase = numpy.random.normal(INCREASE, INCREASE_SD, 5000)
-ratio = numpy.random.normal(RATIO, RATIO_SD, 5000)
+    # x_deff = y + increase
+    # x_ratio = y * ratio
+    # x_relative_ratio = y * (ration + 1)
+    Y_MEAN, Y_SD = 10, 4
+    INCREASE, INCREASE_SD = 3, 1
+    RATIO, RATIO_SD = 2, 0.5
 
-x_diff = y + increase
-x_ratio = numpy.multiply(y, ratio)
-x_relative_ratio = numpy.multiply(y, ratio + 1)
+    # generate sample data
+    y = numpy.random.normal(Y_MEAN, Y_SD, 5000)
+    increase = numpy.random.normal(INCREASE, INCREASE_SD, 5000)
+    ratio = numpy.random.normal(RATIO, RATIO_SD, 5000)
 
-# populate a data set to test continuous-time statistics
-sampleT = []
-sampleObs = []
-i = 0
-for i in range(0, 100):
-    t = numpy.random.uniform(i, i + 1)
-    sampleT.append(t)
-    sampleObs.append(10*t)
+    x_diff = y + increase
+    x_ratio = numpy.multiply(y, ratio)
+    x_relative_ratio = numpy.multiply(y, ratio + 1)
 
-# test summary statistics
-mytest_summary_stat(data=y, expected_value=Y_MEAN, st_dev=Y_SD)
+    # populate a data set to test continuous-time statistics
+    sampleT = []
+    sampleObs = []
+    i = 0
+    for i in range(0, 100):
+        t = numpy.random.uniform(i, i + 1)
+        sampleT.append(t)
+        sampleObs.append(10*t)
 
-# test discrete-time statistics
-mytest_discrete_time(data=y)
+    # test summary statistics
+    mytest_summary_stat(data=y, expected_value=Y_MEAN, st_dev=Y_SD)
 
-# test continuous-time statistics
-mytest_continuous_time(times=sampleT, observations=sampleObs)
+    # test discrete-time statistics
+    mytest_discrete_time(data=y)
 
-# test statistics for the difference of two independent samples
-mytest_diff_stat_paired(x=x_diff, y=y, expected_value=INCREASE, st_dev=INCREASE_SD)
+    # test continuous-time statistics
+    mytest_continuous_time(times=sampleT, observations=sampleObs)
 
-# test statistics for the ratio of two independent samples
-mytest_diff_stat_indp(x=x_diff, y=y,
-                      expected_value=INCREASE,
-                      st_dev=numpy.sqrt(pow(INCREASE_SD, 2) + 2*pow(Y_SD, 2)))
+    # test statistics for the difference of two independent samples
+    mytest_diff_stat_paired(x=x_diff, y=y, expected_value=INCREASE, st_dev=INCREASE_SD)
 
-# test statistics for the difference of two paired samples
-mytest_ratio_stat_paired(x=x_ratio, y=y, expected_value=RATIO, st_dev=RATIO_SD)
-#
-# test statistics for the relative difference of two paired samples
-mytest_ratio_stat_indp(x=x_ratio, y=y, expected_value='Unknown', st_dev='Unknown')
-#
-# test statistics for the ratio of two paired samples
-mytest_relative_diff_stat_paired(x=x_relative_ratio, y=y, expected_value='Unknown', st_dev='Unknown')
-#
-# test statistics for the relative difference of two independent samples
-mytest_relative_diff_stat_indp(x=x_relative_ratio, y=y, expected_value='Unknown', st_dev='Unknown')
+    # test statistics for the ratio of two independent samples
+    mytest_diff_stat_indp(x=x_diff, y=y,
+                          expected_value=INCREASE,
+                          st_dev=numpy.sqrt(pow(INCREASE_SD, 2) + 2*pow(Y_SD, 2)))
+
+    # test statistics for the difference of two paired samples
+    mytest_ratio_stat_paired(x=x_ratio, y=y, expected_value=RATIO, st_dev=RATIO_SD)
+    #
+    # test statistics for the relative difference of two paired samples
+    mytest_ratio_stat_indp(x=x_ratio, y=y, expected_value='Unknown', st_dev='Unknown')
+    #
+    # test statistics for the ratio of two paired samples
+    mytest_relative_diff_stat_paired(x=x_relative_ratio, y=y, expected_value='Unknown', st_dev='Unknown')
+    #
+    # test statistics for the relative difference of two independent samples
+    mytest_relative_diff_stat_indp(x=x_relative_ratio, y=y, expected_value='Unknown', st_dev='Unknown')

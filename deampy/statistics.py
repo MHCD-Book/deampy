@@ -297,14 +297,14 @@ class SummaryStat(_Statistics):
         """
 
         # set random number generator seed
-        np.random.seed(1)
+        rng = np.random.RandomState(1)
 
         # initialize delta array
         delta = np.zeros(num_samples)
 
         # obtain bootstrap samples
         for i in range(num_samples):
-            sample_i = np.random.choice(self._data, size=self._n, replace=True)
+            sample_i = rng.choice(self._data, size=self._n, replace=True)
             delta[i] = sample_i.mean() - self.get_mean()
 
         # return [l, u]
@@ -581,11 +581,11 @@ class DifferenceStatIndp(_DifferenceStat):
 
         # generate random realizations for random variable X - Y
         # this will be used for calculating the projection interval
-        np.random.seed(1)
+        rng = np.random.RandomState(1)
         # find the maximum of the number of observations
         max_n = max(self._x_n, self._y_n, NUM_BOOTSTRAP_SAMPLES)
-        x_i = np.random.choice(self._x, size=max_n, replace=True)
-        y_i = np.random.choice(self._y_ref, size=max_n, replace=True)
+        x_i = rng.choice(self._x, size=max_n, replace=True)
+        y_i = rng.choice(self._y_ref, size=max_n, replace=True)
         self._sum_stat_sample_delta = SummaryStat(x_i - y_i, self.name)
 
         self._XMinusYSimulated = True
@@ -640,7 +640,7 @@ class DifferenceStatIndp(_DifferenceStat):
         n = NUM_BOOTSTRAP_SAMPLES if num_samples is None else num_samples
 
         # set random number generator seed
-        np.random.seed(1)
+        rng = np.random.RandomState(1)
 
         # find number of bootstrap samples
         n = max(self._x_n, self._y_n, n)
@@ -650,8 +650,8 @@ class DifferenceStatIndp(_DifferenceStat):
 
         # obtain bootstrap samples
         for i in range(n):
-            x_i = np.random.choice(self._x, size=n, replace=True)
-            y_i = np.random.choice(self._y_ref, size=n, replace=True)
+            x_i = rng.choice(self._x, size=n, replace=True)
+            y_i = rng.choice(self._y_ref, size=n, replace=True)
             d_temp = x_i - y_i
             diff[i] = np.mean(d_temp)
 
@@ -801,11 +801,12 @@ class RatioStatIndp(_RatioStat):
     def _simulate_x_over_y(self):
 
         # generate random realizations for random variable X/Y
-        np.random.seed(1)
+        rng = np.random.RandomState(1)
+
         # find the maximum of the number of observations
         max_n = max(self._x_n, self._y_n, NUM_BOOTSTRAP_SAMPLES)
-        x_resample = np.random.choice(self._x, size=max_n, replace=True)
-        y_resample = np.random.choice(self._y_ref, size=max_n, replace=True)
+        x_resample = rng.choice(self._x, size=max_n, replace=True)
+        y_resample = rng.choice(self._y_ref, size=max_n, replace=True)
 
         self._XOverYSimulated = True
         self._ifComputable = True
@@ -877,7 +878,7 @@ class RatioStatIndp(_RatioStat):
 
     def get_t_CI(self, alpha):
 
-        if self._x_n > 1 and self._y_n>1:
+        if self._x_n > 1 and self._y_n > 1:
             mean = self.get_mean()
             hl = self.get_t_half_length(alpha)
             return [mean - hl, mean + hl]
@@ -892,20 +893,38 @@ class RatioStatIndp(_RatioStat):
         """
 
         # set random number generator seed
-        np.random.seed(1)
+        rng = np.random.RandomState(1)
 
-        # initialize ratio array
-        ratio = np.zeros(num_samples)
+        # initialize delta array
+        delta = np.zeros(num_samples)
 
         # obtain bootstrap samples
         n = max(self._x_n, self._y_n)
+        mean = self.get_mean()
         for i in range(num_samples):
-            x_i = np.random.choice(self._x, size=n, replace=True)
-            y_i = np.random.choice(self._y_ref, size=n, replace=True)
-            r_temp = np.divide(x_i, y_i)
-            ratio[i] = np.mean(r_temp)
+            x_i = rng.choice(self._x, size=n, replace=True)
+            y_i = rng.choice(self._y_ref, size=n, replace=True)
+            ratios_i = np.divide(x_i, y_i)
+            delta[i] = np.mean(ratios_i) - mean
 
-        return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
+        # return [l, u]
+        return self.get_mean() - np.percentile(delta, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
+
+        # # set random number generator seed
+        # rng = np.random.RandomState(1)
+        #
+        # # initialize ratio array
+        # ratio = np.zeros(num_samples)
+        #
+        # # obtain bootstrap samples
+        # n = max(self._x_n, self._y_n)
+        # for i in range(num_samples):
+        #     x_i = rng.choice(self._x, size=n, replace=True)
+        #     y_i = rng.choice(self._y_ref, size=n, replace=True)
+        #     r_temp = np.divide(x_i, y_i)
+        #     ratio[i] = np.mean(r_temp)
+        #
+        # return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
 
     def get_PI(self, alpha):
 
@@ -1026,11 +1045,11 @@ class RelativeDifferenceIndp(_RelativeDifference):
     def _simulate_x_minus_y_over_y(self):
 
         # generate random realizations for random variable (X-Y)/Y
-        np.random.seed(1)
+        rng = np.random.RandomState(1)
         # find the maximum of the number of observations
         max_n = max(self._x_n, self._y_n, NUM_BOOTSTRAP_SAMPLES)
-        x_resample = np.random.choice(self._x, size=max_n, replace=True)
-        y_resample = np.random.choice(self._y_ref, size=max_n, replace=True)
+        x_resample = rng.choice(self._x, size=max_n, replace=True)
+        y_resample = rng.choice(self._y_ref, size=max_n, replace=True)
 
         self._XMinusYOverYSimulated = True
         self._ifComputable = True
@@ -1132,7 +1151,7 @@ class RelativeDifferenceIndp(_RelativeDifference):
         """
 
         # set random number generator seed
-        np.random.seed(1)
+        rng = np.random.RandomState(1)
 
         # initialize ratio array
         ratio = np.zeros(num_samples)
@@ -1140,8 +1159,8 @@ class RelativeDifferenceIndp(_RelativeDifference):
         # obtain bootstrap samples
         n = max(self._x_n, self._y_n)
         for i in range(num_samples):
-            x_i = np.random.choice(self._x, size=n, replace=True)
-            y_i = np.random.choice(self._y_ref, size=n, replace=True)
+            x_i = rng.choice(self._x, size=n, replace=True)
+            y_i = rng.choice(self._y_ref, size=n, replace=True)
             r_temp = np.divide(x_i, y_i) - 1
             ratio[i] = np.mean(r_temp)
 
