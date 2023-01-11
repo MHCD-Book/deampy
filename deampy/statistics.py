@@ -868,22 +868,28 @@ class RatioStatIndp(_RatioStat):
             return math.nan
 
     def get_t_half_length(self, alpha):
+        """ cannot be calculated for ratio statistics """
 
-        if not self._XOverYSimulated:
-            self._simulate_x_over_y()
-        if self._ifComputable:
-            return self._sum_stat_sample_ratio.get_t_half_length(alpha)
-        else:
-            return math.nan
+        return math.nan
+
+        # if not self._XOverYSimulated:
+        #     self._simulate_x_over_y()
+        # if self._ifComputable:
+        #     return self._sum_stat_sample_ratio.get_t_half_length(alpha)
+        # else:
+        #     return math.nan
 
     def get_t_CI(self, alpha):
+        """ cannot be calculated for ratio statistics """
 
-        if self._x_n > 1 and self._y_n > 1:
-            mean = self.get_mean()
-            hl = self.get_t_half_length(alpha)
-            return [mean - hl, mean + hl]
-        else:
-            return [math.nan, math.nan]
+        return [math.nan, math.nan]
+
+        # if self._x_n > 1 and self._y_n > 1:
+        #     mean = self.get_mean()
+        #     hl = self.get_t_half_length(alpha)
+        #     return [mean - hl, mean + hl]
+        # else:
+        #     return [math.nan, math.nan]
 
     def get_bootstrap_CI(self, alpha, num_samples):
         """
@@ -908,7 +914,7 @@ class RatioStatIndp(_RatioStat):
             delta[i] = np.mean(ratios_i) - mean
 
         # return [l, u]
-        return self.get_mean() - np.percentile(delta, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
+        return mean - np.percentile(delta, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
 
         # # set random number generator seed
         # rng = np.random.RandomState(1)
@@ -1126,22 +1132,28 @@ class RelativeDifferenceIndp(_RelativeDifference):
             return [math.nan, math.nan]
 
     def get_t_half_length(self, alpha):
+        """ cannot be calculated for ratio statistics """
 
-        if not self._XMinusYOverYSimulated:
-            self._simulate_x_minus_y_over_y()
-        if self._ifComputable:
-            return self._sum_stat_sample_relativeRatio.get_t_half_length(alpha)
-        else:
-            return math.nan
+        return math.nan
+
+        # if not self._XMinusYOverYSimulated:
+        #     self._simulate_x_minus_y_over_y()
+        # if self._ifComputable:
+        #     return self._sum_stat_sample_relativeRatio.get_t_half_length(alpha)
+        # else:
+        #     return math.nan
 
     def get_t_CI(self, alpha):
+        """ cannot be calculated for ratio statistics """
 
-        if self._x_n > 1 and self._y_n>1:
-            mean = self.get_mean()
-            hl = self.get_t_half_length(alpha)
-            return [mean - hl, mean + hl]
-        else:
-            return [math.nan, math.nan]
+        return [math.nan, math.nan]
+
+        # if self._x_n > 1 and self._y_n>1:
+        #     mean = self.get_mean()
+        #     hl = self.get_t_half_length(alpha)
+        #     return [mean - hl, mean + hl]
+        # else:
+        #     return [math.nan, math.nan]
 
     def get_bootstrap_CI(self, alpha, num_samples):
         """
@@ -1154,17 +1166,22 @@ class RelativeDifferenceIndp(_RelativeDifference):
         rng = np.random.RandomState(1)
 
         # initialize ratio array
-        ratio = np.zeros(num_samples)
+        delta = np.zeros(num_samples)
 
         # obtain bootstrap samples
         n = max(self._x_n, self._y_n)
+        mean = self.get_mean()
         for i in range(num_samples):
             x_i = rng.choice(self._x, size=n, replace=True)
             y_i = rng.choice(self._y_ref, size=n, replace=True)
-            r_temp = np.divide(x_i, y_i) - 1
-            ratio[i] = np.mean(r_temp)
+            if self._order == 0:
+                ratios_i = np.divide(x_i, y_i) - 1
+            else:
+                ratios_i = 1 - np.divide(x_i, y_i)
+            delta[i] = np.mean(ratios_i) - mean
 
-        return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
+        return mean - np.percentile(delta, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
+        # return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
 
     def get_PI(self, alpha):
 
