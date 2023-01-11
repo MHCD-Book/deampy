@@ -74,7 +74,7 @@ def mytest_ratio_stat_indp(x, y, expected_value, st_dev):
     print_results(ratio_stat)
 
 
-def mytest_ratio_stat_paied(x, y, expected_value, st_dev):
+def mytest_ratio_stat_paired(x, y, expected_value, st_dev):
     # define
     ratio_stat = stat.RatioStatPaired(x=x, y_ref=y, name='Test RatioStatPaired')
 
@@ -82,19 +82,21 @@ def mytest_ratio_stat_paied(x, y, expected_value, st_dev):
     print_results(ratio_stat)
 
 
-def mytest_relativeDiff_stat_paied(x, y, expected_value, st_dev):
+def mytest_relative_diff_stat_paired(x, y, expected_value, st_dev):
     # define
     relative_stat = stat.RelativeDifferencePaired(x=x, y_ref=y, name='Test RelativeDifferencePaired')
 
     print('Testing RelativeDifferencePaired (E = {}, sd = {}):'.format(expected_value, st_dev))
     print_results(relative_stat)
 
-def mytest_relativeDiff_stat_indp(x, y, expected_value, st_dev):
+
+def mytest_relative_diff_stat_indp(x, y, expected_value, st_dev):
     # define
     relative_stat = stat.RelativeDifferenceIndp(x=x, y_ref=y, name='Test RelativeDifferenceIndp')
 
     print('Testing RelativeDifferenceIndp (E = {}, sd = {}):'.format(expected_value, st_dev))
     print_results(relative_stat)
+
 
 # x_deff = y + increase
 # x_ratio = y * ratio
@@ -111,14 +113,6 @@ ratio = numpy.random.normal(RATIO, RATIO_SD, 5000)
 x_diff = y + increase
 x_ratio = numpy.multiply(y, ratio)
 x_relative_ratio = numpy.multiply(y, ratio + 1)
-
-# y_ind = numpy.random.normal(5, 2, 1000)
-# delta = numpy.random.normal(5, 1, 1000)
-# ratio = numpy.random.normal(2, 1, 1000)
-# y_ratio_paired = numpy.divide(x, ratio)
-# relative_ratio = numpy.random.normal(0.5, 0.1, 1000)
-# y_relativeRatio_paired = numpy.divide(x, 1+ratio)
-
 
 # populate a data set to test continuous-time statistics
 sampleT = []
@@ -147,13 +141,13 @@ mytest_diff_stat_indp(x=x_diff, y=y,
                       st_dev=numpy.sqrt(pow(INCREASE_SD, 2) + 2*pow(Y_SD, 2)))
 
 # test statistics for the difference of two paired samples
-mytest_ratio_stat_paied(x=x_ratio, y=y, expected_value=RATIO, st_dev=RATIO_SD)
+mytest_ratio_stat_paired(x=x_ratio, y=y, expected_value=RATIO, st_dev=RATIO_SD)
 #
 # test statistics for the relative difference of two paired samples
 mytest_ratio_stat_indp(x=x_ratio, y=y, expected_value='Unknown', st_dev='Unknown')
 #
 # test statistics for the ratio of two paired samples
-mytest_relativeDiff_stat_paied(x=x_relative_ratio, y=y, expected_value='Unknown', st_dev='Unknown')
+mytest_relative_diff_stat_paired(x=x_relative_ratio, y=y, expected_value='Unknown', st_dev='Unknown')
 #
 # test statistics for the relative difference of two independent samples
-mytest_relativeDiff_stat_indp(x=x_relative_ratio, y=y, expected_value='Unknown', st_dev='Unknown')
+mytest_relative_diff_stat_indp(x=x_relative_ratio, y=y, expected_value='Unknown', st_dev='Unknown')
