@@ -11,6 +11,8 @@ COLOR_DISCRETE_FIT = 'r'
 MIN_PROP = 0.001
 MAX_PROB = 0.999
 MAX_PROB_DISCRETE = 0.999999
+LEGEND_FONT_SIZE = 8
+LINE_WIDTH = 2
 
 
 def find_bins(data, bin_width):
@@ -32,7 +34,7 @@ def add_hist(ax, data, bin_width):
             edgecolor='black', alpha=0.5, label='Data')
 
 
-def add_continuous_dist(ax, dist, label):
+def add_continuous_dist(ax, dist, label, color=None):
     """ add the distribution of the provided continuous probability distribution to the axis
     :param ax: figure axis
     :param dist: probability distribution
@@ -42,7 +44,8 @@ def add_continuous_dist(ax, dist, label):
     x_values = np.linspace(dist.ppf(MIN_PROP),
                            dist.ppf(MAX_PROB), 200)
     ax.plot(x_values, dist.pdf(x_values),
-            color=COLOR_CONTINUOUS_FIT, lw=2, label=label)
+            color=COLOR_CONTINUOUS_FIT if color is None else color,
+            lw=LINE_WIDTH, label=label)
 
 
 def add_discrete_dist(ax, dist, label):
@@ -56,7 +59,7 @@ def add_discrete_dist(ax, dist, label):
 
     # probability mass function needs to be shifted to match the histogram
     pmf = dist.pmf(x_values)
-    pmf = np.append([0], pmf[:-1])
+    pmf = np.append(pmf[0], pmf[:-1])
 
     ax.step(x_values, pmf, color=COLOR_DISCRETE_FIT, lw=2, label=label)
 
@@ -82,21 +85,37 @@ def finish_ax(ax, data, bin_width, title, x_label, x_range, y_range, filename):
 
     # format axis
     format_fig(ax=ax, title=title, x_label=x_label, x_range=x_range, y_range=y_range)
-    ax.legend()
+    ax.legend(fontsize=LEGEND_FONT_SIZE)
 
     Fig.output_figure(plt=plt, filename=filename, dpi=300)
+
+
+def plot_continuous_dists(data, dists, labels, colors, title=None, x_label=None, x_range=None, y_range=None,
+                          fig_size=(6, 5), bin_width=None, filename=None):
+
+    # plot histogram
+    fig, ax = plt.subplots(1, 1, figsize=fig_size)
+
+    # plot the distributions
+    for dist, label, color in zip(dists, labels, colors):
+        add_continuous_dist(ax, dist, label=label, color=color)
+
+    # add histogram and format
+    finish_ax(ax=ax, data=data, bin_width=bin_width,
+              title=title, x_label=x_label, x_range=x_range, y_range=y_range,
+              filename=filename)
 
 
 def plot_fit_continuous(data, dist, label, title=None, x_label=None, x_range=None, y_range=None,
                         fig_size=(6, 5), bin_width=None, filename=None):
     """ plots the pdf of a continuous probability distribution a long with the histogram of data. """
 
-    # plot histogram
     fig, ax = plt.subplots(1, 1, figsize=fig_size)
 
     # plot the distribution
     add_continuous_dist(ax, dist, label=label)
 
+    # add histogram and format
     finish_ax(ax=ax, data=data, bin_width=bin_width,
               title=title, x_label=x_label, x_range=x_range, y_range=y_range,
               filename=filename)
@@ -106,17 +125,87 @@ def plot_fit_discrete(data, dist, label, title=None, x_label=None, x_range=None,
                       fig_size=(6, 5), bin_width=None, filename=None):
     """ plots the pmf of a discrete probability distribution a long with the histogram of data. """
 
-    # plot histogram
     fig, ax = plt.subplots(1, 1, figsize=fig_size)
 
     # plot the distribution
     add_discrete_dist(ax, dist, label=label)
 
+    # add histogram and format
     finish_ax(ax=ax, data=data, bin_width=bin_width,
               title=title, x_label=x_label, x_range=x_range, y_range=y_range,
               filename=filename)
 
 
+# ---- return distributions based on fit results ----
+def get_beta_dist(fit_results):
+    return stat.beta(fit_results['a'], fit_results['b'], fit_results['loc'], fit_results['scale'])
+
+
+def get_beta_binomial_dist(fit_results):
+    return stat.betabinom(n=fit_results['n'], a=fit_results['a'], b=fit_results['b'], loc=fit_results['loc'])
+
+
+def get_binomial_dist(fit_results):
+    return stat.binom(n=int(fit_results['n']), p=fit_results['p'], loc=fit_results['loc'])
+
+
+def get_exponential_dist(fit_results):
+    return stat.expon(fit_results['loc'], fit_results['scale'])
+
+
+def get_gamma_dist(fit_results):
+    return stat.gamma(fit_results['a'], fit_results['loc'], fit_results['scale'])
+
+
+def get_gamma_poisson_dist(fit_results):
+    return RVGs.GammaPoisson(a=fit_results['a'], gamma_scale=fit_results['gamma_scale'], loc=fit_results['loc'])
+
+
+def get_geometric_dist(fit_results):
+    return stat.geom(p=fit_results['p'], loc=fit_results['loc'])
+
+
+def get_johnson_sb_dist(fit_results):
+    return stat.johnsonsb(a=fit_results['a'], b=fit_results['b'], loc=fit_results['loc'], scale=fit_results['scale'])
+
+
+def get_johnson_su_dist(fit_results):
+    return stat.johnsonsu(a=fit_results['a'], b=fit_results['b'], loc=fit_results['loc'], scale=fit_results['scale'])
+
+
+def get_lognormal_dist(fit_results):
+    return stat.lognorm(s=fit_results['sigma'], loc=fit_results['loc'], scale=np.exp(fit_results['mu']))
+
+
+def get_normal_dist(fit_results):
+    return stat.norm(scale=fit_results['scale'], loc=fit_results['loc'])
+
+
+def get_negbinomial_dist(fit_results):
+    return stat.nbinom(n=fit_results['n'], p=fit_results['p'], loc=fit_results['loc'])
+
+
+def get_poisson_dist(fit_results):
+    return stat.poisson(mu=fit_results['mu'], loc=fit_results['loc'])
+
+
+def get_triangular_dist(fit_results):
+    return stat.triang(c=fit_results['c'], scale=fit_results['scale'], loc=fit_results['loc'])
+
+
+def get_uniform_dist(fit_results):
+    return stat.uniform(scale=fit_results['scale'], loc=fit_results['loc'])
+
+
+def get_uniform_discrete_dist(fit_results):
+    return stat.randint(low=int(fit_results['l']), high=int(fit_results['u'])+1)
+
+
+def get_weibull_dist(fit_results):
+    return stat.weibull_min(c=fit_results['c'], scale=fit_results['scale'], loc=fit_results['loc'])
+
+
+# ---- plot the fit of different distributions ----
 def plot_beta_fit(data, fit_results, title=None, x_label=None, x_range=None, y_range=None,
                   fig_size=(6, 5), bin_width=None, filename=None):
     """
@@ -134,7 +223,7 @@ def plot_beta_fit(data, fit_results, title=None, x_label=None, x_range=None, y_r
 
     plot_fit_continuous(
         data=data,
-        dist=stat.beta(fit_results['a'], fit_results['b'], fit_results['loc'], fit_results['scale']),
+        dist=get_beta_dist(fit_results),
         label='Beta',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename)
@@ -157,7 +246,7 @@ def plot_beta_binomial_fit(data, fit_results, title=None, x_label=None, x_range=
 
     plot_fit_discrete(
         data=data,
-        dist=stat.betabinom(n=fit_results['n'], a=fit_results['a'], b=fit_results['b'], loc=fit_results['loc']),
+        dist=get_beta_binomial_dist(fit_results),
         label='Beta-Binomial',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename)
@@ -180,7 +269,7 @@ def plot_binomial_fit(data, fit_results, title=None, x_label=None, x_range=None,
 
     plot_fit_discrete(
         data=data,
-        dist=stat.binom(n=fit_results['n'], p=fit_results['p'], loc=fit_results['loc']),
+        dist=get_binomial_dist(fit_results),
         label='Binomial',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename)
@@ -203,7 +292,7 @@ def plot_exponential_fit(data, fit_results, title=None, x_label=None, x_range=No
 
     plot_fit_continuous(
         data=data,
-        dist=stat.expon(fit_results['loc'], fit_results['scale']),
+        dist=get_exponential_dist(fit_results),
         label='Exponential',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename)
@@ -226,7 +315,7 @@ def plot_gamma_fit(data, fit_results, title=None, x_label=None, x_range=None, y_
 
     plot_fit_continuous(
         data=data,
-        dist=stat.gamma(fit_results['a'], fit_results['loc'], fit_results['scale']),
+        dist=get_gamma_dist(fit_results),
         label='Gamma',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename
@@ -250,8 +339,7 @@ def plot_gamma_poisson_fit(data, fit_results, title=None, x_label=None, x_range=
 
     plot_fit_discrete(
         data=data,
-        dist=RVGs.GammaPoisson(a=fit_results['a'], gamma_scale=fit_results['gamma_scale'],
-                               loc=fit_results['loc']),
+        dist=get_gamma_poisson_dist(fit_results),
         label='Gamma-Poisson',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename)
@@ -274,7 +362,7 @@ def plot_geometric_fit(data, fit_results, title=None, x_label=None, x_range=None
 
     plot_fit_discrete(
         data=data,
-        dist=stat.geom(p=fit_results['p'], loc=fit_results['loc']),
+        dist=get_geometric_dist(fit_results),
         label='Geometric',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename)
@@ -297,7 +385,7 @@ def plot_johnson_sb_fit(data, fit_results, title=None, x_label=None, x_range=Non
 
     plot_fit_continuous(
         data=data,
-        dist=stat.johnsonsb(a=fit_results['a'], b=fit_results['b'], loc=fit_results['loc'], scale=fit_results['scale']),
+        dist=get_johnson_sb_dist(fit_results),
         label='Johnson Sb',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename)
@@ -320,7 +408,7 @@ def plot_johnson_su_fit(data, fit_results, title=None, x_label=None, x_range=Non
 
     plot_fit_continuous(
         data=data,
-        dist=stat.johnsonsu(a=fit_results['a'], b=fit_results['b'], loc=fit_results['loc'], scale=fit_results['scale']),
+        dist=get_johnson_su_dist(fit_results),
         label='Johnson Su',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename)
@@ -343,7 +431,7 @@ def plot_lognormal_fit(data, fit_results, title=None, x_label=None, x_range=None
 
     plot_fit_continuous(
         data=data,
-        dist=stat.lognorm(s=fit_results['sigma'], loc=fit_results['loc'], scale=np.exp(fit_results['mu'])),
+        dist=get_lognormal_dist(fit_results),
         label='LogNormal',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename
@@ -367,7 +455,7 @@ def plot_normal_fit(data, fit_results, title=None, x_label=None, x_range=None, y
 
     plot_fit_continuous(
         data=data,
-        dist=stat.norm(scale=fit_results['scale'], loc=fit_results['loc']),
+        dist=get_normal_dist(fit_results),
         label='Normal',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename
@@ -391,7 +479,7 @@ def plot_negbinomial_fit(data, fit_results, title=None, x_label=None, x_range=No
 
     plot_fit_discrete(
         data=data,
-        dist=stat.nbinom(n=fit_results['n'], p=fit_results['p'], loc=fit_results['loc']),
+        dist=get_negbinomial_dist(fit_results),
         label='Negative Binomial',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename)
@@ -414,7 +502,7 @@ def plot_poisson_fit(data, fit_results, title=None, x_label=None, x_range=None, 
 
     plot_fit_discrete(
         data=data,
-        dist=stat.poisson(mu=fit_results['mu'], loc=fit_results['loc']),
+        dist=get_poisson_dist(fit_results),
         label='Poisson',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename)
@@ -437,7 +525,7 @@ def plot_triangular_fit(data, fit_results, title=None, x_label=None, x_range=Non
 
     plot_fit_continuous(
         data=data,
-        dist=stat.triang(c=fit_results['c'], scale=fit_results['scale'], loc=fit_results['loc']),
+        dist=get_triangular_dist(fit_results),
         label='Triangular',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename
@@ -461,7 +549,7 @@ def plot_uniform_fit(data, fit_results, title=None, x_label=None, x_range=None, 
 
     plot_fit_continuous(
         data=data,
-        dist=stat.uniform(scale=fit_results['scale'], loc=fit_results['loc']),
+        dist=get_uniform_dist(fit_results),
         label='Uniform',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename
@@ -485,7 +573,7 @@ def plot_uniform_discrete_fit(data, fit_results, title=None, x_label=None, x_ran
 
     plot_fit_discrete(
         data=data,
-        dist=stat.randint(low=fit_results['l'], high=fit_results['u']),
+        dist=get_uniform_discrete_dist(fit_results),
         label='Uniform-Discrete',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename)
@@ -508,8 +596,10 @@ def plot_weibull_fit(data, fit_results, title=None, x_label=None, x_range=None, 
 
     plot_fit_continuous(
         data=data,
-        dist=stat.weibull_min(c=fit_results['c'], scale=fit_results['scale'], loc=fit_results['loc']),
+        dist=get_weibull_dist(fit_results),
         label='Weibull',
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename
     )
+
+
