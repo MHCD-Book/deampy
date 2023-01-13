@@ -74,7 +74,7 @@ def format_fig(ax, title, x_label, x_range, y_range):
     # ax.set_ylabel("Frequency")
 
 
-def finish_figure(ax, data, bin_width, title, x_label, x_range, y_range, filename):
+def finish_ax(ax, data, bin_width, title, x_label, x_range, y_range, filename):
     """ add the histogram and format the figure """
 
     if data is not None:
@@ -97,9 +97,9 @@ def plot_fit_continuous(data, dist, label, title=None, x_label=None, x_range=Non
     # plot the distribution
     add_continuous_dist(ax, dist, label=label)
 
-    finish_figure(ax=ax, data=data, bin_width=bin_width,
-                  title=title, x_label=x_label, x_range=x_range, y_range=y_range,
-                  filename=filename)
+    finish_ax(ax=ax, data=data, bin_width=bin_width,
+              title=title, x_label=x_label, x_range=x_range, y_range=y_range,
+              filename=filename)
 
 
 def plot_fit_discrete(data, dist, label, title=None, x_label=None, x_range=None, y_range=None,
@@ -112,9 +112,9 @@ def plot_fit_discrete(data, dist, label, title=None, x_label=None, x_range=None,
     # plot the distribution
     add_discrete_dist(ax, dist, label=label)
 
-    finish_figure(ax=ax, data=data, bin_width=bin_width,
-                  title=title, x_label=x_label, x_range=x_range, y_range=y_range,
-                  filename=filename)
+    finish_ax(ax=ax, data=data, bin_width=bin_width,
+              title=title, x_label=x_label, x_range=x_range, y_range=y_range,
+              filename=filename)
 
 
 def plot_beta_fit(data, fit_results, title=None, x_label=None, x_range=None, y_range=None,
@@ -372,6 +372,7 @@ def plot_normal_fit(data, fit_results, title=None, x_label=None, x_range=None, y
         bin_width=bin_width, title=title, x_label=x_label, x_range=x_range, y_range=y_range,
         fig_size=fig_size, filename=filename
     )
+
 
 def plot_negbinomial_fit(data, fit_results, title=None, x_label=None, x_range=None, y_range=None,
                          fig_size=(6, 5), bin_width=1, filename=None):
