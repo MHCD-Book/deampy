@@ -39,6 +39,7 @@ def add_continuous_dist(ax, dist, label, color=None):
     :param ax: figure axis
     :param dist: probability distribution
     :param label: label of the fitted probability distribution to used in the legend
+    :param color: color code of this distribution
     """
 
     x_values = np.linspace(dist.ppf(MIN_PROP),
@@ -48,11 +49,12 @@ def add_continuous_dist(ax, dist, label, color=None):
             lw=LINE_WIDTH, label=label)
 
 
-def add_discrete_dist(ax, dist, label):
+def add_discrete_dist(ax, dist, label, color=None):
     """ add the distribution of the provided discrete probability distribution to the axis
     :param ax: figure axis
     :param dist: probability distribution
     :param label: label of the fitted probability distribution to used in the legend
+    :param color: color code of this distribution
     """
 
     x_values = range(int(dist.ppf(MIN_PROP)), int(dist.ppf(MAX_PROB))+1, 1)
@@ -61,7 +63,9 @@ def add_discrete_dist(ax, dist, label):
     pmf = dist.pmf(x_values)
     pmf = np.append(pmf[0], pmf[:-1])
 
-    ax.step(x_values, pmf, color=COLOR_DISCRETE_FIT, lw=2, label=label)
+    ax.step(x_values, pmf,
+            color=COLOR_CONTINUOUS_FIT if color is None else color,
+            lw=LINE_WIDTH, label=label)
 
 
 def format_fig(ax, title, x_label, x_range, y_range):
@@ -99,6 +103,22 @@ def plot_continuous_dists(data, dists, labels, colors, title=None, x_label=None,
     # plot the distributions
     for dist, label, color in zip(dists, labels, colors):
         add_continuous_dist(ax, dist, label=label, color=color)
+
+    # add histogram and format
+    finish_ax(ax=ax, data=data, bin_width=bin_width,
+              title=title, x_label=x_label, x_range=x_range, y_range=y_range,
+              filename=filename)
+
+
+def plot_discrete_dists(data, dists, labels, colors, title=None, x_label=None, x_range=None, y_range=None,
+                          fig_size=(6, 5), bin_width=None, filename=None):
+
+    # plot histogram
+    fig, ax = plt.subplots(1, 1, figsize=fig_size)
+
+    # plot the distributions
+    for dist, label, color in zip(dists, labels, colors):
+        add_discrete_dist(ax, dist, label=label, color=color)
 
     # add histogram and format
     finish_ax(ax=ax, data=data, bin_width=bin_width,
