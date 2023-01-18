@@ -902,7 +902,7 @@ class CEA(_EconEval):
                     )
 
         if show_legend:
-            ax.legend(fontsize='7.5', loc=legend_loc_code)
+            ax.legend(fontsize=LEGEND_FONT_SIZE, loc=legend_loc_code)
 
         # and the clouds
         if add_clouds:
