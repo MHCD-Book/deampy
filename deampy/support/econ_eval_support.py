@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.optimize import minimize
 
-import deampy.random_variats as RVG
+import deampy.random_variates as RVG
 import deampy.statistics as Stat
 
 

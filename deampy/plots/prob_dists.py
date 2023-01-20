@@ -4,7 +4,7 @@ import numpy as np
 import scipy.stats as stat
 
 import deampy.plots.plot_support as Fig
-import deampy.random_variats as RVGs
+import deampy.random_variates as RVGs
 
 COLOR_CONTINUOUS_FIT = 'r'
 COLOR_DISCRETE_FIT = 'r'
@@ -81,7 +81,7 @@ def format_fig(ax, title, x_label, x_range, y_range):
     # ax.set_ylabel("Frequency")
 
 
-def finish_ax(ax, data, bin_width, title, x_label, x_range, y_range, filename):
+def finish_ax(ax, data, bin_width, title, x_label, x_range, y_range, filename=None):
     """ add the histogram and format the figure """
 
     if data is not None:
@@ -91,7 +91,8 @@ def finish_ax(ax, data, bin_width, title, x_label, x_range, y_range, filename):
     format_fig(ax=ax, title=title, x_label=x_label, x_range=x_range, y_range=y_range)
     ax.legend(fontsize=LEGEND_FONT_SIZE)
 
-    Fig.output_figure(plt=plt, filename=filename, dpi=300)
+    if filename:
+        Fig.output_figure(plt=plt, filename=filename, dpi=300)
 
 
 def plot_continuous_dists(data, dists, labels, colors, title=None, x_label=None, x_range=None, y_range=None,
@@ -110,8 +111,26 @@ def plot_continuous_dists(data, dists, labels, colors, title=None, x_label=None,
               filename=filename)
 
 
+def plot_continuous_dists_in_row(data, dists, labels, colors, x_label=None, x_range=None, y_range=None,
+                                 fig_size=(6, 5), bin_width=None, filename=None):
+
+    # plot histogram
+    fig, axes = plt.subplots(1, len(dists), figsize=fig_size)
+
+    # plot the distributions
+    for i in range(len(dists)):
+        add_continuous_dist(axes[i], dists[i], label=labels[i], color=colors[i])
+
+        # add histogram and format
+        finish_ax(ax=axes[i], data=data, bin_width=bin_width,
+                  title=None, x_label=x_label, x_range=x_range, y_range=y_range,
+                  filename=filename)
+
+    Fig.output_figure(plt=fig, filename=filename, dpi=300)
+
+
 def plot_discrete_dists(data, dists, labels, colors, title=None, x_label=None, x_range=None, y_range=None,
-                          fig_size=(6, 5), bin_width=None, filename=None):
+                        fig_size=(6, 5), bin_width=None, filename=None):
 
     # plot histogram
     fig, ax = plt.subplots(1, 1, figsize=fig_size)
@@ -124,6 +143,24 @@ def plot_discrete_dists(data, dists, labels, colors, title=None, x_label=None, x
     finish_ax(ax=ax, data=data, bin_width=bin_width,
               title=title, x_label=x_label, x_range=x_range, y_range=y_range,
               filename=filename)
+
+
+def plot_discrete_dists_in_row(data, dists, labels, colors, x_label=None, x_range=None, y_range=None,
+                               fig_size=(6, 5), bin_width=None, filename=None):
+
+    # plot histogram
+    fig, axes = plt.subplots(1, len(dists), figsize=fig_size)
+
+    # plot the distributions
+    for i in range(len(dists)):
+        add_discrete_dist(axes[i], dists[i], label=labels[i], color=colors[i])
+
+        # add histogram and format
+        finish_ax(ax=axes[i], data=data, bin_width=bin_width,
+                  title=None, x_label=x_label, x_range=x_range, y_range=y_range,
+                  filename=filename)
+
+    Fig.output_figure(plt=fig, filename=filename, dpi=300)
 
 
 def plot_fit_continuous(data, dist, label, title=None, x_label=None, x_range=None, y_range=None,
