@@ -28,7 +28,7 @@ class SimulationCalendar:
 
     def n_events(self):
         """
-        :returns number of scheduled events"""
+        :return: number of scheduled events"""
 
         return len(self._q)
 
@@ -45,7 +45,7 @@ class SimulationCalendar:
     def get_next_event(self):
         """
         :return: the next simulation event
-        (if time of events are equal, the event with lowest value for priority will be returned.) """
+        (if time of events are equal, the event with the lowest value for priority will be returned.) """
 
         self.time, priority, next_event = heapq.heappop(self._q)
         return next_event
