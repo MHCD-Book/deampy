@@ -3,12 +3,12 @@ from math import log, cos, pi
 import numpy as np
 from numpy import exp, pi, cos
 
-from deampy.random_variats import Beta as B
-from deampy.random_variats import Dirichlet as Dirich
-from deampy.random_variats import Gamma as G
-from deampy.random_variats import Multinomial as Mult
-from deampy.random_variats import Uniform as U
-from deampy.random_variats import UniformDiscrete as UD
+from deampy.random_variates import Beta as B
+from deampy.random_variates import Dirichlet as Dirich
+from deampy.random_variates import Gamma as G
+from deampy.random_variates import Multinomial as Mult
+from deampy.random_variates import Uniform as U
+from deampy.random_variates import UniformDiscrete as UD
 
 
 class _Parameter:

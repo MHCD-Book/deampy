@@ -36,7 +36,10 @@ def add_histogram_to_ax(ax, data, title=None, label=None, color=None, bin_width=
             label=label)
     ax.set_xlim(x_range)
     ax.set_title(title)
-    ax.yaxis.set_visible(not remove_y_labels)
+    # ax.yaxis.set_visible(not remove_y_labels)
+    if remove_y_labels:
+        ax.set_yticklabels([])
+        ax.set_yticks([])
 
     ax.set_title(title)
     ax.set_xlabel(x_label)
