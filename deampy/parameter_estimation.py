@@ -256,20 +256,16 @@ class ParameterAnalyzer:
                 # get the current axis
                 ax = axarr[i, j]
 
-                if j == 0:
-                    ax.set_ylabel(info_of_param_info_to_include[i].label)
-                if i == n-1:
-                    ax.set_xlabel(info_of_param_info_to_include[j].label)
-
+                # plot histogram for diagonal elements
                 if i == j:
                     # plot histogram
                     Fig.add_histogram_to_ax(
                         ax=ax,
                         data=info_of_param_info_to_include[i].values,
-                        x_range=info_of_param_info_to_include[i].range
+                        x_range=info_of_param_info_to_include[i].range,
                     )
-                    ax.set_yticklabels([])
-                    ax.set_yticks([])
+                    # ax.set_yticklabels([])
+                    # ax.set_yticks([])
 
                 else:
                     ax.scatter(info_of_param_info_to_include[j].values,
@@ -286,6 +282,11 @@ class ParameterAnalyzer:
                                        info_of_param_info_to_include[i].values)
                     ax.text(0.95, 0.95, '{0:.2f}'.format(corr), transform=ax.transAxes, fontsize=6,
                             va='top', ha='right')
+
+                if j == 0:
+                    ax.set_ylabel(info_of_param_info_to_include[i].label)
+                if i == n-1:
+                    ax.set_xlabel(info_of_param_info_to_include[j].label)
 
         f.align_ylabels(axarr[:, 0])
         f.tight_layout()
