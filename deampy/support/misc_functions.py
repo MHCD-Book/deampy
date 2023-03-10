@@ -1,17 +1,16 @@
 import random
 
 import numpy as np
-# import required libraries
 from scipy.stats import norm
 
 
 def proper_file_name(text):
     """
-    :param text: filename
+    :param text: file name
     :return: filename where invalid characters are removed
     """
 
-    return text.replace('|', ',').replace('<', 'l').replace('>', 'g').replace('\n', '').replace('.', '')
+    return text.replace('|', ',').replace('<', 'l').replace('>', 'g').replace('\n', '')
 
 
 def get_moving_average(data, window=2):
