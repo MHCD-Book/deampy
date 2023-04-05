@@ -2064,7 +2064,7 @@ class CBA(_EconEval):
             fig.savefig(file_name, bbox_inches='tight', dpi=300)
 
 
-class BCHO(_EconEval):
+class ConstrainedOpt(_EconEval):
     """ budget-constrained health optimization
     a class for selecting the alternative with the highest expected health outcomes
     subject to a budget constraint """
@@ -2214,12 +2214,12 @@ class BCHO(_EconEval):
         if file_name is not None:
             fig.savefig(file_name, dpi=300)
 
-    def add_plot_to_ax(self, ax, title=None,
-                       delta_budget=None, x_label=None,
-                       y_label=None, y_range=None, y_axis_multiplier=1, effect_decimals=None,
-                       show_evpi=False, show_legend=True, show_frontier=True, show_labels_on_frontier=False
-                       ):
-        """
+    def add_e_by_budget_to_ax(self, ax, title=None,
+                              delta_budget=None, x_label=None,
+                              y_label=None, y_range=None, y_axis_multiplier=1, effect_decimals=None,
+                              show_evpi=False, show_legend=True, show_frontier=True, show_labels_on_frontier=False
+                              ):
+        """ add the effect by budget to the axis
         :param ax: axis
         :param title: (string) title of the figure
         :param delta_budget: (float) the distance between ticks on the x-axis
