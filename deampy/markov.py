@@ -1,6 +1,6 @@
 import numpy as np
 
-from deampy.random_variats import Empirical, Exponential
+from deampy.random_variates import Empirical, Exponential
 
 
 class MarkovJumpProcess:

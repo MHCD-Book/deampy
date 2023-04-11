@@ -29,17 +29,17 @@ print('Independent ICER (confidence and prediction interval): \n\t{}\n\t{}\n\t{}
       ICER_indp.get_PI(0.05)))
 
 # try NMB
-NMB_paired = EconEval.INMB_Paired(cost_intervention, effect_intervention, cost_base, effect_base,
-                                  health_measure='d')
+NMB_paired = EconEval.MarginalNMB_Paired(cost_intervention, effect_intervention, cost_base, effect_base,
+                                         health_measure='d')
 print('Paired NMB (confidence and prediction interval): \n\t{}\n\t{}\n\t{}'.format(
-      NMB_paired.get_INMB(wtp=10000),
+      NMB_paired.get_marginal_nmb(wtp=10000),
       NMB_paired.get_CI(wtp=10000, alpha=.05),
       NMB_paired.get_PI(wtp=10000, alpha=.05)))
 
-NMB_indp = EconEval.INMB_Indp(cost_intervention, effect_intervention, cost_base, effect_base,
-                              health_measure='d')
+NMB_indp = EconEval.MarginalNMB_Indp(cost_intervention, effect_intervention, cost_base, effect_base,
+                                     health_measure='d')
 print('Independent NMB (confidence and prediction interval): \n\t{}\n\t{}\n\t{}'.format(
-      NMB_indp.get_INMB(wtp=10000),
+      NMB_indp.get_marginal_nmb(wtp=10000),
       NMB_indp.get_CI(wtp=10000, alpha=.05),
       NMB_indp.get_PI(wtp=10000, alpha=.05)))
 
