@@ -688,7 +688,7 @@ class CEA(_EconEval):
                        cost_multiplier=1, effect_multiplier=1,
                        file_name='CETable.csv', directory=''):
         """
-        :param interval_type: (string) 'n' for no interval
+        :param interval_type: (string) 'n' or None for no interval
                                        'c' or 'cb' for bootstrap confidence interval, and
                                        'p' for percentile interval
         :param alpha: significance level, a value from [0, 1]
@@ -2762,7 +2762,7 @@ class MarginalNMB_Paired(_MarginalNMB):
 
         wtp = self.get_switch_wtp()
 
-        if interval_type == 'n':
+        if interval_type == 'n' or interval_type is None:
             return wtp, None
         elif interval_type == 'c':
             return wtp, get_bayesian_ci_for_switch_wtp(

@@ -183,7 +183,7 @@ class _Statistics(object):
             else:
                 raise ValueError(
                     'Wilson score interval can only be calculated for SummaryStat or DifferenceStatPaired.')
-        elif interval_type == 'n' or None:
+        elif interval_type == 'n' or interval_type is None:
             interval = None
         else:
             raise ValueError('Invalid interval type.')
