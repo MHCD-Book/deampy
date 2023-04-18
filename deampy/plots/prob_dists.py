@@ -91,8 +91,7 @@ def finish_ax(ax, data, bin_width, title, x_label, x_range, y_range, filename=No
     format_fig(ax=ax, title=title, x_label=x_label, x_range=x_range, y_range=y_range)
     ax.legend(fontsize=LEGEND_FONT_SIZE)
 
-    if filename:
-        Fig.output_figure(plt=plt, filename=filename, dpi=300)
+    Fig.output_figure(plt=plt, filename=filename, dpi=300)
 
 
 def plot_continuous_dists(data, dists, labels, colors, title=None, x_label=None, x_range=None, y_range=None,
