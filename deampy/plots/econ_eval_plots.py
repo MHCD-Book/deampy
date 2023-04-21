@@ -59,6 +59,18 @@ def format_ax(ax,
         ax.axhline(y=0, c='k', ls='--', linewidth=0.5)
 
 
+def add_grids(ax, grid_info):
+
+    # grid
+    if grid_info is None:
+        pass
+    elif grid_info == 'default':
+        color, linestyle, linewidth, alpha = ('k', '--', 0.5, 0.2)
+    else:
+        color, linestyle, linewidth, alpha = grid_info
+    if grid_info is not None:
+        ax.grid(color=color, linestyle=linestyle, linewidth=linewidth, alpha=alpha)
+
 def add_curves_to_ax(ax, curves, title=None,
                      x_range=None, x_label=None, y_label=None, y_range=None,
                      y_axis_multiplier=1, y_axis_decimal=1,
@@ -74,7 +86,8 @@ def add_curves_to_ax(ax, curves, title=None,
                      if_format_y_numbers=True,
                      legend_font_size=7,
                      frontier_label_shift_x=-0.01,
-                     frontier_label_shift_y=0.01):
+                     frontier_label_shift_y=0.01,
+                     grid_info=None):
 
     for i, curve in enumerate(curves):
 
@@ -112,7 +125,7 @@ def add_curves_to_ax(ax, curves, title=None,
                         c=curve.color, alpha=1, linewidth=frontier_line_width)
 
     if show_legend:
-        ax.legend(loc=2, fontsize=legend_font_size)
+        ax.legend(fontsize=legend_font_size) #loc=2,
 
     ax.set_title(title)
     ax.set_xlabel(x_label)
@@ -131,6 +144,9 @@ def add_curves_to_ax(ax, curves, title=None,
                     y = 0.5 * (curve.frontierYs[0] + curve.frontierYs[-1]) * y_axis_multiplier \
                         + frontier_label_shift_y * y_axis_length
                     ax.text(x=x, y=y, s=curve.label, fontsize=legend_font_size+1, c=curve.color)
+
+    # grids
+    add_grids(ax=ax, grid_info=grid_info)
 
     # do the other formatting
     format_ax(ax=ax, y_range=y_range,

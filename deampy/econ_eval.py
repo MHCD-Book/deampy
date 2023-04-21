@@ -2,7 +2,6 @@ import string
 import warnings
 
 import matplotlib.cm as cm
-import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import scipy.stats as stat
 from numpy import exp, power, average
@@ -12,7 +11,7 @@ from statsmodels.stats.power import TTestPower
 
 import deampy.format_functions as F
 from deampy.in_out_functions import write_csv
-from deampy.plots.econ_eval_plots import add_curves_to_ax, add_min_monte_carlo_samples_to_ax
+from deampy.plots.econ_eval_plots import add_curves_to_ax, add_min_monte_carlo_samples_to_ax, add_grids
 from deampy.plots.plot_support import output_figure
 from deampy.statistics import SummaryStat
 from deampy.support.econ_eval_support import *
@@ -831,7 +830,7 @@ class CEA(_EconEval):
                            cost_multiplier=1, effect_multiplier=1,
                            cost_decimals=None, effect_decimals=None,
                            interval_type=None, significance_level=0.05, interval_transparency=0.5,
-                           legend_loc_code=0):
+                           legend_loc_code=0, grid_info=None):
         """
         adds a cost-effectiveness plane to the provided ax
         :param ax: axis
@@ -839,7 +838,7 @@ class CEA(_EconEval):
         :param y_range: (tuple) range of y-axis
         :param add_clouds: (bool) if to add the probability clouds
         :param show_legend: (bool) if to show the legend
-        :param show_frontier: (bool) if to show the cost-effectivness frontier
+        :param show_frontier: (bool) if to show the cost-effectiveness frontier
         :param center_s: (float) the size of the dot showing (x,y) of a strategy
         :param cloud_s: (float) the size of dots building the probability clouds
         :param transparency: (float) the transparency of dots building the probability clouds
@@ -855,6 +854,8 @@ class CEA(_EconEval):
         :param interval_transparency: (float) the transparency of intervals
         :param legend_loc_code: (int) legend location code
             https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.legend.html
+        :param grid_info: (None or 'default', or tuple of tuple of (color, linestyle, linewidth, alpha))
+            if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
         """
 
         # find the frontier (x, y)'s
@@ -931,8 +932,15 @@ class CEA(_EconEval):
             ax.set_yticks(vals_y)
             ax.set_yticklabels(['{:,.{prec}f}'.format(x, prec=cost_decimals) for x in vals_y])
 
+        ax.set_xlim(x_range)  # x-axis range
+        ax.set_ylim(y_range)  # y-axis range
+
         ax.axhline(y=0, c='k', linestyle='--', linewidth=0.5)
         ax.axvline(x=0, c='k', linestyle='--', linewidth=0.5)
+
+        # grid
+        add_grids(ax=ax, grid_info=grid_info)
+
 
     def plot_CE_plane(self,
                       title='Cost-Effectiveness Analysis',
@@ -945,7 +953,7 @@ class CEA(_EconEval):
                       cost_multiplier=1, effect_multiplier=1,
                       cost_digits=0, effect_digits=1,
                       interval_type=None, significance_level=0.05, interval_transparency=0.5,
-                      file_name=None
+                      grid_info=None, file_name=None
                       ):
         ''' plots a cost-effectiveness plane
         :param title: (string) title of the figure
@@ -971,6 +979,8 @@ class CEA(_EconEval):
                                'p' for percentile interval
         :param significance_level: (float) significance level for the interval
         :param interval_transparency: (float) the transparency of intervals
+        :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
+            if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
         :param file_name: (string) file name to save the figure as
         :return:
         '''
@@ -990,7 +1000,7 @@ class CEA(_EconEval):
                                 cost_multiplier=cost_multiplier, effect_multiplier=effect_multiplier,
                                 cost_decimals=cost_digits, effect_decimals=effect_digits,
                                 interval_type=interval_type, significance_level=significance_level,
-                                interval_transparency=interval_transparency)
+                                interval_transparency=interval_transparency, grid_info=grid_info)
 
         fig.tight_layout()
 
@@ -1732,6 +1742,7 @@ class CBA(_EconEval):
                                 transparency_intervals=0.2,
                                 show_legend=True,
                                 show_labels_on_frontier=False,
+                                grid_info=None,
                                 figure_size=(5, 5),
                                 file_name=None):
         """
@@ -1753,6 +1764,8 @@ class CBA(_EconEval):
         :param transparency_intervals: transparency of intervals (0.0 transparent through 1.0 opaque)
         :param show_legend: set true to show legend
         :param show_labels_on_frontier: set true to show strategy labels on frontier
+        :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
+            if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
         :param figure_size: (tuple) size of the figure (e.g. (2, 3)
         :param file_name: (string) filename to save the figure as
         """
@@ -1776,7 +1789,7 @@ class CBA(_EconEval):
                          transparency_lines=transparency_lines,
                          transparency_intervals=transparency_intervals,
                          show_legend=show_legend,
-                         show_labels_on_frontier=show_labels_on_frontier)
+                         show_labels_on_frontier=show_labels_on_frontier, grid_info=grid_info)
 
         fig.tight_layout()
 
@@ -1796,7 +1809,8 @@ class CBA(_EconEval):
                               delta_wtp=None,
                               interval_type='n',
                               show_legend=True,
-                              show_labels_on_frontier=False):
+                              show_labels_on_frontier=False,
+                              grid_info=None):
 
         # make marginal NMB curves
         self.build_marginal_nmb_curves(interval_type=interval_type)
@@ -1818,7 +1832,8 @@ class CBA(_EconEval):
                          frontier_line_width=NMB_FRONTIER_LINE_WIDTH,
                          if_format_y_numbers=True if y_axis_decimal is not None else False,
                          frontier_label_shift_x=FRONTIER_LABEL_SHIFT_X,
-                         frontier_label_shift_y=FRONTIER_LABEL_SHIFT_Y)
+                         frontier_label_shift_y=FRONTIER_LABEL_SHIFT_Y,
+                         grid_info=grid_info)
 
     def plot_acceptability_curves(self,
                                   title=None,
@@ -1828,6 +1843,7 @@ class CBA(_EconEval):
                                   delta_wtp=None,
                                   show_legend=True, fig_size=(5, 5),
                                   legends=None,
+                                  grid_info=None,
                                   file_name=None):
         """
         plots the acceptability curves
@@ -1839,6 +1855,8 @@ class CBA(_EconEval):
         :param show_legend: set true to show legend
         :param legends: (list) of legends to display on the figure
         :param fig_size: (tuple) size of the figure (e.g. (2, 3)
+        :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
+            if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
         :param file_name: file name
         """
 
@@ -1856,7 +1874,8 @@ class CBA(_EconEval):
                                             wtp_delta=delta_wtp,
                                             y_range=y_range,
                                             show_legend=show_legend,
-                                            legends=legends)
+                                            legends=legends,
+                                            grid_info=grid_infor)
 
         ax.set_title(title)
         ax.set_xlabel(x_label)
@@ -1868,7 +1887,8 @@ class CBA(_EconEval):
             fig.savefig(file_name, bbox_inches='tight', dpi=300)
 
     def add_acceptability_curves_to_ax(
-            self, ax, wtp_delta=None, y_range=None, show_legend=True, legends=None, normal_approximation=False):
+            self, ax, wtp_delta=None, y_range=None, show_legend=True, legends=None,
+            grid_info=None,  normal_approximation=False):
         """
         adds the acceptability curves to the provided ax
         :param ax: axis
@@ -1876,6 +1896,8 @@ class CBA(_EconEval):
         :param y_range: (tuple) range of y-axis
         :param show_legend: (bool) if to show the legend
         :param legends: (list of strings) texts for legends
+        :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
+            if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
         :param normal_approximation: (bool) set to True to use normal distributions to approximate
             the acceptability curves
         """
@@ -1895,11 +1917,11 @@ class CBA(_EconEval):
                          transparency_lines=CEAC_NMB_TRANSPARENCY,
                          curve_line_width=CEAC_LINE_WIDTH, frontier_line_width=CEAF_LINE_WIDTH,
                          legend_font_size=LEGEND_FONT_SIZE,
-                         if_y_axis_prob=True)
+                         if_y_axis_prob=True, grid_info=grid_info)
 
     def add_expected_loss_curves_to_ax(
             self, ax, wtp_delta=None, y_range=None, show_legend=True, legends=None,
-            y_axis_multiplier=1, y_axis_decimal=None):
+            y_axis_multiplier=1, y_axis_decimal=None, grid_info=None):
         """
         adds the acceptability curves to the provided ax
         :param ax: axis
@@ -1907,6 +1929,8 @@ class CBA(_EconEval):
         :param y_range: (tuple) range of y-axis
         :param show_legend: (bool) if to show the legend
         :param legends: (list of strings) texts for legends
+        :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
+            if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
         """
 
         if len(self.marginalNMBLines) == 0:
@@ -1925,7 +1949,8 @@ class CBA(_EconEval):
                          curve_line_width=NMB_LINE_WIDTH, frontier_line_width=NMB_FRONTIER_LINE_WIDTH,
                          legend_font_size=LEGEND_FONT_SIZE,
                          y_axis_multiplier=y_axis_multiplier, y_axis_decimal=y_axis_decimal,
-                         if_y_axis_prob=False)
+                         if_y_axis_prob=False,
+                         grid_info=grid_info)
 
     def get_w_starts(self):
 
@@ -2010,58 +2035,58 @@ class CBA(_EconEval):
 
         return report
 
-    def plot_exp_marginal_nmb(self,
-                              title=None,
-                              y_label='Marginal Net Monetary Benefit',
-                              y_range=None,
-                              figure_size=(5, 5),
-                              if_show_conf_interval=True,
-                              file_name=None):
-
-        # initialize plot
-        fig, ax = plt.subplots(figsize=figure_size)
-
-        ax.set_title(title)
-        ax.set_ylabel(y_label)
-
-        for s in self.strategies[1:]:
-            ax.scatter(x=s.idx, y=s.eIncNMB.get_mean(),
-                       c=s.color, label=s.label)
-
-            interval = s.eIncNMB.get_interval(interval_type='p')
-            y = s.eIncNMB.get_mean()
-            err = [[y-interval[0]], [interval[1]-y]]
-
-            ax.errorbar(x=s.idx, y=y,
-                        yerr=err,
-                        c=s.color)
-
-            if if_show_conf_interval:
-                width = 0.1
-                interval = s.eIncNMB.get_interval(interval_type='c')
-                xy = [
-                    [s.idx, interval[0]],
-                    [s.idx - width, y],
-                    [s.idx, interval[1]],
-                    [s.idx + width, y]
-                ]
-                ax.add_patch(patches.Polygon(xy=xy, fill=False, edgecolor=s.color))
-
-        ax.set_xticks([])
-        ax.set_xlim([0.5, len(self.strategies)-0.5])
-        ax.axhline(y=0, c='k', ls='--', lw=1)
-
-        # format y-axis
-        ax.set_ylim(y_range)
-        vals_y = ax.get_yticks()
-        ax.set_yticks(vals_y)
-        ax.set_yticklabels(['{:,.{prec}f}'.format(x, prec=0) for x in vals_y])
-
-        ax.legend()
-        if file_name is None:
-            fig.show()
-        else:
-            fig.savefig(file_name, bbox_inches='tight', dpi=300)
+    # def plot_exp_marginal_nmb(self,
+    #                           title=None,
+    #                           y_label='Marginal Net Monetary Benefit',
+    #                           y_range=None,
+    #                           figure_size=(5, 5),
+    #                           if_show_conf_interval=True,
+    #                           file_name=None):
+    #
+    #     # initialize plot
+    #     fig, ax = plt.subplots(figsize=figure_size)
+    #
+    #     ax.set_title(title)
+    #     ax.set_ylabel(y_label)
+    #
+    #     for s in self.strategies[1:]:
+    #         ax.scatter(x=s.idx, y=s.eIncNMB.get_mean(),
+    #                    c=s.color, label=s.label)
+    #
+    #         interval = s.eIncNMB.get_interval(interval_type='p')
+    #         y = s.eIncNMB.get_mean()
+    #         err = [[y-interval[0]], [interval[1]-y]]
+    #
+    #         ax.errorbar(x=s.idx, y=y,
+    #                     yerr=err,
+    #                     c=s.color)
+    #
+    #         if if_show_conf_interval:
+    #             width = 0.1
+    #             interval = s.eIncNMB.get_interval(interval_type='c')
+    #             xy = [
+    #                 [s.idx, interval[0]],
+    #                 [s.idx - width, y],
+    #                 [s.idx, interval[1]],
+    #                 [s.idx + width, y]
+    #             ]
+    #             ax.add_patch(patches.Polygon(xy=xy, fill=False, edgecolor=s.color))
+    #
+    #     ax.set_xticks([])
+    #     ax.set_xlim([0.5, len(self.strategies)-0.5])
+    #     ax.axhline(y=0, c='k', ls='--', lw=1)
+    #
+    #     # format y-axis
+    #     ax.set_ylim(y_range)
+    #     vals_y = ax.get_yticks()
+    #     ax.set_yticks(vals_y)
+    #     ax.set_yticklabels(['{:,.{prec}f}'.format(x, prec=0) for x in vals_y])
+    #
+    #     ax.legend()
+    #     if file_name is None:
+    #         fig.show()
+    #     else:
+    #         fig.savefig(file_name, bbox_inches='tight', dpi=300)
 
 
 class ConstrainedOpt(_EconEval):
@@ -2217,8 +2242,8 @@ class ConstrainedOpt(_EconEval):
     def add_e_by_budget_to_ax(self, ax, title=None,
                               delta_budget=None, x_label=None,
                               y_label=None, y_range=None, y_axis_multiplier=1, effect_decimals=None,
-                              show_evpi=False, show_legend=True, show_frontier=True, show_labels_on_frontier=False
-                              ):
+                              show_evpi=False, show_legend=True, show_frontier=True, show_labels_on_frontier=False,
+                              grid_info='default'):
         """ add the effect by budget to the axis
         :param ax: axis
         :param title: (string) title of the figure
@@ -2232,7 +2257,8 @@ class ConstrainedOpt(_EconEval):
         :param show_legend: (bool) to show legends
         :param show_frontier: (bool) to show the frontier (curves with maximum effect or NMB)
         :param show_labels_on_frontier: (bool) to show labels on the frontier
-        :return:
+        :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
+            if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
         """
 
         if show_evpi:
@@ -2253,6 +2279,8 @@ class ConstrainedOpt(_EconEval):
             frontier_label_shift_x=FRONTIER_LABEL_SHIFT_X,
             frontier_label_shift_y=FRONTIER_LABEL_SHIFT_Y
         )
+
+        add_grids(ax=ax, grid_info=grid_info)
 
 
 class _ComparativeEconMeasure:

@@ -31,10 +31,16 @@ def output_figure(plt, filename=None, dpi=300, tight_layout=True, bbox_inches='t
 
         try:
             plt.savefig(proper_file_name(filename), dpi=dpi, bbox_inches=bbox_inches)
-        except ValueError:
+        except Exception as e:
             raise ValueError("Error in saving figure '{}'. "
-                             "Ensure that the filename is valid and "
-                             "that the folder where the figure should be saved exists.".format(filename))
+                             "Ensure that the filename is valid. Error Message: {}".format(filename, str(e)))
+
+        # try:
+        #     plt.savefig(proper_file_name(filename), dpi=dpi, bbox_inches=bbox_inches)
+        # except ValueError:
+        #     raise ValueError("Error in saving figure '{}'. "
+        #                      "Ensure that the filename is valid and "
+        #                      "that the folder where the figure should be saved exists.".format(filename))
 
 
 def calculate_ticks(l, u, delta):
