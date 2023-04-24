@@ -679,19 +679,20 @@ class CEA(_EconEval):
 
         return dic_of_strategies
 
-    def build_CE_table(self,
-                       interval_type='c',
-                       alpha=0.05, method='bootstrap', num_bootstrap_samples=1000, rng=None,
-                       prior_range=None, num_wtp_thresholds=1000,
-                       cost_digits=0, effect_digits=2, icer_digits=1,
-                       cost_multiplier=1, effect_multiplier=1,
-                       file_name='CETable.csv', directory=''):
+    def build_CE_table(
+            self, interval_type='c',  alpha=0.05, ci_method='bootstrap', num_bootstrap_samples=1000,
+            rng=None, prior_range=None, num_wtp_thresholds=1000,
+            cost_digits=0, effect_digits=2, icer_digits=1,
+            cost_multiplier=1, effect_multiplier=1,
+            file_name='CETable.csv', directory=''):
         """
-        :param interval_type: (string) 'n' or None for no interval
-                                       'c' or 'cb' for bootstrap confidence interval, and
-                                       'p' for percentile interval
+        :param interval_type: (string) the interval type for cost and effect estimates
+            (for ICER, we always report confidence interval)
+            'n' or None for no interval
+            'c' or 'cb' for bootstrap confidence interval, and
+            'p' for percentile interval
         :param alpha: significance level, a value from [0, 1]
-        :param method: (string) method to calculate confidence interval ('bootstrap' or 'Bayesian')
+        :param ci_method: (string) method to calculate confidence interval of ICER ('bootstrap' or 'Bayesian')
         :param num_bootstrap_samples: number of bootstrap samples when 'bootstrap' method is selected
         :param rng: random number generator to generate empirical bootstrap samples
         :param num_wtp_thresholds: (int) number of willingness-to-pay thresholds to evaluate posterior
@@ -714,7 +715,8 @@ class CEA(_EconEval):
         if not self._ifFrontierIsCalculated:
             self.__find_frontier()
 
-        table = [['Strategy', 'Cost', 'Effect', 'Incremental Cost', 'Incremental Effect', 'ICER']]
+        table = [['Strategy', 'Cost', 'Effect', 'Incremental Cost', 'Incremental Effect',
+                  'ICER (with confidence interval)']]
         # sort strategies in increasing order of cost
         self.strategies.sort(key=get_d_cost)
 
@@ -758,9 +760,9 @@ class CEA(_EconEval):
             if s.ifDominated:
                 row.append('Dominated')
             elif s.icer is not None:
-                row.append(s.icer.get_formatted_mean_and_interval(interval_type=interval_type,
+                row.append(s.icer.get_formatted_mean_and_interval(interval_type='c',
                                                                   alpha=alpha,
-                                                                  method=method,
+                                                                  method=ci_method,
                                                                   num_bootstrap_samples=num_bootstrap_samples,
                                                                   rng=rng,
                                                                   prior_range=prior_range,
@@ -829,7 +831,7 @@ class CEA(_EconEval):
                            center_s=50, cloud_s=10, transparency=0.1,
                            cost_multiplier=1, effect_multiplier=1,
                            cost_decimals=None, effect_decimals=None,
-                           interval_type=None, significance_level=0.05, interval_transparency=0.5,
+                           interval_type='c', significance_level=0.05, interval_transparency=0.5,
                            legend_loc_code=0, grid_info=None):
         """
         adds a cost-effectiveness plane to the provided ax
@@ -952,7 +954,7 @@ class CEA(_EconEval):
                       center_s=75, cloud_s=25, transparency=0.1,
                       cost_multiplier=1, effect_multiplier=1,
                       cost_digits=0, effect_digits=1,
-                      interval_type=None, significance_level=0.05, interval_transparency=0.5,
+                      interval_type='c', significance_level=0.05, interval_transparency=0.5,
                       grid_info=None, file_name=None
                       ):
         ''' plots a cost-effectiveness plane
