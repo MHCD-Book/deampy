@@ -60,6 +60,13 @@ class Gillespie:
         self._empiricalDists = []
 
         for i, row in enumerate(transition_rate_matrix):
+
+            # make sure all rates are non-negative
+            for r in row:
+                if r is not None and r < 0:
+                    raise ValueError('All rates in a transition rate matrix should be non-negative. '
+                                     'Negative rate ({}) found in row index {}.'.format(r, i))
+
             # find sum of rates out of this state
             rate_out = out_rate(row, i)
             # if the rate is 0, put None as the exponential and empirical distributions
@@ -183,7 +190,7 @@ def out_rate(rates, idx):
     """
     :param rates: list of rates leaving this state
     :param inx: index of this state
-    :returns the rate of leaving this sate (the sum of rates)
+    :returns the rate of leaving this state (the sum of rates)
     """
 
     sum_rates = 0
