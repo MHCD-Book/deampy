@@ -6,7 +6,7 @@ from deampy.plots.plot_support import output_figure
 
 def add_histogram_to_ax(ax, data, title=None, label=None, color=None, bin_width=None,
                         x_label=None, y_label=None, x_range=None, y_range=None,
-                        transparency=0.75, format_deci=None, remove_y_labels=True,
+                        transparency=0.75, format_deci=None,
                         linewidth=0.5, x_delta=None):
     """
     :param ax: (axis)
@@ -21,7 +21,6 @@ def add_histogram_to_ax(ax, data, title=None, label=None, color=None, bin_width=
     :param y_range: (list with 2 elements) minimum and maximum of y-axis
     :param transparency: (float) between 0 and 1 for the transparency of histogram bins
     :param format_deci: [a, b] where a could be ',', '$', or '%' and b is the decimal point
-    :param remove_y_labels: (bool) set to True to remove ticks and labels of the y-axis
     :param linewidth: (double) width of histogram lines
     :param x_delta: (double) distance between x_axis ticks and labels
     :return:
@@ -37,7 +36,7 @@ def add_histogram_to_ax(ax, data, title=None, label=None, color=None, bin_width=
     ax.set_xlim(x_range)
     ax.set_title(title)
     # ax.yaxis.set_visible(not remove_y_labels)
-    if remove_y_labels:
+    if y_range is None:
         ax.set_yticklabels([])
         ax.set_yticks([])
 
