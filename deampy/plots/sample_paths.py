@@ -215,7 +215,9 @@ def add_sample_paths_to_ax(sample_paths, ax, color_codes=None, common_color_code
 
 
 def add_sets_of_sample_paths_to_ax(
-        sets_of_sample_paths, ax, color_codes, legends, transparency, connect='step'):
+        sets_of_sample_paths, ax, color_codes, legends, transparency, connect='step',
+        title=None, x_label=None, y_label=None,
+        x_range=None, y_range=None):
 
     # add every path
     for i, sample_paths in enumerate(sets_of_sample_paths):
@@ -234,3 +236,9 @@ def add_sets_of_sample_paths_to_ax(
                                   legend=legend,
                                   transparency=transparency,
                                   connect=connect)
+
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_xlim(x_range)
+    ax.set_ylim(y_range)

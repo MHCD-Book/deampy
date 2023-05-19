@@ -131,6 +131,7 @@ def add_histograms_to_ax(ax, data_sets, legends=None, legend_fontsize=8, bin_wid
                             bin_width=bin_width,
                             x_range=x_range,
                             color=color,
+                            remove_y_labels=True if y_label is None else False,
                             transparency=transparency,
                             label=labels[i])
 
