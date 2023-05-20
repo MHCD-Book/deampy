@@ -26,6 +26,8 @@ class MarkovJumpProcess:
             # create an empirical distribution over the future states from this state
             self._empiricalDists.append(Empirical(probabilities=probs))
 
+        self._n_states = len(self._empiricalDists)
+
     def get_next_state(self, current_state_index, rng):
         """
         :param current_state_index: index of the current state
@@ -33,9 +35,9 @@ class MarkovJumpProcess:
         :return: the index of the next state
         """
 
-        if not (0 <= current_state_index < len(self._empiricalDists)):
+        if not (0 <= current_state_index < self._n_states):
             raise ValueError('The value of the current state index should be greater '
-                             'than 0 and smaller than the number of states.'
+                             'than 0 and smaller than the number of states. '
                              'Value provided for current state index is {}.'.format(current_state_index))
 
         # find the next state index by drawing a sample from
