@@ -182,7 +182,7 @@ def read_csv_cols_to_dictionary(file_name, delimiter=',', if_convert_float=False
     # add columns to the dictionary
     for j, col in enumerate(cols):
         if col_headers[j] in dict_of_columns:
-            raise ValueError("Key '{}' already exists in the dictionary of parameters.".format(col_headers[j]))
+            raise ValueError("Key '{}' already exists in the dictionary of columns.".format(col_headers[j]))
         else:
             dict_of_columns[col_headers[j]] = col
 
