@@ -466,26 +466,26 @@ class Exponential(RVG):
 
 
 class Gamma(RVG):
-    def __init__(self, a, scale=1, loc=0):
+    def __init__(self, shape, scale=1, loc=0):
         """
         E[X] = a*scale + loc
         Var[X] = a*scale**2
         """
         RVG.__init__(self)
-        self.a = a
+        self.shape = shape
         self.scale = scale
         self.loc = loc
 
     def sample(self, rng, arg=None):
-        return rng.gamma(self.a, self.scale) + self.loc
+        return rng.gamma(self.shape, self.scale) + self.loc
 
     def get_mean_st_dev(self):
-        return self.a*self.scale + self.loc, math.sqrt(self.a*self.scale**2)
+        return self.shape * self.scale + self.loc, math.sqrt(self.shape * self.scale ** 2)
 
     def get_percentile_interval(self, alpha=0.05):
 
         return self._get_percentile_interval(alpha=alpha, dist=stat.gamma,
-                                             params=[self.a, self.loc, self.scale])
+                                             params=[self.shape, self.loc, self.scale])
 
     @staticmethod
     def fit_mm(mean, st_dev, fixed_location=0):
@@ -501,7 +501,7 @@ class Gamma(RVG):
         scale = (st_dev ** 2) / mean
 
         # report results in the form of a dictionary
-        return {"a": shape, "scale": scale, "loc": fixed_location}
+        return {"shape": shape, "scale": scale, "loc": fixed_location}
 
     @staticmethod
     def fit_ml(data, fixed_location=0):
@@ -521,7 +521,7 @@ class Gamma(RVG):
             log_likelihood=np.sum(stat.gamma.logpdf(data, a, loc, scale)))
 
         # report results in the form of a dictionary
-        return {"a": a, "scale": scale, "loc": loc, "AIC": aic}
+        return {"shape": a, "scale": scale, "loc": loc, "AIC": aic}
 
 
 class GammaPoisson(RVG):
@@ -537,7 +537,7 @@ class GammaPoisson(RVG):
         self.loc = loc
 
     def sample(self, rng, arg=None):
-        sample_rate = Gamma(a=self.a, scale=self.gamma_scale).sample(rng)
+        sample_rate = Gamma(shape=self.a, scale=self.gamma_scale).sample(rng)
         sample_poisson = Poisson(mu=sample_rate)
         return sample_poisson.sample(rng) + self.loc
 

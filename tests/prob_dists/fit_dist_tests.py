@@ -1,7 +1,7 @@
+import deampy.random_variats as RVGs
 import numpy as np
 
 import deampy.plots.prob_dists as Plot
-import deampy.random_variats as RVGs
 from tests.prob_dists.rvg_tests import get_samples
 
 
@@ -112,7 +112,7 @@ def test_fitting_exponential():
 def test_fitting_gamma():
 
     print('\nTesting Gamma with a=10, scale=1, loc=2:')
-    dist = RVGs.Gamma(a=10, scale=1, loc=2)
+    dist = RVGs.Gamma(shape=10, scale=1, loc=2)
     print('  mean, st dev: ', dist.get_mean_st_dev())
     print('  percentile interval: ', dist.get_percentile_interval(alpha=0.05))
 

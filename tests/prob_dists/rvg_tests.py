@@ -1,9 +1,8 @@
 import math
 
+import deampy.random_variats as RVGs
 import numpy as np
 import scipy.stats as scipy
-
-import deampy.random_variats as RVGs
 
 
 def print_test_results(dist_name, samples, expectation, variance):
@@ -34,7 +33,7 @@ def get_samples(dist, rnd):
 def get_samples_multivariate(dist, rnd):
     """ sampling from a multi-variate distribution """
 
-    samples = np.zeros([len(dist.a), 10000])
+    samples = np.zeros([len(dist.shape), 10000])
     for i in range(0, 10000):
         # get 10000 samples
         samples[:, i] = dist.sample(rnd)
@@ -168,7 +167,7 @@ def test_empirical(rnd, prob):
 
 def test_gamma(rnd, a, loc=0, scale=1):
     # gamma random variate generator
-    gamma_dist = RVGs.Gamma(a=a, scale=scale, loc=loc)
+    gamma_dist = RVGs.Gamma(shape=a, scale=scale, loc=loc)
 
     # obtain samples
     samples = get_samples(gamma_dist, rnd)

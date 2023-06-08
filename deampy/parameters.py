@@ -132,7 +132,7 @@ class Gamma(_SingleVariate):
 
         _Parameter.__init__(self, id=id, name=name)
         fit_results = G.fit_mm(mean=mean, st_dev=st_dev)
-        self.par = G(a=fit_results['a'], scale=fit_results['scale'])
+        self.par = G(shape=fit_results['a'], scale=fit_results['scale'])
 
     def sample(self, rng=None, time=None):
         self.value = self.par.sample(rng=rng)
