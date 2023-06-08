@@ -276,9 +276,9 @@ def test_negative_binomial(rnd, n, p, loc=0):
     samples = get_samples(negative_binomial_dist, rnd)
 
     # get theoretical mean and variance
-    mean = scipy.nbinom.stats(n, p, loc, moments='m')
+    mean = scipy.nbinom.stat(n, p, loc, moments='m')
     mean = np.asarray(mean).item()
-    var = scipy.nbinom.stats(n, p, loc, moments='v')
+    var = scipy.nbinom.stat(n, p, loc, moments='v')
     var = np.asarray(var).item()
 
     # report mean and variance
@@ -338,7 +338,7 @@ def test_triangular(rnd, c, loc=0, scale=1):
     samples = get_samples(triangular_dist, rnd)
 
     # get theoretical variance
-    var = scipy.triang.stats(c, loc, scale, moments='v')
+    var = scipy.triang.stat(c, loc, scale, moments='v')
     var = np.asarray(var).item()
 
     # report mean and variance
@@ -384,7 +384,7 @@ def test_weibull(rnd, a, loc=0, scale=1):
     samples = get_samples(weibull_dist, rnd)
 
     # get theoretical variance
-    var = scipy.weibull_min.stats(a, loc, scale, moments='v')
+    var = scipy.weibull_min.stat(a, loc, scale, moments='v')
     var = np.asarray(var).item()
 
     # report mean and variance
