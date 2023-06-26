@@ -2458,7 +2458,7 @@ class ICER_Paired(_ICER):
                prior_range=None, num_wtp_thresholds=1000):
         """
         :param alpha: (double) significance level, a value from [0, 1]
-         :param method: (string) 'bootstrap' or 'Bayesian'
+        :param method: (string) 'bootstrap' or 'Bayesian'
         :param num_bootstrap_samples: number of bootstrap samples when 'bootstrap' method is selected
         :param rng: random number generator to generate empirical bootstrap samples
         :param num_wtp_thresholds: (int) number of willingness-to-pay thresholds to evaluate posterior
