@@ -188,7 +188,11 @@ def get_bayesian_ci_for_switch_wtp(
 
     # report CI
     sum_stat = SummaryStat(data=sampled_lambda_0s)
-    return sum_stat.get_interval(interval_type='p', alpha=alpha)
+    interval = sum_stat.get_interval(interval_type='p', alpha=alpha)
+    if interval[0] is None:
+        raise ValueError()
+
+    return interval
 
 
 def get_prob_minus_power(n, power, true_wtp, wtp_error, mean_d_cost, mean_d_effect, var_plus_error, var_minus_error):
@@ -2458,7 +2462,7 @@ class ICER_Paired(_ICER):
                prior_range=None, num_wtp_thresholds=1000):
         """
         :param alpha: (double) significance level, a value from [0, 1]
-        :param method: (string) 'bootstrap' or 'Bayesian'
+        :param method: (string) 'bootstrap' or 'bayesian'
         :param num_bootstrap_samples: number of bootstrap samples when 'bootstrap' method is selected
         :param rng: random number generator to generate empirical bootstrap samples
         :param num_wtp_thresholds: (int) number of willingness-to-pay thresholds to evaluate posterior
@@ -2475,7 +2479,7 @@ class ICER_Paired(_ICER):
             rng = RandomState(seed=1)
 
         # check if the Bayesian approach is selected
-        if method == 'Bayesian':
+        if method == 'bayesian' or method == 'Bayesian':
 
             # if ICER is not defined, the confidence interval is not defined either
             if np.isnan(self._ICER):
