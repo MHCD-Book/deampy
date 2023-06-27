@@ -2503,16 +2503,23 @@ class ICER_Paired(_ICER):
             mean_d_effect = self._deltaAveEffect
             var_d_cost = np.var(self._deltaCosts, ddof=1)
             var_d_effect = np.var(self._deltaEffects, ddof=1)
-            cor = np.corrcoef(self._deltaCosts, self._deltaEffects)[0, 1]
+            cov = np.cov(self._deltaCosts, self._deltaEffects)[0, 1]
             z = stat.norm.ppf(1 - alpha / 2)
 
             # solve aR^2 + bR + c = 0
             a = mean_d_effect ** 2 - z**2 * var_d_effect
-            b = 2 * (mean_d_effect * mean_d_cost - z**2 * cor)
+            b = - 2 * (mean_d_effect * mean_d_cost - z**2 * cov)
             c = mean_d_cost ** 2 - z**2 * var_d_cost
 
+            # solve a quadratic equation
+            delta = b**2 - 4 * a * c
+            if delta < 0:
+                return [np.nan, np.nan]
+            else:
+                r1 = (-b - np.sqrt(delta)) / (2 * a)
+                r2 = (-b + np.sqrt(delta)) / (2 * a)
 
-
+            return [r1, r2]
 
         elif method == 'bootstrap':
             # bootstrap algorithm
