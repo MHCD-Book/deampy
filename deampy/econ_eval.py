@@ -191,8 +191,6 @@ def get_bayesian_ci_for_switch_wtp(
     # report CI
     sum_stat = SummaryStat(data=sampled_lambda_0s)
     interval = sum_stat.get_interval(interval_type='p', alpha=alpha)
-    if interval[0] is None:
-        raise ValueError()
 
     return interval
 
@@ -2317,22 +2315,22 @@ class _ComparativeEconMeasure:
         self._effectsBase = assert_np_list(effects_base, "effects_base should be list or np.array.")
 
         # calculate the difference in average cost
-        self._delta_ave_cost = np.average(self._costsNew) - np.average(self._costsBase)
+        self._deltaAveCost = np.average(self._costsNew) - np.average(self._costsBase)
         # change in effect: DALY averted or QALY gained
-        self._delta_ave_effect = (np.average(self._effectsNew) - np.average(self._effectsBase)) \
-                                 * self._effect_multiplier
+        self._deltaAveEffect = (np.average(self._effectsNew) - np.average(self._effectsBase)) \
+                               * self._effect_multiplier
 
     def get_ave_d_cost(self):
         """
         :return: average marginal cost
         """
-        return self._delta_ave_cost
+        return self._deltaAveCost
 
     def get_ave_d_effect(self):
         """
         :return: average marginal effect
         """
-        return self._delta_ave_effect
+        return self._deltaAveEffect
 
 
 class _ICER(_ComparativeEconMeasure):
@@ -2353,7 +2351,7 @@ class _ICER(_ComparativeEconMeasure):
         _ComparativeEconMeasure.__init__(self, costs_new, effects_new, costs_base, effects_base, health_measure, name)
 
         # calculate ICER
-        if not (self._delta_ave_effect > 0 and self._delta_ave_cost >= 0):
+        if not (self._deltaAveEffect > 0 and self._deltaAveCost >= 0):
             warnings.warn(self.name + ': Mean marginal effect should be > 0 '
                                       'and mean marginal cost should be >= 0. '
                                       'ICER is not computable.')
@@ -2361,8 +2359,7 @@ class _ICER(_ComparativeEconMeasure):
             self._ICER = math.nan
         else:
             # $ per DALY averted or $ per QALY gained
-            self._ICER = self._delta_ave_cost / self._delta_ave_effect
-
+            self._ICER = self._deltaAveCost / self._deltaAveEffect
 
     def get_ICER(self):
         """ return ICER """
@@ -2464,7 +2461,7 @@ class ICER_Paired(_ICER):
                prior_range=None, num_wtp_thresholds=1000):
         """
         :param alpha: (double) significance level, a value from [0, 1]
-        :param method: (string) 'bootstrap' or 'bayesian'
+        :param method: (string) 'bootstrap' or 'bayesian' or 'fieller'
         :param num_bootstrap_samples: number of bootstrap samples when 'bootstrap' method is selected
         :param rng: random number generator to generate empirical bootstrap samples
         :param num_wtp_thresholds: (int) number of willingness-to-pay thresholds to evaluate posterior
@@ -2495,6 +2492,27 @@ class ICER_Paired(_ICER):
                 prior_range=prior_range,
                 rng=rng
             )
+
+        elif method == 'fieller' or method == 'Fieller':
+
+            # if ICER is not defined, the confidence interval is not defined either
+            if np.isnan(self._ICER):
+                return [np.nan, np.nan]
+
+            mean_d_cost = self._deltaAveCost
+            mean_d_effect = self._deltaAveEffect
+            var_d_cost = np.var(self._deltaCosts, ddof=1)
+            var_d_effect = np.var(self._deltaEffects, ddof=1)
+            cor = np.corrcoef(self._deltaCosts, self._deltaEffects)[0, 1]
+            z = stat.norm.ppf(1 - alpha / 2)
+
+            # solve aR^2 + bR + c = 0
+            a = mean_d_effect ** 2 - z**2 * var_d_effect
+            b = 2 * (mean_d_effect * mean_d_cost - z**2 * cor)
+            c = mean_d_cost ** 2 - z**2 * var_d_cost
+
+
+
 
         elif method == 'bootstrap':
             # bootstrap algorithm
@@ -2697,7 +2715,7 @@ class _MarginalNMB(_ComparativeEconMeasure):
         :param wtp: willingness-to-pay ($ for QALY gained or $ for DALY averted)
         :returns: the marginal net monetary benefit at the provided willingness-to-pay value
         """
-        return wtp * self._delta_ave_effect - self._delta_ave_cost
+        return wtp * self._deltaAveEffect - self._deltaAveCost
 
     def get_CI(self, wtp, alpha=0.05):
         """
