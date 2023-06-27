@@ -4,9 +4,10 @@ import warnings
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import scipy.stats as stat
+# from scipy.stats import pearsonr
+from numpy import corrcoef
 from numpy import exp, power, average
 from numpy.random import RandomState
-from scipy.stats import pearsonr
 from statsmodels.stats.power import TTestPower
 
 import deampy.format_functions as F
@@ -113,9 +114,10 @@ def get_variance_of_marginal_nmb(wtp, delta_costs, delta_effects):
 
     st_d_cost = np.std(delta_costs, ddof=1)
     st_d_effect = np.std(delta_effects, ddof=1)
-    rho = pearsonr(delta_costs, delta_effects)
+    # rho = pearsonr(delta_costs, delta_effects)
+    rho = corrcoef(delta_costs, delta_effects)[0, 1]
 
-    variance = wtp ** 2 * st_d_effect ** 2 + st_d_cost ** 2 - 2 * wtp * rho[0] * st_d_effect * st_d_cost
+    variance = wtp ** 2 * st_d_effect ** 2 + st_d_cost ** 2 - 2 * wtp * st_d_effect * st_d_cost
 
     if np.isnan(variance) or variance < 0:
         raise ValueError(st_d_effect, st_d_cost, rho[0])
@@ -1459,7 +1461,7 @@ class CBA(_EconEval):
                 d_cost_st_devs.append(s.dCost.get_stdev())
                 d_effect_means.append(s.dEffect.get_mean())
                 d_effect_st_devs.append(s.dEffect.get_stdev())
-                corr = pearsonr(s.dEffectObs, s.dCostObs)[0]
+                corr = corrcoef(s.dEffectObs, s.dCostObs)[0,1]
                 if np.isnan(corr):
                     cov_d_effect_and_d_cost.append(0)
                 else:
