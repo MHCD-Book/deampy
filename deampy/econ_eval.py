@@ -117,7 +117,7 @@ def get_variance_of_marginal_nmb(wtp, delta_costs, delta_effects):
     # rho = pearsonr(delta_costs, delta_effects)
     rho = corrcoef(delta_costs, delta_effects)[0, 1]
 
-    variance = wtp ** 2 * st_d_effect ** 2 + st_d_cost ** 2 - 2 * wtp * st_d_effect * st_d_cost
+    variance = wtp ** 2 * st_d_effect ** 2 + st_d_cost ** 2 - 2 * wtp * rho * st_d_effect * st_d_cost
 
     if np.isnan(variance) or variance < 0:
         raise ValueError(st_d_effect, st_d_cost, rho[0])
