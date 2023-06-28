@@ -2512,7 +2512,7 @@ class ICER_Paired(_ICER):
             c = mean_d_cost ** 2 - z**2 * var_d_cost
 
             # a = pow(mean_d_effect, 2) - pow(z, 2) * var_d_effect
-            # b = mean_d_effect * mean_d_cost - pow(z, 2) * cov
+            # b = - mean_d_effect * mean_d_cost - pow(z, 2) * cov
             # c = pow(mean_d_cost, 2) - pow(z, 2) * var_d_cost
 
             # solve a quadratic equation
