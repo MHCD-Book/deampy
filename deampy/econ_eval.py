@@ -2504,12 +2504,16 @@ class ICER_Paired(_ICER):
             var_d_cost = np.var(self._deltaCosts, ddof=1)
             var_d_effect = np.var(self._deltaEffects, ddof=1)
             cov = np.cov(self._deltaCosts, self._deltaEffects)[0, 1]
-            z = stat.norm.ppf(1 - alpha / 2)
+            z = stat.norm.ppf(1-alpha)
 
             # solve aR^2 + bR + c = 0
             a = mean_d_effect ** 2 - z**2 * var_d_effect
             b = - 2 * (mean_d_effect * mean_d_cost - z**2 * cov)
             c = mean_d_cost ** 2 - z**2 * var_d_cost
+
+            # a = pow(mean_d_effect, 2) - pow(z, 2) * var_d_effect
+            # b = mean_d_effect * mean_d_cost - pow(z, 2) * cov
+            # c = pow(mean_d_cost, 2) - pow(z, 2) * var_d_cost
 
             # solve a quadratic equation
             delta = b**2 - 4 * a * c
@@ -2518,6 +2522,13 @@ class ICER_Paired(_ICER):
             else:
                 r1 = (-b - np.sqrt(delta)) / (2 * a)
                 r2 = (-b + np.sqrt(delta)) / (2 * a)
+            #
+            # delta = pow(b, 2) - a * c
+            # if delta < 0:
+            #     return [np.nan, np.nan]
+            # else:
+            #     r1 = (-b - np.sqrt(delta)) / a
+            #     r2 = (-b + np.sqrt(delta)) / a
 
             return [r1, r2]
 
