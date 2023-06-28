@@ -2511,10 +2511,6 @@ class ICER_Paired(_ICER):
             b = - 2 * (mean_d_effect * mean_d_cost - z**2 * cov)
             c = mean_d_cost ** 2 - z**2 * var_d_cost
 
-            # a = pow(mean_d_effect, 2) - pow(z, 2) * var_d_effect
-            # b = - mean_d_effect * mean_d_cost - pow(z, 2) * cov
-            # c = pow(mean_d_cost, 2) - pow(z, 2) * var_d_cost
-
             # solve a quadratic equation
             delta = b**2 - 4 * a * c
             if delta < 0:
@@ -2522,15 +2518,12 @@ class ICER_Paired(_ICER):
             else:
                 r1 = (-b - np.sqrt(delta)) / (2 * a)
                 r2 = (-b + np.sqrt(delta)) / (2 * a)
-            #
-            # delta = pow(b, 2) - a * c
-            # if delta < 0:
-            #     return [np.nan, np.nan]
-            # else:
-            #     r1 = (-b - np.sqrt(delta)) / a
-            #     r2 = (-b + np.sqrt(delta)) / a
 
-            return [r1, r2]
+            # negative ICER is not defined
+            if r1 < 0:
+                return [np.nan, np.nan]
+            else:
+                return [r1, r2]
 
         elif method == 'bootstrap':
             # bootstrap algorithm
