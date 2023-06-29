@@ -2461,7 +2461,7 @@ class ICER_Paired(_ICER):
                prior_range=None, num_wtp_thresholds=1000):
         """
         :param alpha: (double) significance level, a value from [0, 1]
-        :param method: (string) 'bootstrap' or 'bayesian' or 'fieller'
+        :param method: (string) 'bootstrap' or 'bayesian' or 'fieller' or 'taylor'
         :param num_bootstrap_samples: number of bootstrap samples when 'bootstrap' method is selected
         :param rng: random number generator to generate empirical bootstrap samples
         :param num_wtp_thresholds: (int) number of willingness-to-pay thresholds to evaluate posterior
@@ -2471,6 +2471,10 @@ class ICER_Paired(_ICER):
         :return: confidence interval in the format of list [l, u]
         """
 
+        # if ICER is not defined, the confidence interval is not defined either
+        if np.isnan(self._ICER):
+            return [np.nan, np.nan]
+
         n_obs = len(self._deltaCosts)
 
         # create a new random number generator if one is not provided.
@@ -2479,10 +2483,6 @@ class ICER_Paired(_ICER):
 
         # check if the Bayesian approach is selected
         if method == 'bayesian' or method == 'Bayesian':
-
-            # if ICER is not defined, the confidence interval is not defined either
-            if np.isnan(self._ICER):
-                return [np.nan, np.nan]
 
             return get_bayesian_ci_for_switch_wtp(
                 delta_costs=self._deltaCosts,
@@ -2495,16 +2495,12 @@ class ICER_Paired(_ICER):
 
         elif method == 'fieller' or method == 'Fieller':
 
-            # if ICER is not defined, the confidence interval is not defined either
-            if np.isnan(self._ICER):
-                return [np.nan, np.nan]
-
             mean_d_cost = self._deltaAveCost
             mean_d_effect = self._deltaAveEffect
             var_d_cost = np.var(self._deltaCosts, ddof=1)
             var_d_effect = np.var(self._deltaEffects, ddof=1)
             cov = np.cov(self._deltaCosts, self._deltaEffects)[0, 1]
-            z = stat.norm.ppf(1-alpha)
+            z = stat.norm.ppf(1-alpha/2)
 
             # solve aR^2 + bR + c = 0
             a = mean_d_effect ** 2 - z**2 * var_d_effect
@@ -2518,6 +2514,30 @@ class ICER_Paired(_ICER):
             else:
                 r1 = (-b - np.sqrt(delta)) / (2 * a)
                 r2 = (-b + np.sqrt(delta)) / (2 * a)
+
+            # negative ICER is not defined
+            if r1 < 0:
+                return [np.nan, np.nan]
+            else:
+                return [r1, r2]
+
+        elif method == 'taylor' or method == 'Taylor':
+
+            mean_d_cost = self._deltaAveCost
+            mean_d_effect = self._deltaAveEffect
+            var_d_cost = np.var(self._deltaCosts, ddof=1)
+            var_d_effect = np.var(self._deltaEffects, ddof=1)
+            cov = np.cov(self._deltaCosts, self._deltaEffects)[0, 1]
+            z = stat.norm.ppf(1-alpha/2)
+
+            # st dev of icer
+            a = var_d_cost / mean_d_cost ** 2
+            b = var_d_effect / mean_d_effect ** 2
+            c = -cov/(mean_d_effect * mean_d_effect)
+            st_dev_r = self._ICER * math.sqrt(a + b + c)
+
+            r1 = self._ICER - z * st_dev_r
+            r2 = self._ICER + z * st_dev_r
 
             # negative ICER is not defined
             if r1 < 0:
