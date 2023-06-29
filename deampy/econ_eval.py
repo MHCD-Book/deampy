@@ -2533,7 +2533,7 @@ class ICER_Paired(_ICER):
             # st dev of icer
             a = var_d_cost / mean_d_cost ** 2
             b = var_d_effect / mean_d_effect ** 2
-            c = -cov/(mean_d_effect * mean_d_effect)
+            c = - 2 * cov/(mean_d_cost * mean_d_effect)
             st_dev_r = self._ICER * math.sqrt(a + b + c)
 
             r1 = self._ICER - z * st_dev_r

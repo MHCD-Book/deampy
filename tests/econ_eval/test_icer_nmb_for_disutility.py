@@ -14,11 +14,17 @@ print('')
 # ICER calculation assuming paired observations
 ICER_paired = EconEval.ICER_Paired(cost_intervention, effect_intervention, cost_base, effect_base,
                                    health_measure='d')
-print('Paired ICER:\n\tICER: {} \n\tCI (boostrap): {} \n\tCI (Bayesian): {} \n\tCI (Fieller): {} \n\tPI: '.format(
+print('Paired ICER:\n\tICER: {} '
+      '\n\tCI (boostrap): {} '
+      '\n\tCI (Bayesian): {} '
+      '\n\tCI (Fieller): {} '
+      '\n\tCI (Taylor): {} '
+      '\n\tPI: '.format(
       ICER_paired.get_ICER(),
       ICER_paired.get_CI(alpha=0.05, num_bootstrap_samples=1000, method='bootstrap'),
       ICER_paired.get_CI(alpha=0.05, num_bootstrap_samples=1000, method='Bayesian'),
       ICER_paired.get_CI(alpha=0.05, method='Fieller'),
+      ICER_paired.get_CI(alpha=0.05, method='Taylor'),
       ICER_paired.get_PI(alpha=0.05)))
 
 # ICER calculation assuming independent observations
