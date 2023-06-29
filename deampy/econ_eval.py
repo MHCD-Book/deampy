@@ -2545,7 +2545,7 @@ class ICER_Paired(_ICER):
             else:
                 return [r1, r2]
 
-        elif method == 'bootstrap':
+        elif method == 'bootstrap' or method == 'Bootstrap':
             # bootstrap algorithm
             icer_bootstrap_means = np.zeros(num_bootstrap_samples)
             for i in range(num_bootstrap_samples):
