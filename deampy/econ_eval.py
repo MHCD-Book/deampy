@@ -19,9 +19,13 @@ from deampy.support.econ_eval_support import *
 from deampy.support.misc_classes import *
 from deampy.support.misc_functions import convert_lnl_to_prob, get_prob_x_greater_than_ys
 
+Params = {
+    'plot.legend.fontsize': 7,
+    'evpi.plot.label': 'Perfect Information'
+}
+
 # warnings.filterwarnings("always")
 NUM_OF_BOOTSTRAPS = 1000  # number of bootstrap samples to calculate confidence intervals for ICER
-LEGEND_FONT_SIZE = 7
 
 CE_FRONTIER_COLOR = 'k'
 CE_FRONTIER_TRANSPARENCY = 0.6
@@ -909,7 +913,7 @@ class CEA(_EconEval):
                     )
 
         if show_legend:
-            ax.legend(fontsize=LEGEND_FONT_SIZE, loc=legend_loc_code)
+            ax.legend(fontsize=Params['plot.legend.fontsize'], loc=legend_loc_code)
 
         # and the clouds
         if add_clouds:
@@ -1726,7 +1730,8 @@ class CBA(_EconEval):
             self.evpi.append(average(max_nmbs))
 
         # curve
-        self.marginalNMBLines.append(EVPI(xs=self.wtpValues, ys=self.evpi, label='PI', color='k'))
+        self.marginalNMBLines.append(
+            EVPI(xs=self.wtpValues, ys=self.evpi, label=Params['evpi.plot.label'], color='k'))
 
     def built_table_of_optimal_switch_thresholds(self):
 
@@ -1804,19 +1809,19 @@ class CBA(_EconEval):
         else:
             fig.savefig(file_name, dpi=300)
 
-    def add_inmb_curves_to_ax(self, ax,
-                              title='Marginal Net Monetary Benefit',
-                              x_label='Willingness-To-Pay Threshold',
-                              y_label='Marginal Net Monetary Benefit',
-                              show_evpi=False,
-                              y_range=None,
-                              y_axis_multiplier=1,
-                              y_axis_decimal=None,
-                              delta_wtp=None,
-                              interval_type='n',
-                              show_legend=True,
-                              show_labels_on_frontier=False,
-                              grid_info=None):
+    def add_inmb_lines_to_ax(self, ax,
+                             title='Marginal Net Monetary Benefit',
+                             x_label='Willingness-To-Pay Threshold',
+                             y_label='Marginal Net Monetary Benefit',
+                             show_evpi=False,
+                             y_range=None,
+                             y_axis_multiplier=1,
+                             y_axis_decimal=None,
+                             delta_wtp=None,
+                             interval_type='n',
+                             show_legend=True,
+                             show_labels_on_frontier=False,
+                             grid_info=None):
 
         # make marginal NMB curves
         self.build_marginal_nmb_curves(interval_type=interval_type)
@@ -1832,6 +1837,7 @@ class CBA(_EconEval):
                          transparency_lines=CEAC_NMB_TRANSPARENCY,
                          transparency_intervals=NMB_INTERVAL_TRANSPARENCY,
                          show_legend=show_legend,
+                         legend_font_size=Params['plot.legend.fontsize'],
                          show_labels_on_frontier=show_labels_on_frontier,
                          show_frontier=True,
                          curve_line_width=NMB_LINE_WIDTH,
@@ -1922,7 +1928,7 @@ class CBA(_EconEval):
                          y_range=y_range, show_legend=show_legend,
                          transparency_lines=CEAC_NMB_TRANSPARENCY,
                          curve_line_width=CEAC_LINE_WIDTH, frontier_line_width=CEAF_LINE_WIDTH,
-                         legend_font_size=LEGEND_FONT_SIZE,
+                         legend_font_size=Params['plot.legend.fontsize'],
                          if_y_axis_prob=True, grid_info=grid_info)
 
     def add_expected_loss_curves_to_ax(
@@ -1953,7 +1959,7 @@ class CBA(_EconEval):
                          y_range=y_range, show_legend=show_legend,
                          transparency_lines=CEAC_NMB_TRANSPARENCY,
                          curve_line_width=NMB_LINE_WIDTH, frontier_line_width=NMB_FRONTIER_LINE_WIDTH,
-                         legend_font_size=LEGEND_FONT_SIZE,
+                         legend_font_size=Params['plot.legend.fontsize'],
                          y_axis_multiplier=y_axis_multiplier, y_axis_decimal=y_axis_decimal,
                          if_y_axis_prob=False,
                          grid_info=grid_info)
@@ -2281,7 +2287,7 @@ class ConstrainedOpt(_EconEval):
             show_labels_on_frontier=show_labels_on_frontier,
             curve_line_width=NMB_LINE_WIDTH, frontier_line_width=NMB_FRONTIER_LINE_WIDTH,
             if_format_y_numbers=True if effect_decimals is not None else False,
-            legend_font_size=LEGEND_FONT_SIZE,
+            legend_font_size=Params['plot.legend.fontsize'],
             frontier_label_shift_x=FRONTIER_LABEL_SHIFT_X,
             frontier_label_shift_y=FRONTIER_LABEL_SHIFT_Y
         )
