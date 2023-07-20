@@ -334,6 +334,23 @@ class SummaryStat(_Statistics):
         str_range = interval[1:-1].split(',')
         return np.array(str_range).astype(float)
 
+    @staticmethod
+    def get_mean_interval_from_formatted_mean_interval(formatted_text):
+        """
+        :param formatted_text: (string) of form 'a (b, c)'
+        :param form: ','  '%' or '$'
+        :return: (float, np.array) a, [b, c]
+        """
+
+        # remove characters
+        for char in ('$', '%', ',', '(', ')'):
+            formatted_text = formatted_text.replace(char, '')
+
+        # split by space and convert to float
+        array = np.array(formatted_text.split(' ')).astype(float)
+
+        return array[0], array[1:]
+
 
 class DiscreteTimeStat(_Statistics):
     """ to calculate statistics on observations accumulating over time """
