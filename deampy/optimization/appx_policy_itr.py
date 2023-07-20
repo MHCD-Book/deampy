@@ -561,7 +561,7 @@ class MultiApproximatePolicyIteration:
         # export iterations
         if folder_to_save_iterations is not None:
             for o in self.optimizers:
-                o.export_results(csv_file=folder_to_save_iterations + '/{}.csv'.format(o.name))
+                o.export_results(csv_filename=folder_to_save_iterations + '/{}.csv'.format(o.name))
 
         # find the best option
         minimum = float('inf')
