@@ -1,6 +1,9 @@
+import matplotlib
 import numpy as np
 
 import deampy.plots.histogram as cls
+
+matplotlib.use('cairo')
 
 obs = np.random.normal(4, 3, 1000)
 
@@ -13,7 +16,8 @@ cls.plot_histogram(
     bin_width=1,
     x_range=[-5, 20],
     y_range=[0, 140],
-    legend='Number of patients')
+    legend='Number of patients',
+    file_name='histogram.tif')
 
 obs_sets = [
     np.random.normal(4, 3, 1000),
