@@ -77,7 +77,10 @@ def write_csv(rows, file_name='csvfile.csv', delimiter=',', directory='', delete
         csv_file = csv.writer(file, delimiter=delimiter)
 
         for row in rows:
-            csv_file.writerow(row)
+            if not isinstance(row, list):
+                csv_file.writerow([row])
+            else:
+                csv_file.writerow(row)
 
         file.close()
 
