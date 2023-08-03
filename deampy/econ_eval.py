@@ -551,8 +551,8 @@ class _EconEval:
             self, max_wtp, epsilons, alphas, file_name):
         """
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
-        :param epsilons:
-        :param alphas:
+        :param epsilons: (list) of error tolerances
+        :param alphas: (list) of significance levels
         :param file_name: (string) the filename to save the results as
         :return: (dictionary) of minimum Monte Carlo samples needed to achieve the desired statistical power
             first key is power values and the second key is error tolerance
@@ -1737,7 +1737,6 @@ class CBA(_EconEval):
 
         pass
         # rows = self.find_optimal_switching_wtp_values(interval_type=, alpha=,num_wtp_thresholds=)
-
 
     def plot_marginal_nmb_lines(self,
                                 title='Marginal Net Monetary Benefit',
