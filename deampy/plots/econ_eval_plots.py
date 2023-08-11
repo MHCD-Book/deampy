@@ -84,7 +84,7 @@ def add_curves_to_ax(ax, curves, title=None,
                      curve_line_width=1.0, frontier_line_width=4.0,
                      if_y_axis_prob=False,
                      if_format_y_numbers=True,
-                     legend_font_size=7,
+                     legend_font_size_and_loc=(7, 'upper left'),
                      frontier_label_shift_x=-0.01,
                      frontier_label_shift_y=0.01,
                      grid_info=None):
@@ -125,7 +125,7 @@ def add_curves_to_ax(ax, curves, title=None,
                         c=curve.color, alpha=1, linewidth=frontier_line_width)
 
     if show_legend:
-        ax.legend(fontsize=legend_font_size) #loc=2,
+        ax.legend(fontsize=legend_font_size_and_loc[0], loc=legend_font_size_and_loc[1]) #loc=2,
 
     ax.set_title(title)
     ax.set_xlabel(x_label)
@@ -143,7 +143,7 @@ def add_curves_to_ax(ax, curves, title=None,
                     x = 0.5 * (curve.frontierXs[0] + curve.frontierXs[-1]) + frontier_label_shift_x * x_axis_length
                     y = 0.5 * (curve.frontierYs[0] + curve.frontierYs[-1]) * y_axis_multiplier \
                         + frontier_label_shift_y * y_axis_length
-                    ax.text(x=x, y=y, s=curve.label, fontsize=legend_font_size+1, c=curve.color)
+                    ax.text(x=x, y=y, s=curve.label, fontsize=legend_font_size_and_loc + 1, c=curve.color)
 
     # grids
     add_grids(ax=ax, grid_info=grid_info)

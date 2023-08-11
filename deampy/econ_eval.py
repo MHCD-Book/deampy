@@ -21,6 +21,7 @@ from deampy.support.misc_functions import convert_lnl_to_prob, get_prob_x_greate
 
 Params = {
     'plot.legend.fontsize': 7,
+    'plot.legend.loc': 'upper left',
     'evpi.plot.label': 'Perfect Information'
 }
 
@@ -1819,6 +1820,7 @@ class CBA(_EconEval):
                              delta_wtp=None,
                              interval_type='n',
                              show_legend=True,
+                             legend_font_size_and_loc=None,
                              show_labels_on_frontier=False,
                              grid_info=None):
 
@@ -1828,6 +1830,12 @@ class CBA(_EconEval):
         if show_evpi:
             self.calculate_evpi_curve()
 
+        if legend_font_size_and_loc is None:
+            legend_font_size_and_loc = (
+                Params['plot.legend.fontsize'],
+                Params['plot.legend.loc']
+            )
+
         add_curves_to_ax(ax=ax, curves=self.marginalNMBLines, x_range=[self.wtpValues[0], self.wtpValues[-1]],
                          title=title, x_label=x_label,
                          y_label=y_label, y_range=y_range, x_delta=delta_wtp,
@@ -1836,7 +1844,7 @@ class CBA(_EconEval):
                          transparency_lines=CEAC_NMB_TRANSPARENCY,
                          transparency_intervals=NMB_INTERVAL_TRANSPARENCY,
                          show_legend=show_legend,
-                         legend_font_size=Params['plot.legend.fontsize'],
+                         legend_font_size_and_loc=legend_font_size_and_loc,
                          show_labels_on_frontier=show_labels_on_frontier,
                          show_frontier=True,
                          curve_line_width=NMB_LINE_WIDTH,
@@ -1898,7 +1906,7 @@ class CBA(_EconEval):
             fig.savefig(file_name, bbox_inches='tight', dpi=300)
 
     def add_acceptability_curves_to_ax(
-            self, ax, wtp_delta=None, y_range=None, show_legend=True, legends=None,
+            self, ax, wtp_delta=None, y_range=None, show_legend=True, legend_font_size_and_loc=None, legends=None,
             grid_info=None,  normal_approximation=False):
         """
         adds the acceptability curves to the provided ax
@@ -1919,6 +1927,12 @@ class CBA(_EconEval):
         if len(self.acceptabilityCurves) == 0:
             self.build_acceptability_curves(normal_approximation=normal_approximation)
 
+        if legend_font_size_and_loc is None:
+            legend_font_size_and_loc = (
+                Params['plot.legend.fontsize'],
+                Params['plot.legend.loc']
+            )
+
         add_curves_to_ax(ax=ax,
                          curves=self.acceptabilityCurves,
                          legends=legends,
@@ -1927,11 +1941,11 @@ class CBA(_EconEval):
                          y_range=y_range, show_legend=show_legend,
                          transparency_lines=CEAC_NMB_TRANSPARENCY,
                          curve_line_width=CEAC_LINE_WIDTH, frontier_line_width=CEAF_LINE_WIDTH,
-                         legend_font_size=Params['plot.legend.fontsize'],
+                         legend_font_size_and_loc=legend_font_size_and_loc,
                          if_y_axis_prob=True, grid_info=grid_info)
 
     def add_expected_loss_curves_to_ax(
-            self, ax, wtp_delta=None, y_range=None, show_legend=True, legends=None,
+            self, ax, wtp_delta=None, y_range=None, show_legend=True, legend_font_size_and_loc=None, legends=None,
             y_axis_multiplier=1, y_axis_decimal=None, grid_info=None):
         """
         adds the acceptability curves to the provided ax
@@ -1940,6 +1954,9 @@ class CBA(_EconEval):
         :param y_range: (tuple) range of y-axis
         :param show_legend: (bool) if to show the legend
         :param legends: (list of strings) texts for legends
+        :param legend_font_size_and_loc: (tuple) (font size, location) for the legend
+        :param y_axis_multiplier: (float) multiplier for the y-axis
+        :param y_axis_decimal: (int) number of decimal places to show on the y-axis
         :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
             if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
         """
@@ -1950,6 +1967,12 @@ class CBA(_EconEval):
         if len(self.expectedLossCurves) == 0:
             self.build_expected_loss_curves()
 
+        if legend_font_size_and_loc is None:
+            legend_font_size_and_loc = (
+                Params['plot.legend.fontsize'],
+                Params['plot.legend.loc']
+            )
+
         add_curves_to_ax(ax=ax,
                          curves=self.expectedLossCurves,
                          legends=legends,
@@ -1958,7 +1981,7 @@ class CBA(_EconEval):
                          y_range=y_range, show_legend=show_legend,
                          transparency_lines=CEAC_NMB_TRANSPARENCY,
                          curve_line_width=NMB_LINE_WIDTH, frontier_line_width=NMB_FRONTIER_LINE_WIDTH,
-                         legend_font_size=Params['plot.legend.fontsize'],
+                         legend_font_size_and_loc=legend_font_size_and_loc,
                          y_axis_multiplier=y_axis_multiplier, y_axis_decimal=y_axis_decimal,
                          if_y_axis_prob=False,
                          grid_info=grid_info)
@@ -2253,7 +2276,7 @@ class ConstrainedOpt(_EconEval):
     def add_e_by_budget_to_ax(self, ax, title=None,
                               delta_budget=None, x_label=None,
                               y_label=None, y_range=None, y_axis_multiplier=1, effect_decimals=None,
-                              show_evpi=False, show_legend=True, show_frontier=True, show_labels_on_frontier=False,
+                              show_evpi=False, show_legend=True, legend_font_size_and_loc=None, show_frontier=True, show_labels_on_frontier=False,
                               grid_info='default'):
         """ add the effect by budget to the axis
         :param ax: axis
@@ -2266,6 +2289,7 @@ class ConstrainedOpt(_EconEval):
         :param effect_decimals: (int) to round the values of y-axis (effect)
         :param show_evpi: (bool) to show the expected value of perfect information (EVPI) curve
         :param show_legend: (bool) to show legends
+        :param legend_font_size_and_loc: (tuple) (font size, location) of the legend
         :param show_frontier: (bool) to show the frontier (curves with maximum effect or NMB)
         :param show_labels_on_frontier: (bool) to show labels on the frontier
         :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
@@ -2274,6 +2298,12 @@ class ConstrainedOpt(_EconEval):
 
         if show_evpi:
             self.calculate_evpi_curve()
+
+        if legend_font_size_and_loc is None:
+            legend_font_size_and_loc = (
+                Params['plot.legend.fontsize'],
+                Params['plot.legend.loc']
+            )
 
         add_curves_to_ax(
             ax=ax, curves=self.curves, title=title,
@@ -2286,7 +2316,7 @@ class ConstrainedOpt(_EconEval):
             show_labels_on_frontier=show_labels_on_frontier,
             curve_line_width=NMB_LINE_WIDTH, frontier_line_width=NMB_FRONTIER_LINE_WIDTH,
             if_format_y_numbers=True if effect_decimals is not None else False,
-            legend_font_size=Params['plot.legend.fontsize'],
+            legend_font_size_and_loc=legend_font_size_and_loc,
             frontier_label_shift_x=FRONTIER_LABEL_SHIFT_X,
             frontier_label_shift_y=FRONTIER_LABEL_SHIFT_Y
         )
