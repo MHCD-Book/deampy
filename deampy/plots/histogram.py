@@ -40,7 +40,6 @@ def add_histogram_to_ax(ax, data, title=None, label=None, color=None, bin_width=
         ax.set_yticklabels([])
         ax.set_yticks([])
 
-    ax.set_title(title)
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
 
