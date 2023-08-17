@@ -130,6 +130,48 @@ def get_variance_of_marginal_nmb(wtp, delta_costs, delta_effects):
     return variance
 
 
+def get_variance_of_icer(delta_costs, delta_effects, num_bootstrap_samples=1000, rng=None):
+    """
+    :param delta_costs: (list) of marginal cost observations
+    :param delta_effects: (list) of marginal effect observations
+    :param num_bootstrap_samples: (int) number of bootstrap samples
+    :param rng: (RandomState) random number generator
+    :return: the variance of ICER
+    """
+
+    n_obs = len(delta_costs)
+    if rng is None:
+        rng = np.random.RandomState(1)
+
+    # create bootstrap samples for ICERs
+    icer_bootstrap_means = np.zeros(num_bootstrap_samples)
+    for i in range(num_bootstrap_samples):
+        # because cost and health observations are paired,
+        # we sample delta cost and delta health together
+        indices = rng.choice(a=range(n_obs),
+                             size=n_obs,
+                             replace=True)
+        sampled_delta_costs = delta_costs[indices]
+        sampled_delta_effects = delta_effects[indices]
+
+        ave_delta_cost = np.average(sampled_delta_costs)
+        ave_delta_effect = np.average(sampled_delta_effects)
+
+        # assert all the means should not be 0
+        if ave_delta_effect <= 0:
+            warnings.warn(': Mean marginal health is 0 or less for one bootstrap sample, '
+                            'ICER is not computable')
+            # return np.nan
+        else:
+            icer_bootstrap_means[i] = ave_delta_cost/ave_delta_effect
+
+    variance = np.var(icer_bootstrap_means, ddof=1) * n_obs
+
+    if np.isnan(variance) or variance < 0:
+        raise ValueError('Variance of ICER could not be calculated. Increase the number of Monte Carlo samples.')
+
+    return variance
+
 def get_bayesian_ci_for_switch_wtp(
         delta_costs, delta_effects, alpha=0.05,
         num_wtp_thresholds=1000, prior_range=None, rng=None):
@@ -272,13 +314,27 @@ def get_min_monte_carlo_samples(delta_costs, delta_effects, max_wtp, epsilon, al
     mean_delta_effect = np.average(delta_effects)
     r = mean_delta_cost/mean_delta_effect
 
-    if r < 0 or r > max_wtp:
-        return 0
-    else:
-        var = get_variance_of_marginal_nmb(
-            wtp=r, delta_costs=delta_costs, delta_effects=delta_effects)
+    method = 'icer' # 'nmb'
 
-        sample_size = var / pow(epsilon * mean_delta_effect, 2) / alpha
+    if r < 0:
+        return math.nan
+    else:
+        if method == 'icer':
+            var = get_variance_of_icer(
+                delta_costs=delta_costs,
+                delta_effects=delta_effects)
+            sample_size = var / pow(epsilon, 2) / alpha
+
+        elif method == 'nmb':
+            var = get_variance_of_marginal_nmb(
+                wtp=min(r, max_wtp),
+                delta_costs=delta_costs,
+                delta_effects=delta_effects)
+
+            sample_size = var / pow(epsilon * mean_delta_effect, 2) / alpha
+        else:
+            raise ValueError('method must be either "icer" or "nmb"')
+
         return round(sample_size) + 1
 
 
