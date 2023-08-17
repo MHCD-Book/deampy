@@ -130,45 +130,64 @@ def get_variance_of_marginal_nmb(wtp, delta_costs, delta_effects):
     return variance
 
 
-def get_variance_of_icer(delta_costs, delta_effects, num_bootstrap_samples=1000, rng=None):
+def get_variance_of_icer(delta_costs, delta_effects, num_bootstrap_samples=1000, rng=None, method='taylor'):
     """
     :param delta_costs: (list) of marginal cost observations
     :param delta_effects: (list) of marginal effect observations
     :param num_bootstrap_samples: (int) number of bootstrap samples
     :param rng: (RandomState) random number generator
+    :param method: (str) method to calculate the variance of ICER ('taylor' or 'bootstrap')
     :return: the variance of ICER
     """
 
-    n_obs = len(delta_costs)
-    if rng is None:
-        rng = np.random.RandomState(1)
+    if method == 'taylor':
 
-    # create bootstrap samples for ICERs
-    icer_bootstrap_means = np.zeros(num_bootstrap_samples)
-    for i in range(num_bootstrap_samples):
-        # because cost and health observations are paired,
-        # we sample delta cost and delta health together
-        indices = rng.choice(a=range(n_obs),
-                             size=n_obs,
-                             replace=True)
-        sampled_delta_costs = delta_costs[indices]
-        sampled_delta_effects = delta_effects[indices]
+        mean_d_cost = np.mean(delta_costs)
+        mean_d_effect = np.mean(delta_effects)
+        var_d_cost = np.var(delta_costs, ddof=1)
+        var_d_effect = np.var(delta_effects, ddof=1)
+        cov_d_cost_d_effect = np.cov(delta_costs, delta_effects)[0, 1]
 
-        ave_delta_cost = np.average(sampled_delta_costs)
-        ave_delta_effect = np.average(sampled_delta_effects)
+        variance = (var_d_cost / mean_d_cost ** 2
+                    - 2 * cov_d_cost_d_effect / (mean_d_cost * mean_d_effect)
+                    + var_d_effect / mean_d_effect ** 2)
 
-        # assert all the means should not be 0
-        if ave_delta_effect <= 0:
-            warnings.warn(': Mean marginal health is 0 or less for one bootstrap sample, '
-                            'ICER is not computable')
-            # return np.nan
-        else:
-            icer_bootstrap_means[i] = ave_delta_cost/ave_delta_effect
+        variance *= (mean_d_cost / mean_d_effect) ** 2
 
-    variance = np.var(icer_bootstrap_means, ddof=1) * n_obs
+    elif method == 'bootstrap':
+        n_obs = len(delta_costs)
+        if rng is None:
+            rng = np.random.RandomState(1)
 
-    if np.isnan(variance) or variance < 0:
-        raise ValueError('Variance of ICER could not be calculated. Increase the number of Monte Carlo samples.')
+        # create bootstrap samples for ICERs
+        icer_bootstrap_means = np.zeros(num_bootstrap_samples)
+        for i in range(num_bootstrap_samples):
+            # because cost and health observations are paired,
+            # we sample delta cost and delta health together
+            indices = rng.choice(a=range(n_obs),
+                                 size=n_obs,
+                                 replace=True)
+            sampled_delta_costs = delta_costs[indices]
+            sampled_delta_effects = delta_effects[indices]
+
+            ave_delta_cost = np.average(sampled_delta_costs)
+            ave_delta_effect = np.average(sampled_delta_effects)
+
+            # assert all the means should not be 0
+            if ave_delta_effect <= 0:
+                warnings.warn(': Mean marginal health is 0 or less for one bootstrap sample, '
+                                'ICER is not computable')
+                # return np.nan
+            else:
+                icer_bootstrap_means[i] = ave_delta_cost/ave_delta_effect
+
+        variance = np.var(icer_bootstrap_means, ddof=1) * n_obs
+
+        if np.isnan(variance) or variance < 0:
+            raise ValueError('Variance of ICER could not be calculated. Increase the number of Monte Carlo samples.')
+
+    else:
+        raise ValueError('Method should be either "taylor" or "bootstrap"')
 
     return variance
 
