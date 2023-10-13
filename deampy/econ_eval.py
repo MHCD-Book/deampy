@@ -191,6 +191,7 @@ def get_variance_of_icer(delta_costs, delta_effects, num_bootstrap_samples=1000,
 
     return variance
 
+
 def get_bayesian_ci_for_switch_wtp(
         delta_costs, delta_effects, alpha=0.05,
         num_wtp_thresholds=1000, prior_range=None, rng=None):
@@ -1027,7 +1028,6 @@ class CEA(_EconEval):
         # grid
         add_grids(ax=ax, grid_info=grid_info)
 
-
     def plot_CE_plane(self,
                       title='Cost-Effectiveness Analysis',
                       x_label='Additional Health',
@@ -1089,11 +1089,7 @@ class CEA(_EconEval):
                                 interval_transparency=interval_transparency, grid_info=grid_info)
 
         fig.tight_layout()
-
-        if file_name is None or file_name == '':
-            fig.show()
-        else:
-            output_figure(plt=fig, filename=file_name)
+        output_figure(plt=fig, filename=file_name)
 
     def create_pairwise_ceas(self):
         """
@@ -1879,10 +1875,8 @@ class CBA(_EconEval):
 
         fig.tight_layout()
 
-        if file_name is None:
-            fig.show()
-        else:
-            fig.savefig(file_name, dpi=300)
+        fig.tight_layout()
+        output_figure(plt=fig, filename=file_name)
 
     def plot_expected_loss_curves(self,
                                   title='Expected Loss Curves',
@@ -1933,10 +1927,8 @@ class CBA(_EconEval):
         ax.set_xlabel(x_label)
         ax.set_ylabel(y_label)
 
-        if file_name is None:
-            fig.show()
-        else:
-            fig.savefig(file_name, bbox_inches='tight', dpi=300)
+        fig.tight_layout()
+        output_figure(plt=fig, filename=file_name)
 
     def add_inmb_lines_to_ax(self, ax,
                              title='Marginal Net Monetary Benefit',
@@ -2029,10 +2021,8 @@ class CBA(_EconEval):
         ax.set_xlabel(x_label)
         ax.set_ylabel(y_label)
 
-        if file_name is None:
-            fig.show()
-        else:
-            fig.savefig(file_name, bbox_inches='tight', dpi=300)
+        fig.tight_layout()
+        output_figure(plt=fig, filename=file_name)
 
     def add_acceptability_curves_to_ax(
             self, ax, wtp_delta=None, y_range=None, show_legend=True, legend_font_size_and_loc=None, legends=None,

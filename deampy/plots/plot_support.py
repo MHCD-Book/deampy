@@ -16,7 +16,7 @@ def output_figure(plt, filename=None, dpi=300, tight_layout=True, bbox_inches='t
         plt.tight_layout()
 
     # output
-    if filename is None:
+    if filename is None or filename == '':
         plt.show()
     else:
         if filename[0] == '/':
