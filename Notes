@@ -1,7 +1,7 @@
 
 https://blog.jetbrains.com/pycharm/2017/05/how-to-publish-your-package-on-pypi/
 
-1. $ python -m setup sdist bdist_wheel
+1. $ python -m setup sdist bdist_wheel (or py -m build)
 2. $ python -m twine upload dist/*
 
 # not sure what it does: $ python -m twine register dist/phmod-1.1.2.tar.gz

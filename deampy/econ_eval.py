@@ -1884,6 +1884,60 @@ class CBA(_EconEval):
         else:
             fig.savefig(file_name, dpi=300)
 
+    def plot_expected_loss_curves(self,
+                                  title='Expected Loss Curves',
+                                  x_label='Willingness-To-Pay Threshold',
+                                  y_label='Expected Loss in Net Monetary Benefit',
+                                  delta_wtp=None,
+                                  y_range=None,
+                                  show_legend=True,
+                                  legend_font_size_and_loc=None,
+                                  legends=None,
+                                  y_axis_multiplier=1, y_axis_decimal=None,
+                                  grid_info=None,
+                                  file_name=None, fig_size=(5, 5), ):
+        """
+        plot expected loss curves
+        :param title: title
+        :param x_label: x-axis label
+        :param y_label: y-axis label
+        :param delta_wtp: (float) distance between ticks on x-axis
+        :param y_range: (tuple) range of y-axis
+        :param show_legend: (bool) if to show the legend
+        :param legends: (list of strings) texts for legends
+        :param legend_font_size_and_loc: (tuple) (font size, location) for the legend
+        :param y_axis_multiplier: (float) multiplier for the y-axis
+        :param y_axis_decimal: (int) number of decimal places to show on the y-axis
+        :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
+           if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
+        :param fig_size: (tuple) size of the figure (e.g. (2, 3)
+        :param file_name: (string) filename to save the figure as
+        """
+
+        # initialize plot
+        fig, ax = plt.subplots(figsize=fig_size)
+
+        # add the acceptability curves
+        self.add_expected_loss_curves_to_ax(
+            ax=ax,
+            wtp_delta=delta_wtp,
+            y_range=y_range,
+            show_legend=show_legend,
+            legends=legends,
+            legend_font_size_and_loc=legend_font_size_and_loc,
+            y_axis_multiplier=y_axis_multiplier,
+            y_axis_decimal=y_axis_decimal,
+            grid_info=grid_info)
+
+        ax.set_title(title)
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(y_label)
+
+        if file_name is None:
+            fig.show()
+        else:
+            fig.savefig(file_name, bbox_inches='tight', dpi=300)
+
     def add_inmb_lines_to_ax(self, ax,
                              title='Marginal Net Monetary Benefit',
                              x_label='Willingness-To-Pay Threshold',
@@ -1969,7 +2023,7 @@ class CBA(_EconEval):
                                             y_range=y_range,
                                             show_legend=show_legend,
                                             legends=legends,
-                                            grid_info=grid_infor)
+                                            grid_info=grid_info)
 
         ax.set_title(title)
         ax.set_xlabel(x_label)
