@@ -13,6 +13,25 @@ import deampy.format_functions as F
 NUM_BOOTSTRAP_SAMPLES = 1000
 
 
+def remove_outliers(data, iq_factor=3.0):
+    """
+    :param data: (list) a list of numbers
+    :param iq_factor: (float) number of inter quantiles from the median to consider as outlier
+    :return: a list of numbers with outliers removed
+    """
+
+    if len(data) == 0:
+        return []
+
+    iqr = stat.iqr(data)
+    q1 = np.percentile(data, 25)
+    q3 = np.percentile(data, 75)
+    u = q3 + iq_factor * iqr
+    l = q1 - iq_factor * iqr
+
+    return [d for d in data if l <= d <= u]
+
+
 def get_sterr_from_half_length(confidence_interval, n, alpha=0.05):
     """
     :param confidence_interval: a t-based confidence interval
