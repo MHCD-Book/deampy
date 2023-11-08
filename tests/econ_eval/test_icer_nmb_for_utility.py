@@ -27,24 +27,16 @@ print('Paired ICER:'
       ICER_paired.get_CI(0.05, method='Bayesian'),
       ICER_paired.get_PI(0.05)))
 
-print('WTP', 'Beta', 'N')
-for wtp in (8000, 10000, 20000):
-    for beta in (0.8, 0.9, 0.95, 0.99):
-        n = EconEval.get_min_monte_carlo_samples_power_calc(
-            delta_costs=ICER_paired._deltaCosts,
-            delta_effects=ICER_paired._deltaEffects,
-            hypothesized_true_wtp=wtp,
-            power=beta, alpha=0.05)
-        print(wtp, beta, n)
 
 print('epsilon', 'N')
 for epsilon in (500, 1000, 2000):
     n = EconEval.get_min_monte_carlo_param_samples(
         delta_costs=ICER_paired._deltaCosts,
         delta_effects=ICER_paired._deltaEffects,
-        max_wtp=wtp,
+        max_wtp=500000,
         epsilon=epsilon,
-        alpha=0.05)
+        alpha=0.05,
+        num_bootstrap_samples=1000)
     print(epsilon, n)
 
 # ICER calculation assuming independent observations

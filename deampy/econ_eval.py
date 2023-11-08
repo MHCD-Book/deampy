@@ -261,7 +261,8 @@ def get_bayesian_ci_for_switch_wtp(
     return interval
 
 
-def get_min_monte_carlo_param_samples(delta_costs, delta_effects, max_wtp, epsilon, alpha=0.05):
+def get_min_monte_carlo_param_samples(delta_costs, delta_effects, max_wtp, epsilon, alpha=0.05,
+                                      num_bootstrap_samples=None, rng=None):
     """
     calculates n such that the probability that the estimated ICER is outside a specified range from the true ICER
     is at most alpha:
@@ -272,34 +273,80 @@ def get_min_monte_carlo_param_samples(delta_costs, delta_effects, max_wtp, epsil
     :param max_wtp: (double) the maximum WTP threshold to be considered
     :param epsilon: (double) epsilon in the formulate above
     :param alpha: (double) significance level
+    :param num_bootstrap_samples: (int) number of bootstrap samples to characterize the distribution of estimated Ns
+    :param rng: (RandomState) random number generator
     :return: (int) minimum sample size required
     """
 
-    mean_delta_cost = np.average(delta_costs)
-    mean_delta_effect = np.average(delta_effects)
-    r = mean_delta_cost/mean_delta_effect
+    # if one estimate for min N is needed
+    if num_bootstrap_samples in (0, None):
 
-    method = 'icer' # 'nmb'
+        mean_delta_cost = np.average(delta_costs)
+        mean_delta_effect = np.average(delta_effects)
+        r = mean_delta_cost/mean_delta_effect
 
-    if r < 0:
-        return math.nan
-    else:
-        if method == 'icer':
-            var = get_variance_of_icer(
-                delta_costs=delta_costs,
-                delta_effects=delta_effects)
-            sample_size = var / pow(epsilon, 2) / alpha
-
-        elif method == 'nmb':
-            var = get_variance_of_marginal_nmb(
-                wtp=min(r, max_wtp),
-                delta_costs=delta_costs,
-                delta_effects=delta_effects)
-            sample_size = var / pow(epsilon * mean_delta_effect, 2) / alpha
+        method = 'icer' # 'nmb'
+        # make sure that ICER is well-defined
+        if mean_delta_cost < 0 or mean_delta_effect <= 0:
+            return math.nan
         else:
-            raise ValueError('method must be either "icer" or "nmb"')
+            if method == 'icer':
+                var = get_variance_of_icer(
+                    delta_costs=delta_costs,
+                    delta_effects=delta_effects)
+                sample_size = var / pow(epsilon, 2) / alpha
 
-        return round(sample_size) + 1
+            elif method == 'nmb':
+                var = get_variance_of_marginal_nmb(
+                    wtp=min(r, max_wtp),
+                    delta_costs=delta_costs,
+                    delta_effects=delta_effects)
+                sample_size = var / pow(epsilon * mean_delta_effect, 2) / alpha
+            else:
+                raise ValueError('method must be either "icer" or "nmb"')
+
+            return round(sample_size) + 1
+
+    else: # if bootstrapping needs to be done
+
+        # set random number generator seed
+        if rng is None:
+            rng = np.random.RandomState(1)
+
+        bootstrap_ns = np.zeros(num_bootstrap_samples)
+        n_obs = len(delta_costs)
+
+        for i in range(num_bootstrap_samples):
+            # because cost and health observations are paired,
+            # we sample delta cost and delta health together
+            indices = rng.choice(a=range(n_obs),
+                                 size=n_obs,
+                                 replace=True)
+            sampled_delta_costs = delta_costs[indices]
+            sampled_delta_effects = delta_effects[indices]
+
+            bootstrap_ns[i] = get_min_monte_carlo_param_samples(
+                delta_costs=sampled_delta_costs,
+                delta_effects=sampled_delta_effects,
+                max_wtp=max_wtp,
+                epsilon=epsilon,
+                alpha=alpha,
+                num_bootstrap_samples=None,
+                rng=None)
+
+        sum_stat = SummaryStat(data=bootstrap_ns)
+
+        n_full = get_min_monte_carlo_param_samples(
+            delta_costs=delta_costs,
+            delta_effects=delta_effects,
+            max_wtp=max_wtp,
+            epsilon=epsilon,
+            alpha=alpha)
+
+        interval = sum_stat.get_interval(interval_type='p', alpha=alpha)
+
+        # return the bootstrap interval
+        return n_full, [int(a)+1 for a in interval]
 
 
 class Strategy:
@@ -515,7 +562,7 @@ class _EconEval:
                                       effects_base=self.strategies[0].effectObs,
                                       health_measure=self._healthMeasure)
 
-    def get_min_monte_carlo_samples(self, max_wtp, epsilon, alpha=0.05):
+    def get_min_monte_carlo_parameter_samples(self, max_wtp, epsilon, alpha=0.05):
         """
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
         :param epsilon: (double)
@@ -523,7 +570,8 @@ class _EconEval:
         :return: (int) the minimum Monte Carlo samples needed
         """
 
-        # find the minimum required number of Monte Carlo samples for each true WTP value
+        # find the minimum required number of Monte Carlo samples from parameter distributions
+        # TODO: check this
         max_n = 0
         for i in range(self._n):
             for j in range(i+1, self._n):
@@ -536,7 +584,7 @@ class _EconEval:
 
                 n = get_min_monte_carlo_param_samples(
                     delta_costs=s_j.costObs - s_i.costObs,
-                    delta_effects=s_j.effectObs - s_i.effectObs,
+                    delta_effects=(s_j.effectObs - s_i.effectObs)*self._u_or_d,
                     max_wtp=max_wtp,
                     epsilon=epsilon,
                     alpha=alpha)
@@ -563,7 +611,7 @@ class _EconEval:
         for alpha in alphas:
             dic_of_ns[alpha] = {}
             for epsilon in epsilons:
-                dic_of_ns[alpha][epsilon] = self.get_min_monte_carlo_samples(
+                dic_of_ns[alpha][epsilon] = self.get_min_monte_carlo_parameter_samples(
                     max_wtp=max_wtp, epsilon=epsilon, alpha=alpha)
 
         return dic_of_ns
