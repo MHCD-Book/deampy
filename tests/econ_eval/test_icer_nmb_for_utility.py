@@ -39,7 +39,7 @@ for wtp in (8000, 10000, 20000):
 
 print('epsilon', 'N')
 for epsilon in (500, 1000, 2000):
-    n = EconEval.get_min_monte_carlo_samples(
+    n = EconEval.get_min_monte_carlo_param_samples(
         delta_costs=ICER_paired._deltaCosts,
         delta_effects=ICER_paired._deltaEffects,
         max_wtp=wtp,
