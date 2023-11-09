@@ -174,16 +174,19 @@ def add_min_monte_carlo_samples_to_ax(
             if isinstance(n, tuple):
                 value, interval = n
                 n_values.append(value)
-                l_errs.append(n - interval[0])
-                u_errs.append(interval[1] - n)
+                l_errs.append(value - interval[0])
+                u_errs.append(interval[1] - value)
             else:
                 n_values.append(n)
 
         ax.scatter(epsilons, n_values, marker=markers[i], color=colors[i],
                    label=r'$\alpha=${:.{prec}%}'.format(alpha, prec=0))
+        # error bars
         if len(l_errs) > 0:
             ax.errorbar(
-                epsilons, n_values, yerr=[l_errs, u_errs], fmt='none', ecolor=colors[i], capsize=3)
+                epsilons, n_values, yerr=[l_errs, u_errs], fmt='none',
+                ecolor=colors[i], capsize=3, linewidth=0.75)
+
         ax.plot(epsilons, n_values, 'k--', color=colors[i], linewidth=0.5)
         i += 1
 

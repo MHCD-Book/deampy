@@ -264,54 +264,61 @@ def get_bayesian_ci_for_switch_wtp(
 def get_min_monte_carlo_param_samples(delta_costs, delta_effects, max_wtp, epsilon, alpha=0.05,
                                       num_bootstrap_samples=None, rng=None):
     """
-    calculates n such that the probability that the estimated ICER is outside a specified range from the true ICER
+    calculates the number of parameter samples such that the probability that
+    the estimated ICER is outside a specified range from the true ICER
     is at most alpha:
         that is: Pr{|estimated ICER - true ICER| >  epsilon} < alpha
 
     :param delta_costs: (list) of marginal cost observations
     :param delta_effects: (list) of marginal effect observations
     :param max_wtp: (double) the maximum WTP threshold to be considered
-    :param epsilon: (double) epsilon in the formulate above
-    :param alpha: (double) significance level
-    :param num_bootstrap_samples: (int) number of bootstrap samples to characterize the distribution of estimated Ns
-    :param rng: (RandomState) random number generator
-    :return: (int or tuple) minimum sample size required or
-        a tuple of (minimum sample sizes, interval) if num_bootstrap_samples is not None
+    :param epsilon: (double) the acceptable error in estimating ICER
+    :param alpha: (double) the acceptable probability that the estimated ICER is
+        outside the specified range from the true ICER
+    :param num_bootstrap_samples: (int) number of bootstrap samples to characterize the distribution of
+        the minimum required  number of parameter samples
+    :param rng: (RandomState) random number generator used for bootstrapping
+    :return: (int or tuple) minimum required number of parameter samples (N) or
+        a tuple of (N, interval) if num_bootstrap_samples is not None, where the interval
+        shows the distribution of N from bootstrapping.
     """
+
+    mean_delta_cost = np.average(delta_costs)
+    mean_delta_effect = np.average(delta_effects)
+    r = mean_delta_cost / mean_delta_effect
+
+    # make sure that ICER is well-defined
+    # if mean incremental effect <=0 then ICER is not defined and we return nan
+    # if mean incremental effect > 0 and mean incremetal cost <= 0 then
+    # ICER will be negative and will be handled by the code
+    # to calculate the variance of icer below.
+    if mean_delta_effect <= 0:
+        if num_bootstrap_samples in (None, 0):
+            return math.nan
+        else:
+            return math.nan, [math.nan, math.nan]
 
     # if one estimate for min N is needed
     if num_bootstrap_samples in (0, None):
 
-        mean_delta_cost = np.average(delta_costs)
-        mean_delta_effect = np.average(delta_effects)
-        r = mean_delta_cost/mean_delta_effect
-
         method = 'icer' # 'nmb'
 
-        # make sure that ICER is well-defined
-        # if mean incremental effect <=0 then ICER is not defined and we return nan
-        # if mean incremental effect > 0 and mean incremetal cost <= 0 then
-        # ICER will be negative and will be handled by the code
-        # to calculate the variance of icer below.
-        if mean_delta_effect <= 0:
-            return math.nan
+        if method == 'icer':
+            var = get_variance_of_icer(
+                delta_costs=delta_costs,
+                delta_effects=delta_effects)
+            sample_size = var / pow(epsilon, 2) / alpha
+
+        elif method == 'nmb':
+            var = get_variance_of_marginal_nmb(
+                wtp=min(r, max_wtp),
+                delta_costs=delta_costs,
+                delta_effects=delta_effects)
+            sample_size = var / pow(epsilon * mean_delta_effect, 2) / alpha
         else:
-            if method == 'icer':
-                var = get_variance_of_icer(
-                    delta_costs=delta_costs,
-                    delta_effects=delta_effects)
-                sample_size = var / pow(epsilon, 2) / alpha
+            raise ValueError('method must be either "icer" or "nmb"')
 
-            elif method == 'nmb':
-                var = get_variance_of_marginal_nmb(
-                    wtp=min(r, max_wtp),
-                    delta_costs=delta_costs,
-                    delta_effects=delta_effects)
-                sample_size = var / pow(epsilon * mean_delta_effect, 2) / alpha
-            else:
-                raise ValueError('method must be either "icer" or "nmb"')
-
-            return round(sample_size) + 1
+        return round(sample_size) + 1
 
     else: # if bootstrapping needs to be done
 
@@ -580,10 +587,11 @@ class _EconEval:
             self, max_wtp, epsilon, alpha=0.05, num_bootstrap_samples=1000, rng=None):
         """
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
-        :param epsilon: (double)
-        :param alpha: (double) significance level
+        :param epsilon: (double) the acceptable error in estimating ICER
+        :param alpha: (double) the acceptable probability that the estimated ICER is outside the specified range
         :param num_bootstrap_samples: (int) number of bootstrap samples to characterize
             the distribution of estimated Ns. If None, only the estimated N is returned.
+        :param rng: (RandomState) random number generator used for bootstrapping
         :return: (int) the minimum Monte Carlo samples from parameter distributions
         """
 
@@ -626,8 +634,12 @@ class _EconEval:
             self, max_wtp, epsilons, alphas, num_bootstrap_samples=None, rng=None):
         """
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
-        :param epsilons: (list)
-        :param alphas: (list) of significance levels
+        :param epsilons: (list) the acceptable errors in estimating ICER
+        :param alphas: (list) the acceptable probabilities that the estimated ICER is
+            outside the specified range from the true ICER
+        :param num_bootstrap_samples: (int) number of bootstrap samples to characterize the distribution of
+            the minimum required  number of parameter samples
+        :param rng: (RandomState) random number generator used for bootstrapping
         :return: (dictionary) of minimum Monte Carlo samples needed to achieve the desired statistical power
             first key is power values and the second key is error tolerance
         """
@@ -686,15 +698,16 @@ class _EconEval:
             fig_size=(4, 4), filename=None):
         """ plots the minimum number of Monte Carlo parameter samples needed to achieve the desired accuracy
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
-        :param epsilons:
-        :param alphas:
-        :param x_range:
-        :param y_range:
-        :param x_multiplier:
-        :param y_multiplier:
-        :param x_label:
-        :param y_label:
-        :param fig_size:
+        :param epsilons: (list) of epsilon values (the acceptable error in estimating ICER)
+        :param alphas: (list) of significance levels (the acceptable probability that the estimated ICER is
+        outside the specified range from the true ICER)
+        :param x_range: (list) of x-axis range
+        :param y_range: (list) of y-axis range
+        :param x_multiplier: (double) multiplier for x-axis values
+        :param y_multiplier: (double) multiplier for y-axis values
+        :param x_label: (string) x-axis label
+        :param y_label: (string) y-axis label
+        :param fig_size: (tuple) figure size
         :param filename: (string) filename to save the figure as
         """
 
