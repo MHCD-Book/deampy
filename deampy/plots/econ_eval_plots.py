@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
 
+
 def format_ax(ax,
               x_range=None, x_delta=None,
               y_range=None, y_delta=None, if_y_axis_prob=True,
@@ -70,6 +71,7 @@ def add_grids(ax, grid_info):
         color, linestyle, linewidth, alpha = grid_info
     if grid_info is not None:
         ax.grid(color=color, linestyle=linestyle, linewidth=linewidth, alpha=alpha)
+
 
 def add_curves_to_ax(ax, curves, title=None,
                      x_range=None, x_label=None, y_label=None, y_range=None,
@@ -162,6 +164,8 @@ def add_min_monte_carlo_samples_to_ax(
     colors = ('purple', 'blue', 'green', 'red')
     markers = ('o', 'v', '^', 's')
 
+    adjusted_epsilons = [x*x_multiplier for x in epsilons]
+
     i = 0
     for alpha in dict_of_ns:
         ns = [dict_of_ns[alpha][key] for key in dict_of_ns[alpha]]
@@ -179,15 +183,15 @@ def add_min_monte_carlo_samples_to_ax(
             else:
                 n_values.append(n)
 
-        ax.scatter(epsilons, n_values, marker=markers[i], color=colors[i],
+        ax.scatter(adjusted_epsilons, n_values, marker=markers[i], color=colors[i],
                    label=r'$\alpha=${:.{prec}%}'.format(alpha, prec=0))
         # error bars
         if len(l_errs) > 0:
             ax.errorbar(
-                epsilons, n_values, yerr=[l_errs, u_errs], fmt='none',
+                adjusted_epsilons, n_values, yerr=[l_errs, u_errs], fmt='none',
                 ecolor=colors[i], capsize=3, linewidth=0.75)
 
-        ax.plot(epsilons, n_values, 'k--', color=colors[i], linewidth=0.5)
+        ax.plot(adjusted_epsilons, n_values, 'k--', color=colors[i], linewidth=0.5)
         i += 1
 
     if y_range:
@@ -195,14 +199,14 @@ def add_min_monte_carlo_samples_to_ax(
     else:
         ax.set_ylim(0)
 
-    ax.set_xticks(epsilons)
+    if x_range:
+        ax.set_xlim(x_range)
+
+    ax.set_xticks(adjusted_epsilons)
     vals_x = ax.get_xticks()
-    ax.set_xticklabels(['${:,.{prec}f}'.format(x*x_multiplier, prec=0) for x in vals_x])
+    ax.set_xticklabels(['${:,.{prec}f}'.format(x, prec=0) for x in vals_x])
 
     vals_y = ax.get_yticks()
     ax.set_yticklabels(['{:,.{prec}f}'.format(y, prec=0) for y in vals_y])
-
-    if x_range:
-        ax.set_xlim(x_range)
 
     ax.legend(fontsize=8)
