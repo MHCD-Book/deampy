@@ -304,6 +304,13 @@ def get_min_monte_carlo_param_samples(delta_costs, delta_effects, max_wtp, epsil
         method = 'icer' # 'nmb'
 
         if method == 'icer':
+
+            # adjust epsilon
+            if r > max_wtp:
+                epsilon = max(epsilon, r - max_wtp)
+            if r < 0:
+                epsilon = -r
+
             var = get_variance_of_icer(
                 delta_costs=delta_costs,
                 delta_effects=delta_effects)
