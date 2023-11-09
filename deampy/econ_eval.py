@@ -275,7 +275,8 @@ def get_min_monte_carlo_param_samples(delta_costs, delta_effects, max_wtp, epsil
     :param alpha: (double) significance level
     :param num_bootstrap_samples: (int) number of bootstrap samples to characterize the distribution of estimated Ns
     :param rng: (RandomState) random number generator
-    :return: (int) minimum sample size required
+    :return: (int or tuple) minimum sample size required or
+        a tuple of (minimum sample sizes, interval) if num_bootstrap_samples is not None
     """
 
     # if one estimate for min N is needed
@@ -286,8 +287,13 @@ def get_min_monte_carlo_param_samples(delta_costs, delta_effects, max_wtp, epsil
         r = mean_delta_cost/mean_delta_effect
 
         method = 'icer' # 'nmb'
+
         # make sure that ICER is well-defined
-        if mean_delta_cost < 0 or mean_delta_effect <= 0:
+        # if mean incremental effect <=0 then ICER is not defined and we return nan
+        # if mean incremental effect > 0 and mean incremetal cost <= 0 then
+        # ICER will be negative and will be handled by the code
+        # to calculate the variance of icer below.
+        if mean_delta_effect <= 0:
             return math.nan
         else:
             if method == 'icer':
@@ -345,8 +351,16 @@ def get_min_monte_carlo_param_samples(delta_costs, delta_effects, max_wtp, epsil
 
         interval = sum_stat.get_interval(interval_type='p', alpha=alpha)
 
+        # round up interval values
+        new_interval = []
+        for a in interval:
+            if np.isnan(a):
+                new_interval.append(math.nan)
+            else:
+                new_interval.append(int(a)+1)
+
         # return the bootstrap interval
-        return n_full, [int(a)+1 for a in interval]
+        return n_full, new_interval
 
 
 class Strategy:
@@ -562,38 +576,54 @@ class _EconEval:
                                       effects_base=self.strategies[0].effectObs,
                                       health_measure=self._healthMeasure)
 
-    def get_min_monte_carlo_parameter_samples(self, max_wtp, epsilon, alpha=0.05):
+    def get_min_monte_carlo_parameter_samples(
+            self, max_wtp, epsilon, alpha=0.05, num_bootstrap_samples=1000, rng=None):
         """
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
         :param epsilon: (double)
         :param alpha: (double) significance level
-        :return: (int) the minimum Monte Carlo samples needed
+        :param num_bootstrap_samples: (int) number of bootstrap samples to characterize
+            the distribution of estimated Ns. If None, only the estimated N is returned.
+        :return: (int) the minimum Monte Carlo samples from parameter distributions
         """
 
         # find the minimum required number of Monte Carlo samples from parameter distributions
-        # TODO: check this
         max_n = 0
+        max_interval = None
+        # go over all pairwise comparisons between strategies
         for i in range(self._n):
-            for j in range(i+1, self._n):
+            for j in range(self._n):
+                if i != j:
+                    s_i = self.strategies[i]
+                    s_j = self.strategies[j]
 
-                s_i = self.strategies[i]
-                s_j = self.strategies[j]
+                    results = get_min_monte_carlo_param_samples(
+                        delta_costs=s_j.costObs - s_i.costObs,
+                        delta_effects=(s_j.effectObs - s_i.effectObs)*self._u_or_d,
+                        max_wtp=max_wtp,
+                        epsilon=epsilon,
+                        alpha=alpha,
+                        num_bootstrap_samples=num_bootstrap_samples,
+                        rng=rng)
 
-                # incr_cost = s_j.cost.get_mean() - s_i.cost.get_mean()
-                # incr_effect = (s_j.effect.get_mean() - s_i.effect.get_mean()) * self._u_or_d
+                    if num_bootstrap_samples is None:
+                        n = results
+                        interval = None
+                    else:
+                        n, interval = results
 
-                n = get_min_monte_carlo_param_samples(
-                    delta_costs=s_j.costObs - s_i.costObs,
-                    delta_effects=(s_j.effectObs - s_i.effectObs)*self._u_or_d,
-                    max_wtp=max_wtp,
-                    epsilon=epsilon,
-                    alpha=alpha)
+                    if not np.isnan(n):
+                        if n > max_n:
+                            max_n = n
+                            max_interval = interval
 
-                max_n = max(max_n, n)
+        if num_bootstrap_samples is None:
+            return max_n
+        else:
+            return max_n, max_interval
 
-        return max_n
-
-    def get_dict_min_monte_carlo_samples(self, max_wtp, epsilons, alphas):
+    def get_dict_min_monte_carlo_parameter_samples(
+            self, max_wtp, epsilons, alphas, num_bootstrap_samples=None, rng=None):
         """
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
         :param epsilons: (list)
@@ -612,7 +642,8 @@ class _EconEval:
             dic_of_ns[alpha] = {}
             for epsilon in epsilons:
                 dic_of_ns[alpha][epsilon] = self.get_min_monte_carlo_parameter_samples(
-                    max_wtp=max_wtp, epsilon=epsilon, alpha=alpha)
+                    max_wtp=max_wtp, epsilon=epsilon, alpha=alpha,
+                    num_bootstrap_samples=num_bootstrap_samples, rng=rng)
 
         return dic_of_ns
 
@@ -632,7 +663,7 @@ class _EconEval:
         if not isinstance(epsilons, list):
             epsilons = [epsilons]
 
-        dic_of_ns = self.get_dict_min_monte_carlo_samples(
+        dic_of_ns = self.get_dict_min_monte_carlo_parameter_samples(
             max_wtp=max_wtp, epsilons=epsilons, alphas=alphas)
 
         rows = [['Alpha/Epsilon']]
@@ -646,27 +677,30 @@ class _EconEval:
 
         write_csv(rows=rows, file_name=file_name)
 
-    def plot_min_monte_carlo_samples(
+    def plot_min_monte_carlo_parameter_samples(
             self, max_wtp, epsilons, alphas,
-            x_range=None, y_range=None, x_multiplier=1,
-            x_label='WTP Error Tolerance ($\epsilon$)',
-            y_label='Required Number of Monte Carlo Samples',
+            x_range=None, y_range=None, x_multiplier=1, y_multiplier=1,
+            x_label=r'WTP Error Tolerance ($\epsilon$)',
+            y_label='Required Number of Parameter Samples',
+            num_bootstrap_samples=None, rng=None,
             fig_size=(4, 4), filename=None):
-        """ plots the minimum number of Monte Carlo samples needed to achieve the desired statistical power and
-            error tolerance
+        """ plots the minimum number of Monte Carlo parameter samples needed to achieve the desired accuracy
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
         :param epsilons:
         :param alphas:
         :param x_range:
         :param y_range:
+        :param x_multiplier:
+        :param y_multiplier:
         :param x_label:
         :param y_label:
         :param fig_size:
         :param filename: (string) filename to save the figure as
         """
 
-        dict_of_ns = self.get_dict_min_monte_carlo_samples(
-            max_wtp=max_wtp, epsilons=epsilons, alphas=alphas)
+        dict_of_ns = self.get_dict_min_monte_carlo_parameter_samples(
+            max_wtp=max_wtp, epsilons=epsilons, alphas=alphas,
+            num_bootstrap_samples=num_bootstrap_samples, rng=rng)
 
         f, ax = plt.subplots(figsize=fig_size)
         add_min_monte_carlo_samples_to_ax(

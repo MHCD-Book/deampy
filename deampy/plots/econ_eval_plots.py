@@ -165,9 +165,26 @@ def add_min_monte_carlo_samples_to_ax(
     i = 0
     for alpha in dict_of_ns:
         ns = [dict_of_ns[alpha][key] for key in dict_of_ns[alpha]]
-        ax.scatter(epsilons, ns, marker=markers[i], color=colors[i],
+
+        # build n values and intervals
+        n_values = []
+        l_errs = []
+        u_errs = []
+        for n in ns:
+            if isinstance(n, tuple):
+                value, interval = n
+                n_values.append(value)
+                l_errs.append(n - interval[0])
+                u_errs.append(interval[1] - n)
+            else:
+                n_values.append(n)
+
+        ax.scatter(epsilons, n_values, marker=markers[i], color=colors[i],
                    label=r'$\alpha=${:.{prec}%}'.format(alpha, prec=0))
-        ax.plot(epsilons, ns, 'k--', color=colors[i], linewidth=0.5)
+        if len(l_errs) > 0:
+            ax.errorbar(
+                epsilons, n_values, yerr=[l_errs, u_errs], fmt='none', ecolor=colors[i], capsize=3)
+        ax.plot(epsilons, n_values, 'k--', color=colors[i], linewidth=0.5)
         i += 1
 
     if y_range:
