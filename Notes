@@ -3,6 +3,13 @@ https://blog.jetbrains.com/pycharm/2017/05/how-to-publish-your-package-on-pypi/
 
 1. $ python -m setup sdist bdist_wheel (or py -m build)
 2. $ python -m twine upload dist/*
+3. To avoid asking for user and password, create a file .pypirc with the following content and put it under
+   C:\Users\your_user_name\.pypirc
+
+[pypi]
+username = __token__
+password = ...
+
 
 # not sure what it does: $ python -m twine register dist/phmod-1.1.2.tar.gz
 
