@@ -468,8 +468,8 @@ class Exponential(RVG):
 class Gamma(RVG):
     def __init__(self, shape, scale=1, loc=0):
         """
-        E[X] = a*scale + loc
-        Var[X] = a*scale**2
+        E[X] = shape*scale + loc
+        Var[X] = shape*scale**2
         """
         RVG.__init__(self)
         self.shape = shape
@@ -493,7 +493,7 @@ class Gamma(RVG):
         :param mean: sample mean of an observation set
         :param st_dev: sample standard deviation of an observation set
         :param fixed_location: location, 0 by default
-        :return: dictionary with keys "a", "loc" and "scale"
+        :return: dictionary with keys "shape", "scale", and "loc"
         """
         mean = mean - fixed_location
 
@@ -508,7 +508,7 @@ class Gamma(RVG):
         """
         :param data: (numpy.array) observations
         :param fixed_location: fixed location
-        :returns: dictionary with keys "a", "scale", "loc", and "AIC"
+        :returns: dictionary with keys "shape", "scale", "loc", and "AIC"
         """
 
         # estimate the parameters of gamma
@@ -526,18 +526,18 @@ class Gamma(RVG):
 
 class GammaPoisson(RVG):
     #
-    def __init__(self, a, gamma_scale, loc=0):
+    def __init__(self, a, scale, loc=0):
         """
-        E[X] = (a*gamma_scale) + loc
-        Var[X] = a*gamma_scale + a*(gamma_scale**2)
+        E[X] = (shape*scale) + loc
+        Var[X] = shape*scale + shape*(scale**2)
         """
         RVG.__init__(self)
-        self.a = a
-        self.gamma_scale = gamma_scale
+        self.shape = a
+        self.scale = scale
         self.loc = loc
 
     def sample(self, rng, arg=None):
-        sample_rate = Gamma(shape=self.a, scale=self.gamma_scale).sample(rng)
+        sample_rate = Gamma(shape=self.shape, scale=self.scale).sample(rng)
         sample_poisson = Poisson(mu=sample_rate)
         return sample_poisson.sample(rng) + self.loc
 
@@ -547,13 +547,13 @@ class GammaPoisson(RVG):
 
     def pmf(self, k):
         # https: // en.wikipedia.org / wiki / Negative_binomial_distribution  # Gamma%E2%80%93Poisson_mixture
-        # with r= a and p = scale/(scale + 1)
+        # with r= shape and p = scale/(scale + 1)
 
         if type(k) == int:
             k = k - self.loc
-            p = self.gamma_scale / (self.gamma_scale + 1)
-            part1 = 1.0 * sp.special.gamma(self.a + k) / (sp.special.gamma(self.a) * sp.special.factorial(k))
-            part2 = (p ** k) * ((1 - p) ** self.a)
+            p = self.scale / (self.scale + 1)
+            part1 = 1.0 * sp.special.gamma(self.shape + k) / (sp.special.gamma(self.shape) * sp.special.factorial(k))
+            part2 = (p ** k) * ((1 - p) ** self.shape)
 
             return part1 * part2
         else:
@@ -604,7 +604,7 @@ class GammaPoisson(RVG):
         :param mean: sample mean
         :param st_dev: sample standard deviation
         :param fixed_location: location, 0 by default
-        :return: dictionary with keys "a", "gamma_scale", "loc" and "scale"
+        :return: dictionary with keys "shape", "scale", "loc" and "scale"
         """
         # ref: http://www.math.wm.edu/~leemis/chart/UDR/PDFs/Gammapoisson.pdf
         # scale = 1/beta
@@ -612,31 +612,31 @@ class GammaPoisson(RVG):
         mean = mean - fixed_location
         variance = st_dev**2.0
 
-        gamma_scale = (variance-mean)/mean
-        a = mean/gamma_scale
+        scale = (variance-mean)/mean
+        shape = mean/scale
 
-        return {"a": a, "gamma_scale": gamma_scale, "loc": fixed_location}
+        return {"shape": shape, "scale": scale, "loc": fixed_location}
 
     @staticmethod
     def fit_ml(data, fixed_location=0):
         """
         :param data: (numpy.array) observations
         :param fixed_location: location
-        :return: dictionary with keys "a", "gamma_scale", "loc", and "AIC"
+        :return: dictionary with keys "shape", "scale", "loc", and "AIC"
         """
 
         data = data - fixed_location
 
         # define negative log-likelihood, the target function to minimize
-        def neg_ln_l(a_scale):
-            return -GammaPoisson.ln_likelihood(a=a_scale[0], scale=a_scale[1], loc=0, data=data)
+        def neg_ln_l(shape_scale):
+            return -GammaPoisson.ln_likelihood(a=shape_scale[0], scale=shape_scale[1], loc=0, data=data)
 
         # estimate the parameters by minimize negative log-likelihood
         # initialize parameters
-        a_scale = [1, 1]
+        shape_scale = [1, 1]
         # call Scipy optimizer to minimize the target function
         # with bounds for p [0,1] and r [0,10]
-        fitted_a_scale, value, iter, imode, smode = fmin_slsqp(neg_ln_l, a_scale,
+        fitted_shape_scale, value, iter, imode, smode = fmin_slsqp(neg_ln_l, shape_scale,
                                                                #bounds=[(0.0, 10.0), (0, 1)],
                                                                disp=False, full_output=True)
 
@@ -644,9 +644,9 @@ class GammaPoisson(RVG):
         aic = AIC(
             k=2,
             log_likelihood=GammaPoisson.ln_likelihood(
-                a=fitted_a_scale[0], scale=fitted_a_scale[1], loc=0, data=data)
+                a=fitted_shape_scale[0], scale=fitted_shape_scale[1], loc=0, data=data)
         )
-        return {"a": fitted_a_scale[0], "gamma_scale": fitted_a_scale[1], "loc": fixed_location, "AIC": aic}
+        return {"shape": fitted_shape_scale[0], "scale": fitted_shape_scale[1], "loc": fixed_location, "AIC": aic}
 
 
 class Geometric(RVG):
@@ -757,7 +757,7 @@ class JohnsonSu(RVG):
         self.scale = scale
 
     def sample(self, rng, arg=None):
-        return stat.johnsonsu.rvs(self.a, self.b, self.loc, self.scale, random_state=rng)
+        return stat.johnsonsu.rvs(a=self.a, b=self.b, loc=self.loc, scale=self.scale, random_state=rng)
 
     def get_percentile_interval(self, alpha=0.05):
 

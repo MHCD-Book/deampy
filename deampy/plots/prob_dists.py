@@ -214,7 +214,7 @@ def get_gamma_dist(fit_results):
 
 
 def get_gamma_poisson_dist(fit_results):
-    return RVGs.GammaPoisson(a=fit_results['a'], gamma_scale=fit_results['gamma_scale'], loc=fit_results['loc'])
+    return RVGs.GammaPoisson(a=fit_results['a'], scale=fit_results['gamma_scale'], loc=fit_results['loc'])
 
 
 def get_geometric_dist(fit_results):

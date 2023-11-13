@@ -1,8 +1,9 @@
 import math
 
-import deampy.random_variats as RVGs
 import numpy as np
 import scipy.stats as scipy
+
+import deampy.random_variates as RVGs
 
 
 def print_test_results(dist_name, samples, expectation, variance):
@@ -33,7 +34,7 @@ def get_samples(dist, rnd):
 def get_samples_multivariate(dist, rnd):
     """ sampling from a multi-variate distribution """
 
-    samples = np.zeros([len(dist.shape), 10000])
+    samples = np.zeros([len(dist.a), 10000])
     for i in range(0, 10000):
         # get 10000 samples
         samples[:, i] = dist.sample(rnd)
@@ -180,7 +181,7 @@ def test_gamma(rnd, a, loc=0, scale=1):
 
 def test_gamma_poisson(rnd, a, gamma_scale, loc=0):
     # gamma-poisson random variate generator
-    gamma_poisson_dist = RVGs.GammaPoisson(a=a, gamma_scale=gamma_scale, loc=loc)
+    gamma_poisson_dist = RVGs.GammaPoisson(a=a, scale=gamma_scale, loc=loc)
 
     # obtain samples
     samples = get_samples(gamma_poisson_dist, rnd)
@@ -222,14 +223,14 @@ def test_johnsonsb(rnd, a, b, loc, scale):
 
 def test_johnsonsu(rnd, a, b, loc, scale):
     # johnsonSu random variate generator
-    johnsonsu_dist = RVGs.JohnsonSu(a, b, loc, scale)
+    johnsonsu_dist = RVGs.JohnsonSu(a=a, b=b, loc=loc, scale=scale)
 
     # obtain samples
     samples = get_samples(johnsonsu_dist, rnd)
 
     # report mean and variance
-    mean = scipy.johnsonsu.mean(a,b,loc,scale)
-    var = scipy.johnsonsu.var(a,b,loc,scale)
+    mean = scipy.johnsonsu.mean(a=a, b=b, loc=loc, scale=scale)
+    var = scipy.johnsonsu.var(a=a, b=b, loc=loc, scale=scale)
 
     print_test_results('JohnsonSu', samples,
                        expectation=mean,
@@ -276,9 +277,9 @@ def test_negative_binomial(rnd, n, p, loc=0):
     samples = get_samples(negative_binomial_dist, rnd)
 
     # get theoretical mean and variance
-    mean = scipy.nbinom.stat(n, p, loc, moments='m')
+    mean = scipy.nbinom.stats(n, p, loc, moments='m')
     mean = np.asarray(mean).item()
-    var = scipy.nbinom.stat(n, p, loc, moments='v')
+    var = scipy.nbinom.stats(n, p, loc, moments='v')
     var = np.asarray(var).item()
 
     # report mean and variance
@@ -338,7 +339,7 @@ def test_triangular(rnd, c, loc=0, scale=1):
     samples = get_samples(triangular_dist, rnd)
 
     # get theoretical variance
-    var = scipy.triang.stat(c, loc, scale, moments='v')
+    var = scipy.triang.stats(c, loc, scale, moments='v')
     var = np.asarray(var).item()
 
     # report mean and variance
@@ -384,7 +385,7 @@ def test_weibull(rnd, a, loc=0, scale=1):
     samples = get_samples(weibull_dist, rnd)
 
     # get theoretical variance
-    var = scipy.weibull_min.stat(a, loc, scale, moments='v')
+    var = scipy.weibull_min.stats(a, loc, scale, moments='v')
     var = np.asarray(var).item()
 
     # report mean and variance

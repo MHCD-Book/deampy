@@ -1,7 +1,7 @@
-import deampy.random_variats as RVGs
 import numpy as np
 
 import deampy.plots.prob_dists as Plot
+import deampy.random_variates as RVGs
 from tests.prob_dists.rvg_tests import get_samples
 
 
@@ -134,7 +134,7 @@ def test_fitting_gamma():
 def test_fitting_gamma_poisson():
 
     print("\nTesting Gamma Poisson with a=2, gamma_scale=4, loc=2")
-    dist = RVGs.GammaPoisson(a=2, gamma_scale=4, loc=2)
+    dist = RVGs.GammaPoisson(a=2, scale=4, loc=2)
     print('  percentile interval: ', dist.get_percentile_interval(alpha=0.05))
 
     data = np.array(get_samples(dist, np.random))

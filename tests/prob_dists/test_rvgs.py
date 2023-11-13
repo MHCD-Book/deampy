@@ -1,4 +1,4 @@
-import deampy.random_variats as rndSupport
+import deampy.random_variates as rndSupport
 
 from tests.prob_dists import rvg_tests as Tests
 
@@ -21,7 +21,7 @@ Tests.test_gamma(rng, a=2, scale=4, loc=1)
 Tests.test_gamma_poisson(rng, a=2, gamma_scale=5, loc=1)
 Tests.test_geometric(rng, p=.2, loc=1)
 Tests.test_johnsonsb(rng, a=10, b=5, loc=10, scale=100)
-Tests.test_johnsonsu(rng, a=10, b=3, loc=1, scale=2)
+Tests.test_johnsonsu(rng, a=2.5, b=2, loc=1, scale=1)
 Tests.test_lognormal(rng, mu=0.2, sigma=0.1, loc=1)
 Tests.test_multinomial(rng, n=100, pvals=[.2, 0.3, 0.5])
 Tests.test_negative_binomial(rng, n=10, p=.2, loc=1)
