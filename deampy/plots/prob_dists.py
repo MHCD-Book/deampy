@@ -210,11 +210,11 @@ def get_exponential_dist(fit_results):
 
 
 def get_gamma_dist(fit_results):
-    return stat.gamma(fit_results['a'], fit_results['loc'], fit_results['scale'])
+    return stat.gamma(fit_results['shape'], fit_results['loc'], fit_results['scale'])
 
 
 def get_gamma_poisson_dist(fit_results):
-    return RVGs.GammaPoisson(a=fit_results['a'], scale=fit_results['gamma_scale'], loc=fit_results['loc'])
+    return RVGs.GammaPoisson(shape=fit_results['shape'], scale=fit_results['scale'], loc=fit_results['loc'])
 
 
 def get_geometric_dist(fit_results):

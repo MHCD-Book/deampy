@@ -526,13 +526,13 @@ class Gamma(RVG):
 
 class GammaPoisson(RVG):
     #
-    def __init__(self, a, scale, loc=0):
+    def __init__(self, shape, scale, loc=0):
         """
         E[X] = (shape*scale) + loc
         Var[X] = shape*scale + shape*(scale**2)
         """
         RVG.__init__(self)
-        self.shape = a
+        self.shape = shape
         self.scale = scale
         self.loc = loc
 
