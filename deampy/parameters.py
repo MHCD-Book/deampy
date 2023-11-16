@@ -66,6 +66,21 @@ class Constant(_SingleVariate):
         return self.value
 
 
+class ConstantArray(_MultiVariate):
+    def __init__(self, values, id=None, name=None):
+        """
+        :param values: (list) of constant values of this parameter
+        :param id: (int) id of a parameter
+        :param name: (string) name of a parameter
+        """
+
+        _MultiVariate.__init__(self, id=id, name=name)
+        self.value = values
+
+    def sample(self, rng=None, time=None):
+        return self.value
+
+
 class Uniform(_SingleVariate):
     def __init__(self, minimum=0, maximum=1, id=None, name=None):
         """
