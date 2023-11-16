@@ -185,9 +185,9 @@ class Multinomial(_MultiVariate):
 class Dirichlet(_MultiVariate):
     def __init__(self, par_ns, if_ignore_0s=False, id=None, name=None):
         """
-        :param par_ns: (list) number of
-        :param if_ignore_0s: (bool) numpy requires all elements of 'a' to be >0. Setting this
-            parameter to True allows 'a' to contain 0s.
+        :param par_ns: (list) number of successes in each category
+        :param if_ignore_0s: (bool) numpy requires all elements of par_ns to be >0. Setting this
+            parameter to True allows par_ns to contain 0s.
         :param id: (int) id of a parameter
         :param name: (string) name of a parameter
         """
