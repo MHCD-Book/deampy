@@ -6,6 +6,7 @@ from deampy.sample_path import *
 
 def plot_sample_path(sample_path,
                      title=None, x_label=None, y_label=None,
+                     x_range=None, y_range=None,
                      figure_size=None, file_name=None,
                      legend=None, color=None, transparency=0.75, connect='step'):
     """
@@ -14,6 +15,8 @@ def plot_sample_path(sample_path,
     :param title: (string) title of the figure
     :param x_label: (string) x-axis label
     :param y_label: (string) y-axis label
+    :param x_range: (list) [x_min, x_max]
+    :param y_range: (list) [y_min, y_max]
     :param figure_size: (tuple) figure size
     :param file_name: (string) filename to save the histogram as (e.g. 'fig.png')
     :param legend: (string) the legend
@@ -37,10 +40,16 @@ def plot_sample_path(sample_path,
                           x_label=x_label, y_label=y_label, title=title)
     ax.set_ylim(bottom=0)  # the minimum has to be set after plotting the values
 
-    if isinstance(sample_path, PrevalenceSamplePath):
-        ax.set_xlim(left=0)
-    elif isinstance(sample_path, IncidenceSamplePath):
-        ax.set_xlim(left=0.5)
+    if x_range is not None:
+        ax.set_xlim(x_range)
+    else:
+        if isinstance(sample_path, PrevalenceSamplePath):
+            ax.set_xlim(left=0)
+        elif isinstance(sample_path, IncidenceSamplePath):
+            ax.set_xlim(left=0.5)
+
+    if y_range is not None:
+        ax.set_ylim(y_range)
 
     # output figure
     output_figure(fig, file_name)
@@ -99,7 +108,9 @@ def plot_sample_paths(sample_paths,
             ax.legend([legends], fontsize=legend_fontsize)
 
     # set the minimum of y-axis to zero
-    ax.set_ylim(bottom=0)  # the minimum has to be set after plotting the values
+    if y_range is None:
+        ax.set_ylim(bottom=0)  # the minimum has to be set after plotting the values
+
     # output figure
     output_figure(fig, file_name)
 
