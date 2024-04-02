@@ -1237,35 +1237,7 @@ class RelativeDifferenceIndp(_RelativeDifference):
         """
         _RelativeDifference.__init__(self, x, y_ref, order, name)
 
-        self._XMinusYOverYSimulated = False
-
-    def _simulate_x_minus_y_over_y(self):
-
-        # generate random realizations for random variable (X-Y)/Y
-        rng = np.random.RandomState(1)
-        # find the maximum of the number of observations
-        max_n = max(self._x_n, self._y_n, NUM_BOOTSTRAP_SAMPLES)
-        x_resample = rng.choice(self._x, size=max_n, replace=True)
-        y_resample = rng.choice(self._y_ref, size=max_n, replace=True)
-
-        self._XMinusYOverYSimulated = True
-        self._ifComputable = True
-        if self._order == 0:
-            try:
-                self._sum_stat_sample_relativeRatio = SummaryStat(
-                    np.divide(x_resample - y_resample, y_resample), self.name)
-            except ZeroDivisionError:
-                warnings.warn("For ratio statistics '{}', "
-                              "one element of y_ref is 0.".format(self.name))
-                self._ifComputable = False
-        else:
-            try:
-                self._sum_stat_sample_relativeRatio = SummaryStat(
-                    np.divide(y_resample - x_resample, y_resample), self.name)
-            except ZeroDivisionError:
-                warnings.warn("For ratio statistics '{}', "
-                              "one element of y_ref is 0.".format(self.name))
-                self._ifComputable = False
+        self._ratioStat = RatioStatIndp(x, y_ref, name)
 
     def get_mean(self):
         """
@@ -1273,9 +1245,9 @@ class RelativeDifferenceIndp(_RelativeDifference):
         :return: E((x-y)/y) or E((y-x)/y)
         """
         if self._order == 0:
-            return np.average(self._x) * np.average(1 / self._y_ref) - 1
+            return self._ratioStat.get_mean() - 1
         else:
-            return 1 - np.average(self._x) * np.average(1 / self._y_ref)
+            return 1 - self._ratioStat.get_mean()
 
     def get_stdev(self):
         """
@@ -1283,30 +1255,21 @@ class RelativeDifferenceIndp(_RelativeDifference):
         and var(x/y - 1) = var(x/y)
         :return: std(x/y - 1)
         """
-        if self._ifComputable:
-            var = np.mean(self._x ** 2) * np.mean(1.0 / self._y_ref ** 2) - \
-                  (np.mean(self._x) ** 2) * (np.mean(1.0 / self._y_ref) ** 2)
-            return np.sqrt(var)
-        else:
-            return math.nan
+        return self._ratioStat.get_stdev()
 
     def get_min(self):
 
-        if not self._XMinusYOverYSimulated:
-            self._simulate_x_minus_y_over_y()
-        if self._ifComputable:
-            return self._sum_stat_sample_relativeRatio.get_min()
+        if self._order == 0:
+            return self._ratioStat.get_min() - 1
         else:
-            return math.nan
+            return 1 - self._ratioStat.get_max()
 
     def get_max(self):
 
-        if not self._XMinusYOverYSimulated:
-            self._simulate_x_minus_y_over_y()
-        if self._ifComputable:
-            return self._sum_stat_sample_relativeRatio.get_max()
+        if self._order == 0:
+            return self._ratioStat.get_max() - 1
         else:
-            return math.nan
+            return 1 - self._ratioStat.get_min()
 
     def get_percentile(self, q):
         """
@@ -1315,36 +1278,20 @@ class RelativeDifferenceIndp(_RelativeDifference):
         :return: qth percentile of sample (x-y)/y
         """
 
-        if not self._XMinusYOverYSimulated:
-            self._simulate_x_minus_y_over_y()
-        if self._ifComputable:
-            return self._sum_stat_sample_relativeRatio.get_percentile(q)
+        if self._order == 0:
+            return self._ratioStat.get_percentile(q) - 1
         else:
-            return [math.nan, math.nan]
+            return 1 - self._ratioStat.get_percentile(100 - q)
 
     def get_t_half_length(self, alpha):
         """ cannot be calculated for ratio statistics """
 
         return math.nan
 
-        # if not self._XMinusYOverYSimulated:
-        #     self._simulate_x_minus_y_over_y()
-        # if self._ifComputable:
-        #     return self._sum_stat_sample_relativeRatio.get_t_half_length(alpha)
-        # else:
-        #     return math.nan
-
     def get_t_CI(self, alpha):
         """ cannot be calculated for ratio statistics """
 
         return [math.nan, math.nan]
-
-        # if self._x_n > 1 and self._y_n>1:
-        #     mean = self.get_mean()
-        #     hl = self.get_t_half_length(alpha)
-        #     return [mean - hl, mean + hl]
-        # else:
-        #     return [math.nan, math.nan]
 
     def get_bootstrap_CI(self, alpha, num_samples=None):
         """
@@ -1356,35 +1303,20 @@ class RelativeDifferenceIndp(_RelativeDifference):
         if num_samples is None:
             num_samples = NUM_BOOTSTRAP_SAMPLES
 
-        # set random number generator seed
-        rng = np.random.RandomState(1)
+        interval = self._ratioStat.get_bootstrap_CI(alpha, num_samples)
 
-        # initialize ratio array
-        delta = np.zeros(num_samples)
-
-        # obtain bootstrap samples
-        n = max(self._x_n, self._y_n)
-        mean = self.get_mean()
-        for i in range(num_samples):
-            x_i = rng.choice(self._x, size=n, replace=True)
-            y_i = rng.choice(self._y_ref, size=n, replace=True)
-            if self._order == 0:
-                ratios_i = np.average(x_i) * np.average(1 / y_i) - 1
-            else:
-                ratios_i = 1 - np.average(x_i) * np.average(1 / y_i)
-            delta[i] = np.mean(ratios_i) - mean
-
-        return mean - np.percentile(delta, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
-        # return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
+        if self._order == 0:
+            return [interval[0] - 1, interval[0] - 1]
+        else:
+            return [1 - interval[1], 1 - interval[0]]
 
     def get_PI(self, alpha):
 
-        if not self._XMinusYOverYSimulated:
-            self._simulate_x_minus_y_over_y()
-        if self._ifComputable:
-            return self._sum_stat_sample_relativeRatio.get_PI(alpha)
+        interval = self._ratioStat.get_PI(alpha)
+        if self._order == 0:
+            return [interval[0] - 1, interval[1] - 1]
         else:
-            return [math.nan, math.nan]
+            return [1 - interval[1], 1 - interval[0]]
 
 
 class RelativeDiffOfMeansIndp(_RelativeDifference):
