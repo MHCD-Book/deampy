@@ -5,9 +5,9 @@ from test_statistical_classes import mytest_ratio_stat_indp, mytest_relative_dif
 # x_deff = y + increase
 # x_ratio = y * ratio
 # x_relative_ratio = y * (ration + 1)
-Y_MEAN, Y_SD = 10, 4
+Y_MEAN, Y_SD = 10, 0.4
 INCREASE, INCREASE_SD = 3, 1
-RATIO, RATIO_SD = 2, 0.0
+RATIO, RATIO_SD = 2, 0.5
 
 # generate sample data
 numpy.random.seed(1)
@@ -18,6 +18,8 @@ ratio = numpy.random.normal(RATIO, RATIO_SD, 5000)
 x_diff = y + increase
 x_ratio = numpy.multiply(y, ratio)
 x_relative_ratio = numpy.multiply(y, ratio + 1)
+
+print('average of x_ratio:', numpy.mean(x_ratio))
 
 # test statistics for the relative difference of two paired samples
 mytest_ratio_stat_indp(x=x_ratio, y=y,

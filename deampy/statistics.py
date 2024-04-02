@@ -151,7 +151,7 @@ class _Statistics(object):
                 raise ValueError('Wilson score interval can only be calculated for binary (0 or 1) outcomes.')
         return proportion_confint(count=sum(data), nobs=self._n, alpha=alpha, method='wilson')
 
-    def get_bootstrap_CI(self, alpha, num_samples):
+    def get_bootstrap_CI(self, alpha, num_samples=None):
         """ calculates empirical bootstrap confidence interval (abstract method to be overridden in derived classes)
         :param alpha: significance level
         :param num_samples: number of bootstrap samples
@@ -179,7 +179,7 @@ class _Statistics(object):
                 F.format_number(self.get_min(), digits),
                 F.format_number(self.get_max(), digits)]
 
-    def get_interval(self, interval_type='c', alpha=0.05, multiplier=1):
+    def get_interval(self, interval_type='c', alpha=0.05, multiplier=1, num_of_bootstrap_samples=None):
         """
         :param interval_type: (string) 'c' for t-based confidence interval,
                                        'cb' for bootstrap confidence interval,
@@ -193,7 +193,9 @@ class _Statistics(object):
         if interval_type == 'c':
             interval = self.get_t_CI(alpha)
         elif interval_type == 'cb':
-            interval = self.get_bootstrap_CI(alpha, NUM_BOOTSTRAP_SAMPLES)
+            if num_of_bootstrap_samples is None:
+                num_of_bootstrap_samples = NUM_BOOTSTRAP_SAMPLES
+            interval = self.get_bootstrap_CI(alpha, num_of_bootstrap_samples)
         elif interval_type == 'p':
             interval = self.get_PI(alpha)
         elif interval_type == 'w':
@@ -308,12 +310,15 @@ class SummaryStat(_Statistics):
 
         return np.percentile(self._data, q)
 
-    def get_bootstrap_CI(self, alpha, num_samples):
+    def get_bootstrap_CI(self, alpha, num_samples=None):
         """ calculates the empirical bootstrap confidence interval
         :param alpha: significance level (between 0 and 1)
         :param num_samples: number of bootstrap samples
         :return: a list [l, u]
         """
+
+        if num_samples is None:
+            num_samples = NUM_BOOTSTRAP_SAMPLES
 
         # set random number generator seed
         rng = np.random.RandomState(1)
@@ -419,7 +424,7 @@ class DiscreteTimeStat(_Statistics):
         """ percentiles cannot be calculated for this statistics """
         return None
 
-    def get_bootstrap_CI(self, alpha, num_samples):
+    def get_bootstrap_CI(self, alpha, num_samples=None):
         """ bootstrap confidence intervals cannot be calculated for this statistics """
         return None
 
@@ -506,7 +511,7 @@ class ContinuousTimeStat(_Statistics):
         """ percentiles cannot be calculated for this statistics """
         return None
 
-    def get_bootstrap_CI(self, alpha, num_samples):
+    def get_bootstrap_CI(self, alpha, num_samples=None):
         """ bootstrap confidence intervals cannot be calculated for this statistics """
         return None
 
@@ -592,7 +597,7 @@ class DifferenceStatPaired(_DifferenceStat):
     def get_t_CI(self, alpha):
         return self._dStat.get_t_CI(alpha)
 
-    def get_bootstrap_CI(self, alpha, num_samples):
+    def get_bootstrap_CI(self, alpha, num_samples=None):
         return self._dStat.get_bootstrap_CI(alpha, num_samples)
 
     def get_proportion_CI(self, alpha=0.05):
@@ -807,7 +812,7 @@ class RatioStatPaired(_RatioStat):
         else:
             return math.nan
 
-    def get_bootstrap_CI(self, alpha, num_samples):
+    def get_bootstrap_CI(self, alpha, num_samples=None):
         if self._ifComputable:
             return self._ratioStat.get_bootstrap_CI(alpha, num_samples)
         else:
@@ -927,12 +932,15 @@ class RatioStatIndp(_RatioStat):
         # else:
         #     return [math.nan, math.nan]
 
-    def get_bootstrap_CI(self, alpha, num_samples):
+    def get_bootstrap_CI(self, alpha, num_samples=None):
         """
         :param alpha: confidence level
         :param num_samples: number of samples
         :return: empirical bootstrap confidence interval
         """
+
+        if num_samples is None:
+            num_samples = NUM_BOOTSTRAP_SAMPLES
 
         # set random number generator seed
         rng = np.random.RandomState(1)
@@ -946,8 +954,8 @@ class RatioStatIndp(_RatioStat):
         for i in range(num_samples):
             x_i = rng.choice(self._x, size=n, replace=True)
             y_i = rng.choice(self._y_ref, size=n, replace=True)
-            ratios_i = np.divide(x_i, y_i)
-            delta[i] = np.mean(ratios_i) - mean
+            ratios_i = np.average(x_i)*np.average(1/y_i)
+            delta[i] = ratios_i - mean
 
         # return [l, u]
         return mean - np.percentile(delta, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
@@ -1060,7 +1068,11 @@ class RelativeDifferencePaired(_RelativeDifference):
         else:
             return [math.nan, math.nan]
 
-    def get_bootstrap_CI(self, alpha, num_samples):
+    def get_bootstrap_CI(self, alpha, num_samples=None):
+
+        if num_samples is None:
+            num_samples = NUM_BOOTSTRAP_SAMPLES
+
         if self._ifComputable:
             return self._relativeDiffStat.get_bootstrap_CI(alpha, num_samples)
         else:
@@ -1191,12 +1203,15 @@ class RelativeDifferenceIndp(_RelativeDifference):
         # else:
         #     return [math.nan, math.nan]
 
-    def get_bootstrap_CI(self, alpha, num_samples):
+    def get_bootstrap_CI(self, alpha, num_samples=None):
         """
         :param alpha: confidence level
         :param num_samples: number of samples
         :return: empirical bootstrap confidence interval
         """
+
+        if num_samples is None:
+            num_samples = NUM_BOOTSTRAP_SAMPLES
 
         # set random number generator seed
         rng = np.random.RandomState(1)
@@ -1211,9 +1226,9 @@ class RelativeDifferenceIndp(_RelativeDifference):
             x_i = rng.choice(self._x, size=n, replace=True)
             y_i = rng.choice(self._y_ref, size=n, replace=True)
             if self._order == 0:
-                ratios_i = np.divide(x_i, y_i) - 1
+                ratios_i = np.average(x_i) * np.average(1/y_i) - 1
             else:
-                ratios_i = 1 - np.divide(x_i, y_i)
+                ratios_i = 1 - np.average(x_i) * np.average(1/y_i)
             delta[i] = np.mean(ratios_i) - mean
 
         return mean - np.percentile(delta, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
