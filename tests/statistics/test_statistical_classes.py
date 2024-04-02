@@ -74,9 +74,16 @@ def mytest_ratio_stat_indp(x, y, expected_value, st_dev):
     print_results(ratio_stat)
 
 
+def mytest_ratio_of_means_stat_paired(x, y, expected_value, st_dev):
+    # define
+    ratio_stat = stat.RatioOfMeansStatPaired(x=x, y_ref=y, name='Test RatioOfMeansStatPaired')
+    print('Testing RatioOfMeansStatPaired (E = {}, sd = {}):'.format(expected_value, st_dev))
+    print_results(ratio_stat)
+
+
 def mytest_ratio_stat_paired(x, y, expected_value, st_dev):
     # define
-    ratio_stat = stat.RatioStatPaired(x=x, y_ref=y, name='Test RatioStatPaired')
+    ratio_stat = stat.RatioOfMeansStatPaired(x=x, y_ref=y, name='Test RatioStatPaired')
 
     print('Testing RatioStatPaired (E = {}, sd = {}):'.format(expected_value, st_dev))
     print_results(ratio_stat)

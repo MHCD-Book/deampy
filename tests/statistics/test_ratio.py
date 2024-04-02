@@ -1,6 +1,7 @@
 import numpy
 
-from test_statistical_classes import mytest_ratio_stat_indp, mytest_relative_diff_stat_indp
+from test_statistical_classes import (mytest_ratio_stat_indp, mytest_ratio_of_means_stat_paired,
+                                      mytest_relative_diff_stat_indp)
 
 # x_deff = y + increase
 # x_ratio = y * ratio
@@ -28,3 +29,6 @@ mytest_ratio_stat_indp(x=x_ratio, y=y,
 # test statistics for the relative difference of two independent samples
 mytest_relative_diff_stat_indp(x=x_relative_ratio, y=y,
                                expected_value='Unknown', st_dev='Unknown')
+
+mytest_ratio_of_means_stat_paired(x=x_diff, y=y,
+                                  expected_value='Unknown', st_dev='Unknown')

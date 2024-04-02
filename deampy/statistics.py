@@ -57,7 +57,7 @@ def partial_corr(x, y, z):
     """
 
     np_z = np.array(z).T
-    
+
     Z = sm.add_constant(np_z)
     # fit f(z) to x
     fitted_xz = sm.OLS(x, Z).fit()
@@ -75,17 +75,12 @@ def partial_corr(x, y, z):
 class _Statistics(object):
     def __init__(self, name=None):
         """ abstract method to be overridden in derived classes"""
-        self.name = name        # name of this statistics
-        self._n = 0              # number of data points
-        self._mean = 0           # sample mean
-        self._stDev = 0          # sample standard deviation
+        self.name = name  # name of this statistics
+        self._n = 0  # number of data points
+        self._mean = 0  # sample mean
+        self._stDev = 0  # sample standard deviation
         self._max = -sys.float_info.max  # maximum
-        self._min = sys.float_info.max   # minimum
-
-    def get_n(self):
-        """ abstract method to be overridden in derived classes
-        :returns mean (to be calculated in the subclass) """
-        raise NotImplementedError("This is an abstract method and needs to be implemented in derived classes.")
+        self._min = sys.float_info.max  # minimum
 
     def get_mean(self):
         """ abstract method to be overridden in derived classes
@@ -98,7 +93,7 @@ class _Statistics(object):
         raise NotImplementedError("This is an abstract method and needs to be implemented in derived classes.")
 
     def get_var(self):
-        return self.get_stdev()**2
+        return self.get_stdev() ** 2
 
     def get_min(self):
         """ abstract method to be overridden in derived classes
@@ -122,7 +117,7 @@ class _Statistics(object):
         :returns half-length of 100(1-alpha)% t-confidence interval """
 
         if self._n > 1:
-            return stat.t.ppf(1 - alpha / 2, self.get_n() - 1) * self.get_stdev() / np.sqrt(self.get_n())
+            return stat.t.ppf(1 - alpha / 2, self._n - 1) * self.get_stdev() / np.sqrt(self._n)
         else:
             return math.nan
 
@@ -212,7 +207,7 @@ class _Statistics(object):
             if multiplier > 0:
                 return [v * multiplier for v in interval]
             else:
-                return [interval[1]*multiplier, interval[0]*multiplier]
+                return [interval[1] * multiplier, interval[0] * multiplier]
         else:
             return None
 
@@ -230,7 +225,7 @@ class _Statistics(object):
         :return: (string) estimate and interval formatted as specified
         """
 
-        estimate = self.get_mean()*multiplier
+        estimate = self.get_mean() * multiplier
         interval = self.get_interval(interval_type=interval_type, alpha=alpha, multiplier=multiplier)
 
         return F.format_estimate_interval(estimate=estimate,
@@ -284,9 +279,6 @@ class SummaryStat(_Statistics):
             self._stDev = np.std(self._data, ddof=1)  # unbiased estimator of the standard deviation
         else:
             self._stDev = math.nan
-
-    def get_n(self):
-        return self._n
 
     def get_total(self):
         return self._total
@@ -347,7 +339,7 @@ class SummaryStat(_Statistics):
         :param alpha: significance level (between 0 and 1)
         :return: percentile interval in the format of list [l, u]
         """
-        return [self.get_percentile(100*alpha/2), self.get_percentile(100*(1-alpha/2))]
+        return [self.get_percentile(100 * alpha / 2), self.get_percentile(100 * (1 - alpha / 2))]
 
     @staticmethod
     def get_array_from_formatted_interval(interval):
@@ -378,6 +370,7 @@ class SummaryStat(_Statistics):
 
 class DiscreteTimeStat(_Statistics):
     """ to calculate statistics on observations accumulating over time """
+
     def __init__(self, name=None):
         _Statistics.__init__(self, name)
         self._total = 0
@@ -393,9 +386,6 @@ class DiscreteTimeStat(_Statistics):
         if obs < self._min:
             self._min = obs
 
-    def get_n(self):
-        return self._n
-
     def get_total(self):
         return self._total
 
@@ -406,7 +396,7 @@ class DiscreteTimeStat(_Statistics):
             return 0
 
     def get_stdev(self):
-        if self._n>1:
+        if self._n > 1:
             return math.sqrt(
                 (self._sumSquared - self._total ** 2 / self._n)
                 / (self._n - 1)
@@ -435,6 +425,7 @@ class DiscreteTimeStat(_Statistics):
 
 class ContinuousTimeStat(_Statistics):
     """ to calculate statistics on the area-under-the-curve for observations accumulating over time """
+
     def __init__(self, initial_time, ave_method='step', name=None):
         """
         :param initial_time: it is assumed that the value of this sample path is zero at the initial time
@@ -479,14 +470,11 @@ class ContinuousTimeStat(_Statistics):
             self._area += self._lastObsValue * (time - self._lastObsTime)
             self._areaSquared += (self._lastObsValue ** 2) * (time - self._lastObsTime)
         else:
-            self._area += (self._lastObsValue + increment/2) * (time - self._lastObsTime)
-            self._areaSquared += ((self._lastObsValue + increment/2) ** 2) * (time - self._lastObsTime)
+            self._area += (self._lastObsValue + increment / 2) * (time - self._lastObsTime)
+            self._areaSquared += ((self._lastObsValue + increment / 2) ** 2) * (time - self._lastObsTime)
 
         self._lastObsTime = time
         self._lastObsValue += increment
-
-    def get_n(self):
-        return self._n
 
     def get_mean(self):
         if self._lastObsTime - self._initialTime > 0:
@@ -528,16 +516,16 @@ class _ComparativeStat(_Statistics):
         """
         _Statistics.__init__(self, name)
 
-        if type(x) == list:
+        if isinstance(x, list):
             self._x = np.array(x)
-        elif type(x) == np.ndarray:
+        elif isinstance(x, np.ndarray):
             self._x = x
         else:
             raise ValueError("The argument x can be either a list of numbers or a numpy.array.")
 
-        if type(y_ref) == list:
+        if isinstance(y_ref, list):
             self._y_ref = np.array(y_ref)
-        elif type(y_ref) == np.ndarray:
+        elif isinstance(y_ref, np.ndarray):
             self._y_ref = y_ref
         else:
             raise ValueError("The argument y_ref can be either a list of numbers or a numpy.array.")
@@ -547,8 +535,8 @@ class _ComparativeStat(_Statistics):
         if len(self._y_ref) == 0:
             raise ValueError("y_ref is empty for the comparative statistics '" + name + "'.")
 
-        self._x_n = len(self._x)        # number of observations for x
-        self._y_n = len(self._y_ref)    # number of observations for y_ref
+        self._x_n = len(self._x)  # number of observations for x
+        self._y_n = len(self._y_ref)  # number of observations for y_ref
 
 
 class _DifferenceStat(_ComparativeStat):
@@ -568,16 +556,13 @@ class DifferenceStatPaired(_DifferenceStat):
         :param x: list or numpy.array of first set of observations
         :param y_ref: list or numpy.array of second set of observations
         """
-        _DifferenceStat.__init__(self,  x, y_ref, name)
+        _DifferenceStat.__init__(self, x, y_ref, name)
         # create a summary statistics for the element-wise difference
 
         if len(self._x) != len(self._y_ref):
             raise ValueError('Two samples (x and y_ref) should have the same size.')
 
         self._dStat = SummaryStat(self._x - self._y_ref, name)
-
-    def get_n(self):
-        return self._dStat.get_n()
 
     def get_mean(self):
         return self._dStat.get_mean()
@@ -721,7 +706,7 @@ class DifferenceStatIndp(_DifferenceStat):
         t_q = stat.t.ppf(1 - (alpha / 2), df)
         st_dev = (sig_x ** 2.0 / self._x_n + sig_y ** 2.0 / self._y_n) ** 0.5
 
-        return t_q*st_dev
+        return t_q * st_dev
 
     def get_t_CI(self, alpha):
 
@@ -763,24 +748,21 @@ class RatioStatPaired(_RatioStat):
             raise ValueError('Two samples (x and y_ref) should have the same size.')
 
         # add element-wise ratio
-        ratio = np.zeros(len(self._x))
+        self.ratios = np.zeros(len(self._x))
         for i in range(len(self._x)):
             # for 0 in the denominator variable, check whether numerator is also 0
             if self._y_ref[i] == 0:
-                ratio[i] = math.nan
+                self.ratios[i] = math.nan
                 warnings.warn("For ratio statistics '{}', "
                               "the denominator of ratio with index {} is 0."
                               "The ratio is not computable.".format(name, i))
                 self._ifComputable = False
             else:
                 # for non-zero denominators, calculate ratio
-                ratio[i] = 1.0*self._x[i] / self._y_ref[i]
+                self.ratios[i] = 1.0 * self._x[i] / self._y_ref[i]
 
         # create summary stat for element-wise ratio
-        self._ratioStat = SummaryStat(ratio, name)
-
-    def get_n(self):
-        return self._ratioStat.get_n()
+        self._ratioStat = SummaryStat(self.ratios, name)
 
     def get_mean(self):
         if self._ifComputable:
@@ -825,6 +807,77 @@ class RatioStatPaired(_RatioStat):
             return [math.nan, math.nan]
 
 
+class RatioOfMeansStatPaired(_RatioStat):
+
+    def __init__(self, x, y_ref, name=None):
+        """
+        :param x: list or numpy.array of first set of observations
+        :param y_ref: list or numpy.array of second set of observations
+        """
+        _RatioStat.__init__(self, x, y_ref, name)
+
+        if len(self._x) != len(self._y_ref):
+            raise ValueError('Two samples (x and y_ref) should have the same size.')
+
+        # add element-wise ratio
+        self.ratios = np.zeros(len(self._x))
+        for i in range(len(self._x)):
+            # for 0 in the denominator variable, check whether numerator is also 0
+            if self._y_ref[i] == 0:
+                self.ratios[i] = math.nan
+                warnings.warn("For ratio statistics '{}', "
+                              "the denominator of ratio with index {} is 0."
+                              "The confidence or prediction interval will not be computable.".format(name, i))
+                self._ifComputable = False
+            else:
+                # for non-zero denominators, calculate ratio
+                self.ratios[i] = 1.0 * self._x[i] / self._y_ref[i]
+
+    def get_mean(self):
+        return np.mean(self._x) / np.mean(self._y_ref)
+
+    def get_stdev(self):
+        return np.nan
+
+    def get_min(self):
+        return np.nan
+
+    def get_max(self):
+        return np.nan
+
+    def get_percentile(self, q):
+        return np.nan
+
+    def get_t_CI(self, alpha):
+        return [np.nan, np.nan]
+
+    def get_bootstrap_CI(self, alpha, num_samples=None):
+
+        if num_samples is None:
+            num_samples = NUM_BOOTSTRAP_SAMPLES
+
+        # set random number generator seed
+        rng = np.random.RandomState(1)
+
+        # initialize delta array
+        delta = np.zeros(num_samples)
+
+        mean = self.get_mean()
+
+        # obtain bootstrap samples
+        for i in range(num_samples):
+            i_s = rng.choice(range(len(self._x)), size=len(self._x), replace=True)
+            x_i = self._x[i_s]
+            y_i = self._y_ref[i_s]
+            delta[i] = np.mean(x_i) / np.mean(y_i) - mean
+
+        # return [l, u]
+        return mean - np.percentile(delta, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
+
+    def get_PI(self, alpha):
+        return [np.nan, np.nan]
+
+
 class RatioStatIndp(_RatioStat):
 
     def __init__(self, x, y_ref, name=None):
@@ -865,7 +918,7 @@ class RatioStatIndp(_RatioStat):
         :return: E(x/y)
         """
 
-        return np.average(self._x)*np.average(1/self._y_ref)
+        return np.average(self._x) * np.average(1 / self._y_ref)
 
     def get_stdev(self):
         """
@@ -954,27 +1007,11 @@ class RatioStatIndp(_RatioStat):
         for i in range(num_samples):
             x_i = rng.choice(self._x, size=n, replace=True)
             y_i = rng.choice(self._y_ref, size=n, replace=True)
-            ratios_i = np.average(x_i)*np.average(1/y_i)
+            ratios_i = np.average(x_i) * np.average(1 / y_i)
             delta[i] = ratios_i - mean
 
         # return [l, u]
         return mean - np.percentile(delta, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
-
-        # # set random number generator seed
-        # rng = np.random.RandomState(1)
-        #
-        # # initialize ratio array
-        # ratio = np.zeros(num_samples)
-        #
-        # # obtain bootstrap samples
-        # n = max(self._x_n, self._y_n)
-        # for i in range(num_samples):
-        #     x_i = rng.choice(self._x, size=n, replace=True)
-        #     y_i = rng.choice(self._y_ref, size=n, replace=True)
-        #     r_temp = np.divide(x_i, y_i)
-        #     ratio[i] = np.mean(r_temp)
-        #
-        # return np.percentile(ratio, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
 
     def get_PI(self, alpha):
 
@@ -985,6 +1022,67 @@ class RatioStatIndp(_RatioStat):
             return self._sum_stat_sample_ratio.get_PI(alpha)
         else:
             return [math.nan, math.nan]
+
+
+class RatioOfMeansStatIndp(_RatioStat):
+
+    def __init__(self, x, y_ref, name=None):
+        """
+        :param x: list or numpy.array of first set of observations
+        :param y_ref: list or numpy.array of second set of observations
+        """
+        _RatioStat.__init__(self, x, y_ref, name)
+
+    def get_mean(self):
+        """
+        :return: the ratio of the means of x and y_ref"""
+        return np.mean(self._x) / np.mean(self._y_ref)
+
+    def get_stdev(self):
+        return np.nan
+
+    def get_min(self):
+        return np.nan
+
+    def get_max(self):
+        return np.nan
+
+    def get_percentile(self, q):
+        return np.nan
+
+    def get_t_CI(self, alpha):
+        return [np.nan, np.nan]
+
+    def get_bootstrap_CI(self, alpha, num_samples=None):
+        """
+         :param alpha: confidence level
+         :param num_samples: number of samples
+         :return: empirical bootstrap confidence interval
+         """
+
+        if num_samples is None:
+            num_samples = NUM_BOOTSTRAP_SAMPLES
+
+        # set random number generator seed
+        rng = np.random.RandomState(1)
+
+        # initialize delta array
+        delta = np.zeros(num_samples)
+
+        # obtain bootstrap samples
+        n = max(self._x_n, self._y_n)
+        mean = self.get_mean()
+        for i in range(num_samples):
+            x_i = rng.choice(self._x, size=n, replace=True)
+            y_i = rng.choice(self._y_ref, size=n, replace=True)
+            ratios_i = np.average(x_i) / np.average(y_i)
+            delta[i] = ratios_i - mean
+
+        # return [l, u]
+        return mean - np.percentile(delta, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
+
+    def get_PI(self, alpha):
+        return [np.nan, np.nan]
 
 
 class _RelativeDifference(_ComparativeStat):
@@ -1027,16 +1125,13 @@ class RelativeDifferencePaired(_RelativeDifference):
                 self._ifComputable = False
             # for non-zero denominators, calculate ratio
             else:
-                ratio[i] = 1.0*self._x[i] / self._y_ref[i]
+                ratio[i] = 1.0 * self._x[i] / self._y_ref[i]
 
         # create summary stat for element-wise ratio
         if self._order == 0:
             self._relativeDiffStat = SummaryStat(ratio - 1, name)
         else:
             self._relativeDiffStat = SummaryStat(1 - ratio, name)
-
-    def get_n(self):
-        return self._relativeDiffStat.get_n()
 
     def get_mean(self):
         if self._ifComputable:
@@ -1085,6 +1180,54 @@ class RelativeDifferencePaired(_RelativeDifference):
             return [math.nan, math.nan]
 
 
+class RelativeDiffOfMeansPaired(_RelativeDifference):
+
+    def __init__(self, x, y_ref, order=0, name=None):
+        """
+        :param x: list or numpy.array of first set of observations
+        :param y_ref: list or numpy.array of second set of observations
+        :param order: set to 0 to calculate (X-Y_ref)/Y_ref and to 1 to calculate (Y_ref-X)/Y_ref
+        """
+        _RelativeDifference.__init__(self, x, y_ref, order, name)
+
+        if len(self._x) != len(self._y_ref):
+            raise ValueError('Two samples should have the same size.')
+
+        self._ratioOfMeans = RatioOfMeansStatPaired(x, y_ref, name)
+
+    def get_mean(self):
+        if self._order == 0:
+            return self._ratioOfMeans.get_mean() - 1
+        else:
+            return 1 - self._ratioOfMeans.get_mean()
+
+    def get_stdev(self):
+        return np.nan
+
+    def get_min(self):
+        return np.nan
+
+    def get_max(self):
+        return np.nan
+
+    def get_percentile(self, q):
+        return np.nan
+
+    def get_t_CI(self, alpha):
+        return [np.nan, np.nan]
+
+    def get_bootstrap_CI(self, alpha, num_samples=None):
+
+        interval = self._ratioOfMeans.get_bootstrap_CI(alpha, num_samples)
+        if self._order == 0:
+            return [interval[0] - 1, interval[1] - 1]
+        else:
+            return [1 - interval[1], 1 - interval[0]]
+
+    def get_PI(self, alpha):
+        return [np.nan, np.nan]
+
+
 class RelativeDifferenceIndp(_RelativeDifference):
     def __init__(self, x, y_ref, order=0, name=None):
         """
@@ -1110,7 +1253,7 @@ class RelativeDifferenceIndp(_RelativeDifference):
         if self._order == 0:
             try:
                 self._sum_stat_sample_relativeRatio = SummaryStat(
-                    np.divide(x_resample-y_resample, y_resample), self.name)
+                    np.divide(x_resample - y_resample, y_resample), self.name)
             except ZeroDivisionError:
                 warnings.warn("For ratio statistics '{}', "
                               "one element of y_ref is 0.".format(self.name))
@@ -1118,7 +1261,7 @@ class RelativeDifferenceIndp(_RelativeDifference):
         else:
             try:
                 self._sum_stat_sample_relativeRatio = SummaryStat(
-                    np.divide(y_resample-x_resample, y_resample), self.name)
+                    np.divide(y_resample - x_resample, y_resample), self.name)
             except ZeroDivisionError:
                 warnings.warn("For ratio statistics '{}', "
                               "one element of y_ref is 0.".format(self.name))
@@ -1226,9 +1369,9 @@ class RelativeDifferenceIndp(_RelativeDifference):
             x_i = rng.choice(self._x, size=n, replace=True)
             y_i = rng.choice(self._y_ref, size=n, replace=True)
             if self._order == 0:
-                ratios_i = np.average(x_i) * np.average(1/y_i) - 1
+                ratios_i = np.average(x_i) * np.average(1 / y_i) - 1
             else:
-                ratios_i = 1 - np.average(x_i) * np.average(1/y_i)
+                ratios_i = 1 - np.average(x_i) * np.average(1 / y_i)
             delta[i] = np.mean(ratios_i) - mean
 
         return mean - np.percentile(delta, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
@@ -1242,3 +1385,55 @@ class RelativeDifferenceIndp(_RelativeDifference):
             return self._sum_stat_sample_relativeRatio.get_PI(alpha)
         else:
             return [math.nan, math.nan]
+
+
+class RelativeDiffOfMeansIndp(_RelativeDifference):
+
+    def __init__(self, x, y_ref, order=0, name=None):
+        """
+        :param x: list or numpy.array of first set of observations
+        :param y_ref: list or numpy.array of second set of observations
+        :param order: set to 0 to calculate (X-Y_ref)/Y_ref and to 1 to calculate (Y_ref-X)/Y_ref
+        """
+        _RelativeDifference.__init__(self, x, y_ref, order, name)
+
+        self._ratioOfMeans = RatioOfMeansStatIndp(x, y_ref, name)
+
+    def get_mean(self):
+        """
+        :return: the relative difference of means of x and y_ref"""
+        if self._order == 0:
+            return self._ratioOfMeans.get_mean() - 1
+        else:
+            return 1 - self._ratioOfMeans.get_mean()
+
+    def get_stdev(self):
+        return np.nan
+
+    def get_min(self):
+        return np.nan
+
+    def get_max(self):
+        return np.nan
+
+    def get_percentile(self, q):
+        return np.nan
+
+    def get_t_CI(self, alpha):
+        return [np.nan, np.nan]
+
+    def get_bootstrap_CI(self, alpha, num_samples=None):
+        """
+         :param alpha: confidence level
+         :param num_samples: number of samples
+         :return: empirical bootstrap confidence interval
+         """
+
+        interval = self._ratioOfMeans.get_bootstrap_CI(alpha, num_samples)
+        if self._order == 0:
+            return [interval[0] - 1, interval[1] - 1]
+        else:
+            return [1 - interval[1], 1 - interval[0]]
+
+    def get_PI(self, alpha):
+        return [np.nan, np.nan]
