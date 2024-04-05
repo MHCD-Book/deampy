@@ -1,34 +1,49 @@
-import numpy
+import numpy as np
 
-from test_statistical_classes import (mytest_ratio_stat_indp, mytest_ratio_of_means_stat_paired,
-                                      mytest_relative_diff_stat_indp)
+from test_statistical_classes import *
 
-# x_deff = y + increase
-# x_ratio = y * ratio
-# x_relative_ratio = y * (ration + 1)
-Y_MEAN, Y_SD = 10, 0.4
-INCREASE, INCREASE_SD = 3, 1
-RATIO, RATIO_SD = 2, 0.5
+Y_MEAN, Y_SD = 10, 0.4        # baseline (Y_ref)
+INCREASE, INCREASE_SD = 3, 1  # X will be Y + INCREASE
+RATIO, RATIO_SD = 2, 0.5      # X will be Y * RATIO
 
-# generate sample data
-numpy.random.seed(1)
-y = numpy.random.normal(Y_MEAN, Y_SD, 5000)
-increase = numpy.random.normal(INCREASE, INCREASE_SD, 5000)
-ratio = numpy.random.normal(RATIO, RATIO_SD, 5000)
+# generate realizations for Y
+np.random.seed(1)
+y = np.random.normal(Y_MEAN, Y_SD, 5000)
 
+# generate realizations for increase and ratio
+increase = np.random.normal(INCREASE, INCREASE_SD, 5000)
+ratio = np.random.normal(RATIO, RATIO_SD, 5000)
+
+# generate realizations for X
 x_diff = y + increase
-x_ratio = numpy.multiply(y, ratio)
-x_relative_ratio = numpy.multiply(y, ratio + 1)
+x_ratio = np.multiply(y, ratio)
+x_relative_ratio = np.multiply(y, ratio + 1)
 
-print('average of x_ratio:', numpy.mean(x_ratio))
+# report averages
+print('average of y:', np.mean(y))
+print('average of x_diff:', np.mean(x_diff))
+print('average of x_ratio:', np.mean(x_ratio))
+print('average of x_relative_ratio:', np.mean(x_relative_ratio))
 
-# test statistics for the relative difference of two paired samples
-mytest_ratio_stat_indp(x=x_ratio, y=y,
-                       expected_value='Unknown', st_dev='Unknown')
+# ratio under independent sampling
+mytest_ratio_stat_indp(
+    x=x_ratio, y=y, expected_value=RATIO, st_dev='Unknown')
+# ratio under paired sampling
+mytest_ratio_stat_paired(
+    x=x_ratio, y=y, expected_value=RATIO, st_dev='Unknown')
 
-# test statistics for the relative difference of two independent samples
+# ratio of means under independent sampling
+mytest_ratio_of_means_stat_indp(
+    x=x_ratio, y=y, expected_value=RATIO, st_dev='Unknown')
+# ratio of means under paired sampling
+mytest_ratio_of_means_stat_paired(
+    x=x_ratio, y=y, expected_value=RATIO, st_dev='Unknown')
+
+
+# relative difference under independent sampling
 mytest_relative_diff_stat_indp(x=x_relative_ratio, y=y,
-                               expected_value='Unknown', st_dev='Unknown')
+                               expected_value='1.3', st_dev='Unknown')
 
+# relative difference under paired sampling
 mytest_ratio_of_means_stat_paired(x=x_diff, y=y,
-                                  expected_value='Unknown', st_dev='Unknown')
+                                  expected_value='1.3', st_dev='Unknown')

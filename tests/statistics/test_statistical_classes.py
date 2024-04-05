@@ -52,7 +52,7 @@ def mytest_continuous_time(times, observations):
     print('Testing continuous-time statistics:')
     print_results(continuous_stat)
 
-
+# ----- DIFFERENCE STATISTICS -----
 def mytest_diff_stat_indp(x, y, expected_value, st_dev):
     # define
     diff_stat = stat.DifferenceStatIndp(x=x, y_ref=y, name='Test DifferenceStatIndp')
@@ -67,17 +67,11 @@ def mytest_diff_stat_paired(x, y, expected_value, st_dev):
     print_results(diff_stat)
 
 
+# ----- RATIO STATISTICS -----
 def mytest_ratio_stat_indp(x, y, expected_value, st_dev):
     # define
     ratio_stat = stat.RatioStatIndp(x=x, y_ref=y, name='Test RatioStatIndp')
     print('Testing RatioStatIndp (E = {}, sd = {}):'.format(expected_value, st_dev))
-    print_results(ratio_stat)
-
-
-def mytest_ratio_of_means_stat_paired(x, y, expected_value, st_dev):
-    # define
-    ratio_stat = stat.RatioOfMeansStatPaired(x=x, y_ref=y, name='Test RatioOfMeansStatPaired')
-    print('Testing RatioOfMeansStatPaired (E = {}, sd = {}):'.format(expected_value, st_dev))
     print_results(ratio_stat)
 
 
@@ -88,6 +82,22 @@ def mytest_ratio_stat_paired(x, y, expected_value, st_dev):
     print('Testing RatioStatPaired (E = {}, sd = {}):'.format(expected_value, st_dev))
     print_results(ratio_stat)
 
+
+def mytest_ratio_of_means_stat_indp(x, y, expected_value, st_dev):
+    # define
+    ratio_stat = stat.RatioOfMeansStatIndp(x=x, y_ref=y, name='Test RatioOfMeansStatIndp')
+    print('Testing RatioOfMeansStatIndp (E = {}, sd = {}):'.format(expected_value, st_dev))
+    print_results(ratio_stat)
+
+
+def mytest_ratio_of_means_stat_paired(x, y, expected_value, st_dev):
+    # define
+    ratio_stat = stat.RatioOfMeansStatPaired(x=x, y_ref=y, name='Test RatioOfMeansStatPaired')
+    print('Testing RatioOfMeansStatPaired (E = {}, sd = {}):'.format(expected_value, st_dev))
+    print_results(ratio_stat)
+
+
+# ----- RELATIVE DIFFERENCE STATISTICS -----
 
 def mytest_relative_diff_stat_paired(x, y, expected_value, st_dev):
     # define

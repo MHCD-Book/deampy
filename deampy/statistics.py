@@ -736,6 +736,7 @@ class _RatioStat(_ComparativeStat):
 
 
 class RatioStatPaired(_RatioStat):
+    # E[X/Y] when X and Y are paired
 
     def __init__(self, x, y_ref, name=None):
         """
@@ -808,6 +809,7 @@ class RatioStatPaired(_RatioStat):
 
 
 class RatioOfMeansStatPaired(_RatioStat):
+    # E[X]/E[Y] when X and Y are paired
 
     def __init__(self, x, y_ref, name=None):
         """
@@ -879,6 +881,7 @@ class RatioOfMeansStatPaired(_RatioStat):
 
 
 class RatioStatIndp(_RatioStat):
+    # E[X/Y] when X and Y are independent
 
     def __init__(self, x, y_ref, name=None):
         """
@@ -1025,6 +1028,7 @@ class RatioStatIndp(_RatioStat):
 
 
 class RatioOfMeansStatIndp(_RatioStat):
+    # E[X]/E[Y] when X and Y are independent
 
     def __init__(self, x, y_ref, name=None):
         """
@@ -1100,6 +1104,7 @@ class _RelativeDifference(_ComparativeStat):
 
 
 class RelativeDifferencePaired(_RelativeDifference):
+    # E[(X-Y)/Y] when X and Y are paired
 
     def __init__(self, x, y_ref, order=0, name=None):
         """
@@ -1181,6 +1186,7 @@ class RelativeDifferencePaired(_RelativeDifference):
 
 
 class RelativeDiffOfMeansPaired(_RelativeDifference):
+    # (E[X]-E[Y])/E[Y] when X and Y are paired
 
     def __init__(self, x, y_ref, order=0, name=None):
         """
@@ -1229,6 +1235,8 @@ class RelativeDiffOfMeansPaired(_RelativeDifference):
 
 
 class RelativeDifferenceIndp(_RelativeDifference):
+    # E[(X-Y)/Y] when X and Y are independent
+
     def __init__(self, x, y_ref, order=0, name=None):
         """
         :param x: list or numpy.array of first set of observations
@@ -1320,6 +1328,7 @@ class RelativeDifferenceIndp(_RelativeDifference):
 
 
 class RelativeDiffOfMeansIndp(_RelativeDifference):
+    # (E[X]-E[Y])/E[Y] when X and Y are independent
 
     def __init__(self, x, y_ref, order=0, name=None):
         """
