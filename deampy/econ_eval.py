@@ -13,7 +13,7 @@ import deampy.format_functions as F
 from deampy.in_out_functions import write_csv
 from deampy.plots.econ_eval_plots import add_curves_to_ax, add_min_monte_carlo_samples_to_ax, add_grids
 from deampy.plots.plot_support import output_figure
-from deampy.statistics import SummaryStat
+from deampy.statistics import SummaryStat, RatioOfMeansStatPaired
 from deampy.support.econ_eval_support import *
 from deampy.support.misc_classes import *
 from deampy.support.misc_functions import convert_lnl_to_prob, get_prob_x_greater_than_ys
@@ -2747,31 +2747,40 @@ class ICER_Paired(_ICER):
 
         elif method == 'bootstrap' or method == 'Bootstrap':
             # bootstrap algorithm
-            icer_bootstrap_means = np.zeros(num_bootstrap_samples)
-            for i in range(num_bootstrap_samples):
-                # because cost and health observations are paired,
-                # we sample delta cost and delta health together
-                indices = rng.choice(a=range(n_obs),
-                                     size=n_obs,
-                                     replace=True)
-                sampled_delta_costs = self._deltaCosts[indices]
-                sampled_delta_effects = self._deltaEffects[indices]
 
-                ave_delta_cost = np.average(sampled_delta_costs)
-                ave_delta_effect = np.average(sampled_delta_effects)
+            ratio_stat = RatioOfMeansStatPaired(
+                x=self._deltaCosts,
+                y_ref=self._deltaEffects,
+                name='ICER'
+            )
 
-                # assert all the means should not be 0
-                if ave_delta_effect <= 0:
-                    warnings.warn(
-                        self.name + ': Mean marginal health is 0 or less for one bootstrap sample, '
-                                    'ICER is not computable')
-                    self._isDefined = False
-                    return [math.nan, math.nan]
+            return ratio_stat.get_bootstrap_CI(alpha=alpha, num_samples=num_bootstrap_samples)
 
-                icer_bootstrap_means[i] = ave_delta_cost / ave_delta_effect - self._ICER
-
-            # return the bootstrap interval
-            return self._ICER - np.percentile(icer_bootstrap_means, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
+            # icer_bootstrap_means = np.zeros(num_bootstrap_samples)
+            # for i in range(num_bootstrap_samples):
+            #     # because cost and health observations are paired,
+            #     # we sample delta cost and delta health together
+            #     indices = rng.choice(a=range(n_obs),
+            #                          size=n_obs,
+            #                          replace=True)
+            #     sampled_delta_costs = self._deltaCosts[indices]
+            #     sampled_delta_effects = self._deltaEffects[indices]
+            #
+            #     ave_delta_cost = np.average(sampled_delta_costs)
+            #     ave_delta_effect = np.average(sampled_delta_effects)
+            #
+            #     # assert all the means should not be 0
+            #     if ave_delta_effect <= 0:
+            #         warnings.warn(
+            #             self.name + ': Mean marginal health is 0 or less for one bootstrap sample, '
+            #                         'ICER is not computable')
+            #         self._isDefined = False
+            #         return [math.nan, math.nan]
+            #
+            #     icer_bootstrap_means[i] = ave_delta_cost / ave_delta_effect - self._ICER
+            #
+            # # return the bootstrap interval
+            # return self._ICER - np.percentile(icer_bootstrap_means, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
 
         else:
             raise ValueError('Invalid method. Method should be either bootstrap or Bayesian.')
@@ -2832,7 +2841,7 @@ class ICER_Indp(_ICER):
             return [math.nan, math.nan]
 
         if method == 'Bayesian':
-            raise ValueError('The Bayesian approach is not yet implemented. Use bootsrap instead.')
+            raise ValueError('The Bayesian approach is not yet implemented. Use bootstrap instead.')
 
         # create a new random number generator if one is not provided.
         if rng is None:
