@@ -1,3 +1,4 @@
+import stat
 import string
 import warnings
 
@@ -2756,32 +2757,6 @@ class ICER_Paired(_ICER):
 
             return ratio_stat.get_bootstrap_CI(alpha=alpha, num_samples=num_bootstrap_samples)
 
-            # icer_bootstrap_means = np.zeros(num_bootstrap_samples)
-            # for i in range(num_bootstrap_samples):
-            #     # because cost and health observations are paired,
-            #     # we sample delta cost and delta health together
-            #     indices = rng.choice(a=range(n_obs),
-            #                          size=n_obs,
-            #                          replace=True)
-            #     sampled_delta_costs = self._deltaCosts[indices]
-            #     sampled_delta_effects = self._deltaEffects[indices]
-            #
-            #     ave_delta_cost = np.average(sampled_delta_costs)
-            #     ave_delta_effect = np.average(sampled_delta_effects)
-            #
-            #     # assert all the means should not be 0
-            #     if ave_delta_effect <= 0:
-            #         warnings.warn(
-            #             self.name + ': Mean marginal health is 0 or less for one bootstrap sample, '
-            #                         'ICER is not computable')
-            #         self._isDefined = False
-            #         return [math.nan, math.nan]
-            #
-            #     icer_bootstrap_means[i] = ave_delta_cost / ave_delta_effect - self._ICER
-            #
-            # # return the bootstrap interval
-            # return self._ICER - np.percentile(icer_bootstrap_means, [100 * (1 - alpha / 2.0), 100 * alpha / 2.0])
-
         else:
             raise ValueError('Invalid method. Method should be either bootstrap or Bayesian.')
 
@@ -2801,6 +2776,25 @@ class ICER_Paired(_ICER):
 
         return np.percentile(icers, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
 
+    def get_icer_over_iterations(self):
+        """
+        :return: ICER over iterations
+        """
+        mean_delta_cost = Stat.DiscreteTimeStat(name='Mean Delta Cost')
+        mean_delta_effect = Stat.DiscreteTimeStat(name='Mean Delta Effect')
+        icer_over_iterations = []
+
+        for i in range(len(self._deltaCosts)):
+            mean_delta_cost.record(self._deltaCosts[i])
+            mean_delta_effect.record(self._deltaEffects[i])
+
+            # if ICER so far is defined
+            if mean_delta_effect.get_mean() > 0 and mean_delta_cost.get_mean() >= 0:
+                icer_over_iterations.append(mean_delta_cost.get_mean() / mean_delta_effect.get_mean())
+            else:
+                icer_over_iterations.append(math.nan)
+
+        return icer_over_iterations
 
 class ICER_Indp(_ICER):
 

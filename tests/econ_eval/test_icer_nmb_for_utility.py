@@ -1,6 +1,7 @@
 import numpy as np
 
 import deampy.econ_eval as econ_eval
+from deampy.plots.econ_eval_plots import plot_icer_over_itrs
 
 np.random.seed(573)
 
@@ -28,6 +29,7 @@ print('Paired ICER:'
       icer_paired.get_CI(0.05, method='Bayesian'),
       icer_paired.get_PI(0.05)))
 
+plot_icer_over_itrs(icer_paired.get_icer_over_iterations())
 
 print('Finding the minimum N:')
 print('epsilon', 'min N')

@@ -1,5 +1,8 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
+
+from deampy.plots.plot_support import output_figure
 
 
 def format_ax(ax,
@@ -210,3 +213,36 @@ def add_min_monte_carlo_samples_to_ax(
     ax.set_yticklabels(['{:,.{prec}f}'.format(y, prec=0) for y in vals_y])
 
     ax.legend(fontsize=8)
+
+
+def add_icer_over_itr_to_ax(ax, icer_over_itr, x_range=None, y_range=None):
+
+    ax.plot(icer_over_itr, 'k-', linewidth=0.5)
+
+    if y_range:
+        ax.set_ylim(y_range)
+
+    if x_range:
+        ax.set_xlim(x_range)
+
+    # ax.set_xticks([1, len(icer_over_itr)])
+    vals_x = ax.get_xticks()
+    ax.set_xticklabels(['{:,.0f}'.format(x) for x in vals_x])
+
+    vals_y = ax.get_yticks()
+    ax.set_yticklabels(['{:,.0f}'.format(y) for y in vals_y])
+
+
+def plot_icer_over_itrs(icer_over_itr, x_range=None, y_range=None, legend=None, figure_size=None, file_name=None):
+
+    fig, ax = plt.subplots(figsize=figure_size)
+
+    # add icer over iterations
+    add_icer_over_itr_to_ax(ax=ax, icer_over_itr=icer_over_itr, x_range=x_range, y_range=y_range)
+
+    # add legend if provided
+    if legend is not None:
+        ax.legend([legend])
+
+    # output figure
+    output_figure(fig, file_name)
