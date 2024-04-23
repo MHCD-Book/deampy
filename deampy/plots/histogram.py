@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from deampy.plots.plot_support import output_figure
+from deampy.plots.plot_support import output_figure, format_axis_tick_labels
 
 
 def add_histogram_to_ax(ax, data, title=None, label=None, color=None, bin_width=None,
@@ -55,15 +55,16 @@ def add_histogram_to_ax(ax, data, title=None, label=None, color=None, bin_width=
     ax.set_ylim(y_range)
 
     if format_deci is not None:
-        vals = ax.get_xticks()
-        if format_deci[0] is None or format_deci[0] == '':
-            ax.set_xticklabels(['{:.{prec}f}'.format(x, prec=format_deci[1]) for x in vals])
-        elif format_deci[0] == ',':
-            ax.set_xticklabels(['{:,.{prec}f}'.format(x, prec=format_deci[1]) for x in vals])
-        elif format_deci[0] == '$':
-            ax.set_xticklabels(['${:,.{prec}f}'.format(x, prec=format_deci[1]) for x in vals])
-        elif format_deci[0] == '%':
-            ax.set_xticklabels(['{:,.{prec}%}'.format(x, prec=format_deci[1]) for x in vals])
+        format_axis_tick_labels(ax=ax, axis='x', format_deci=format_deci)
+        # vals = ax.get_xticks()
+        # if format_deci[0] is None or format_deci[0] == '':
+        #     ax.set_xticklabels(['{:.{prec}f}'.format(x, prec=format_deci[1]) for x in vals])
+        # elif format_deci[0] == ',':
+        #     ax.set_xticklabels(['{:,.{prec}f}'.format(x, prec=format_deci[1]) for x in vals])
+        # elif format_deci[0] == '$':
+        #     ax.set_xticklabels(['${:,.{prec}f}'.format(x, prec=format_deci[1]) for x in vals])
+        # elif format_deci[0] == '%':
+        #     ax.set_xticklabels(['{:,.{prec}%}'.format(x, prec=format_deci[1]) for x in vals])
 
 
 def plot_histogram(data, title=None,

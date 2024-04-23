@@ -2,13 +2,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
 
-from deampy.plots.plot_support import output_figure
+from deampy.plots.plot_support import output_figure, calculate_ticks, format_axis_tick_labels
 
 
 def format_ax(ax,
               x_range=None, x_delta=None,
-              y_range=None, y_delta=None, if_y_axis_prob=True,
-              if_format_y_numbers=True, y_axis_decimal=1):
+              y_range=None, y_delta=None, if_y_axis_prob=False,
+              x_axis_format_deci=None, y_axis_format_deci=None):
 
     # the range of x and y-axis are set so that we can get the
     # tick values and label
@@ -23,41 +23,38 @@ def format_ax(ax,
     if x_delta is None:
         vals_x = ax.get_xticks()
     else:
-        vals_x = []
-        x = x_range[0]
-        while x <= x_range[1]:
-            vals_x.append(x)
-            x += x_delta
+        vals_x = calculate_ticks(interval=x_range, delta=x_delta)
 
     # get y ticks
     if y_delta is None:
         vals_y = ax.get_yticks()
     else:
-        vals_y = []
-        y = y_range[0]
-        while y <= y_range[1]:
-            vals_y.append(y)
-            y += y_delta
+        vals_y = calculate_ticks(interval=y_range, delta=y_delta)
 
     # format x-axis
     ax.set_xticks(vals_x)
-    ax.set_xticklabels(['{:,.{prec}f}'.format(x, prec=0) for x in vals_x])
+    if x_axis_format_deci is None:
+        format_axis_tick_labels(ax=ax, axis='x', format_deci=(',', 0))
+    else:
+        format_axis_tick_labels(ax=ax, axis='x', format_deci=x_axis_format_deci)
 
-    d = 2 * (x_range[1] - x_range[0]) / 200
-    ax.set_xlim([x_range[0] - d, x_range[1] + d])
+    # d = 2 * (x_range[1] - x_range[0]) / 200
+    # ax.set_xlim([x_range[0] - d, x_range[1] + d])
 
     # format y-axis
-    if y_range is None:
-        ax.set_yticks(vals_y)
+    # if y_range is None:
+    ax.set_yticks(vals_y)
     if if_y_axis_prob:
-        ax.set_yticklabels(['{:.{prec}f}'.format(x, prec=1) for x in vals_y])
-    elif if_format_y_numbers:
-        ax.set_yticklabels(['{:,.{prec}f}'.format(x, prec=y_axis_decimal) for x in vals_y])
+        format_axis_tick_labels(ax=ax, axis='y', format_deci=(None, 1))
+    if y_axis_format_deci is not None:
+        format_axis_tick_labels(ax=ax, axis='y', format_deci=y_axis_format_deci)
 
     if y_range is None and if_y_axis_prob:
         ax.set_ylim((-0.01, 1.01))
     if y_range:
         ax.set_ylim(y_range)
+    else:
+        ax.set_ylim([vals_y[0], vals_y[-1]])
 
     if not if_y_axis_prob:
         ax.axhline(y=0, c='k', ls='--', linewidth=0.5)
@@ -157,8 +154,7 @@ def add_curves_to_ax(ax, curves, title=None,
     format_ax(ax=ax, y_range=y_range,
               x_range=x_range, x_delta=x_delta,
               if_y_axis_prob=if_y_axis_prob,
-              if_format_y_numbers=if_format_y_numbers,
-              y_axis_decimal=y_axis_decimal)
+              y_axis_format_deci=[',', y_axis_decimal])
 
 
 def add_min_monte_carlo_samples_to_ax(
@@ -215,22 +211,30 @@ def add_min_monte_carlo_samples_to_ax(
     ax.legend(fontsize=8)
 
 
-def add_icer_over_itr_to_ax(ax, icer_over_itr, x_range=None, y_range=None):
+def add_icer_over_itr_to_ax(ax, icer_over_itr, x_range=None, y_range=None, y_delta=None):
 
-    ax.plot(icer_over_itr, 'k-', linewidth=0.5)
+    ax.plot(icer_over_itr, 'b-', linewidth=0.5)
 
-    if y_range:
-        ax.set_ylim(y_range)
+    # if y_range:
+    #     ax.set_ylim(y_range)
+    #
+    # if x_range:
+    #     ax.set_xlim(x_range)
 
-    if x_range:
-        ax.set_xlim(x_range)
-
-    # ax.set_xticks([1, len(icer_over_itr)])
-    vals_x = ax.get_xticks()
-    ax.set_xticklabels(['{:,.0f}'.format(x) for x in vals_x])
-
-    vals_y = ax.get_yticks()
-    ax.set_yticklabels(['{:,.0f}'.format(y) for y in vals_y])
+    format_ax(ax=ax,
+              x_range=x_range, x_axis_format_deci=(',', 0),
+              y_range=y_range, y_delta=y_delta, y_axis_format_deci=('$', 0))
+    #
+    #
+    # format_axis_tick_labels(ax=ax, axis='x', format_deci=(',', 0))
+    #
+    #
+    # if y_delta is None:
+    #     vals_y = ax.get_yticks()
+    # else:
+    #     vals_y = calculate_ticks(interval=y_range, delta=y_delta)
+    # ax.set_yticks(vals_y)
+    # ax.set_yticklabels(['${:,.0f}'.format(y) for y in vals_y])
 
 
 def plot_icer_over_itrs(icer_over_itr, x_range=None, y_range=None, legend=None, figure_size=None, file_name=None):
