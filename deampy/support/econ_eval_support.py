@@ -202,7 +202,7 @@ class INMBCurve(_Curve):
         self.u_errs = []
 
         # get the NMB values for each wtp
-        self.ys = [self.inmbStat.get_marginal_nmb(x) for x in self.xs]
+        self.ys = [self.inmbStat.get_incremental_nmb(x) for x in self.xs]
 
         if self.intervalType == 'c':
             y_intervals = [self.inmbStat.get_CI(x, alpha=0.05) for x in self.xs]

@@ -109,12 +109,12 @@ def equivalent_annual_value(present_value, discount_rate, discount_period):
     return discount_rate*present_value/(1-power(1+discount_rate, -discount_period))
 
 
-def get_variance_of_marginal_nmb(wtp, delta_costs, delta_effects):
+def get_variance_of_incremental_nmb(wtp, delta_costs, delta_effects):
     """
     :param wtp: (double) willingness-to-pay threshold
-    :param delta_costs: (list) of marginal cost observations
-    :param delta_effects: (list) of marginal effect observations
-    :return: the variance of marginal NMB
+    :param delta_costs: (list) of incremental cost observations
+    :param delta_effects: (list) of incremental effect observations
+    :return: the variance of incremental NMB
     """
 
     st_d_cost = np.std(delta_costs, ddof=1)
@@ -132,8 +132,8 @@ def get_variance_of_marginal_nmb(wtp, delta_costs, delta_effects):
 
 def get_variance_of_icer(delta_costs, delta_effects, num_bootstrap_samples=1000, rng=None, method='taylor'):
     """
-    :param delta_costs: (list) of marginal cost observations
-    :param delta_effects: (list) of marginal effect observations
+    :param delta_costs: (list) of incremental cost observations
+    :param delta_effects: (list) of incremental effect observations
     :param num_bootstrap_samples: (int) number of bootstrap samples
     :param rng: (RandomState) random number generator
     :param method: (str) method to calculate the variance of ICER ('taylor' or 'bootstrap')
@@ -175,7 +175,7 @@ def get_variance_of_icer(delta_costs, delta_effects, num_bootstrap_samples=1000,
 
             # assert all the means should not be 0
             if ave_delta_effect <= 0:
-                warnings.warn(': Mean marginal health is 0 or less for one bootstrap sample, '
+                warnings.warn(': Mean incremental health is 0 or less for one bootstrap sample, '
                                 'ICER is not computable')
                 # return np.nan
             else:
@@ -197,8 +197,8 @@ def get_bayesian_ci_for_switch_wtp(
         num_wtp_thresholds=1000, prior_range=None, rng=None):
     """
     assumes that cost and effect observations are paired
-    :param delta_costs: (list) of marginal cost observations
-    :param delta_effects: (list) of marginal effect observations
+    :param delta_costs: (list) of incremental cost observations
+    :param delta_effects: (list) of incremental effect observations
     :param alpha: (double) significance level, a value from [0, 1]
     :param num_wtp_thresholds: (int) number of willingness-to-pay thresholds to evaluate posterior
             when 'Bayesian' approach is selected
@@ -209,7 +209,7 @@ def get_bayesian_ci_for_switch_wtp(
         the NMB lines of two strategies intersect.
     """
 
-    # mean marginal cost, mean marginal effect, and the estimated switch threshold
+    # mean incremental cost, mean incremental effect, and the estimated switch threshold
     mean_d_cost = np.average(delta_costs)
     mean_d_effect = np.average(delta_effects)
     estimated_switch_wtp = mean_d_cost/mean_d_effect
@@ -230,7 +230,7 @@ def get_bayesian_ci_for_switch_wtp(
     lnl_weights = []
     # lnl of observing NMB = 0 given the sampled lambda_0s
     for lambda_0 in lambda_0s:
-        variance = get_variance_of_marginal_nmb(
+        variance = get_variance_of_incremental_nmb(
             wtp=lambda_0,
             delta_costs=delta_costs,
             delta_effects=delta_effects)
@@ -270,8 +270,8 @@ def get_min_monte_carlo_param_samples(delta_costs, delta_effects, max_wtp, epsil
     is at most alpha:
         that is: Pr{|estimated ICER - true ICER| >  epsilon} < alpha
 
-    :param delta_costs: (list) of marginal cost observations
-    :param delta_effects: (list) of marginal effect observations
+    :param delta_costs: (list) of incremental cost observations
+    :param delta_effects: (list) of incremental effect observations
     :param max_wtp: (double) the maximum WTP threshold to be considered
     :param epsilon: (double) the acceptable error in estimating ICER
     :param alpha: (double) the acceptable probability that the estimated ICER is
@@ -318,7 +318,7 @@ def get_min_monte_carlo_param_samples(delta_costs, delta_effects, max_wtp, epsil
             sample_size = var / pow(epsilon, 2) / alpha
 
         elif method == 'nmb':
-            var = get_variance_of_marginal_nmb(
+            var = get_variance_of_incremental_nmb(
                 wtp=min(r, max_wtp),
                 delta_costs=delta_costs,
                 delta_effects=delta_effects)
@@ -1483,7 +1483,7 @@ class CBA(_EconEval):
                            if_paired=if_paired,
                            health_measure=health_measure)
 
-        self.marginalNMBLines = []  # list of marginal NMB curves with respect to the base
+        self.incrementalNMBLines = []  # list of incremental NMB curves with respect to the base
         self.acceptabilityCurves = []  # the list of acceptability curves
         self.expectedLossCurves = []  # the list of expected loss curves
         self.evpi = None
@@ -1503,49 +1503,49 @@ class CBA(_EconEval):
         # index of strategy with the lowest expected loss over the wtp range
         self.idxLowestExpLoss = []
 
-    def build_marginal_nmb_curves(self, interval_type='n'):
+    def build_incremental_nmb_curves(self, interval_type='n'):
         """
-        prepares the information needed to plot the marginal net-monetary benefit lines
+        prepares the information needed to plot the incremental net-monetary benefit lines
         with respect to the first strategy (base)
         :param interval_type: (string) 'n' for no interval,
                                        'c' for confidence interval,
                                        'p' for percentile interval):
         """
 
-        self.marginalNMBLines = []  # list of marginal NMB curves
+        self.incrementalNMBLines = []  # list of incremental NMB curves
 
         # create the NMB curves
         for s in self.strategies:
 
             if self._ifPaired:
                 # create a paired NMB object
-                marginal_nmb = MarginalNMB_Paired(name=s.name,
-                                                  costs_new=s.costObs,
-                                                  effects_new=s.effectObs,
-                                                  costs_base=self.strategies[0].costObs,
-                                                  effects_base=self.strategies[0].effectObs,
-                                                  health_measure=self._healthMeasure)
+                incremental_nmb = IncrementalNMB_Paired(name=s.name,
+                                                        costs_new=s.costObs,
+                                                        effects_new=s.effectObs,
+                                                        costs_base=self.strategies[0].costObs,
+                                                        effects_base=self.strategies[0].effectObs,
+                                                        health_measure=self._healthMeasure)
 
             else:
                 # create an independent NMB object
-                marginal_nmb = MarginalNMB_Indp(name=s.name,
-                                                costs_new=s.costObs,
-                                                effects_new=s.effectObs,
-                                                costs_base=self.strategies[0].costObs,
-                                                effects_base=self.strategies[0].effectObs,
-                                                health_measure=self._healthMeasure)
+                incremental_nmb = IncrementalNMB_Indp(name=s.name,
+                                                      costs_new=s.costObs,
+                                                      effects_new=s.effectObs,
+                                                      costs_base=self.strategies[0].costObs,
+                                                      effects_base=self.strategies[0].effectObs,
+                                                      health_measure=self._healthMeasure)
 
             # make a NMB curve
-            self.marginalNMBLines.append(INMBCurve(label=s.label,
-                                                   short_label=s.shortLabel,
-                                                   color=s.color,
-                                                   wtp_values=self.wtpValues,
-                                                   inmb_stat=marginal_nmb,
-                                                   interval_type=interval_type)
-                                         )
+            self.incrementalNMBLines.append(INMBCurve(label=s.label,
+                                                      short_label=s.shortLabel,
+                                                      color=s.color,
+                                                      wtp_values=self.wtpValues,
+                                                      inmb_stat=incremental_nmb,
+                                                      interval_type=interval_type)
+                                            )
 
         self.idxHighestExpNMB = update_curves_with_highest_values(
-            wtp_values=self.wtpValues, curves=self.marginalNMBLines)
+            wtp_values=self.wtpValues, curves=self.incrementalNMBLines)
 
     def build_acceptability_curves(self, normal_approximation=False):
         """
@@ -1652,7 +1652,7 @@ class CBA(_EconEval):
 
         if len(self.idxHighestExpNMB) == 0:
             self.idxHighestExpNMB = update_curves_with_highest_values(
-                wtp_values=self.wtpValues, curves=self.marginalNMBLines)
+                wtp_values=self.wtpValues, curves=self.incrementalNMBLines)
 
         # find the optimal strategy for each wtp value
         for wtp_idx, wtp in enumerate(self.wtpValues):
@@ -1706,7 +1706,7 @@ class CBA(_EconEval):
             # store x and y values for this expected loss in NMB curve
             for s_i in range(self._n):
                 self.expectedLossCurves[s_i].xs.append(w)
-                self.expectedLossCurves[s_i].ys.append(mean_max_nmb - self.marginalNMBLines[s_i].ys[w_idx])
+                self.expectedLossCurves[s_i].ys.append(mean_max_nmb - self.incrementalNMBLines[s_i].ys[w_idx])
 
         if len(self.idxLowestExpLoss) == 0:
             self.idxLowestExpLoss = update_curves_with_lowest_values(
@@ -1772,7 +1772,7 @@ class CBA(_EconEval):
         for i, s_index in enumerate(s_stars[0:-1]):
             next_s_index = s_stars[i+1]
             if self._ifPaired:
-                inmb = MarginalNMB_Paired(
+                inmb = IncrementalNMB_Paired(
                     name='',
                     costs_new=self.strategies[next_s_index].costObs,
                     effects_new=self.strategies[next_s_index].effectObs,
@@ -1781,7 +1781,7 @@ class CBA(_EconEval):
                     health_measure=self._healthMeasure
                 )
             else:
-                inmb = MarginalNMB_Indp(
+                inmb = IncrementalNMB_Indp(
                     name='',
                     costs_new=self.strategies[next_s_index].costObs,
                     effects_new=self.strategies[next_s_index].effectObs,
@@ -1849,7 +1849,7 @@ class CBA(_EconEval):
             self.evpi.append(average(max_nmbs))
 
         # curve
-        self.marginalNMBLines.append(
+        self.incrementalNMBLines.append(
             EVPI(xs=self.wtpValues, ys=self.evpi, label=Params['evpi.plot.label'], color='k'))
 
     def built_table_of_optimal_switch_thresholds(self):
@@ -1857,25 +1857,25 @@ class CBA(_EconEval):
         pass
         # rows = self.find_optimal_switching_wtp_values(interval_type=, alpha=,num_wtp_thresholds=)
 
-    def plot_marginal_nmb_lines(self,
-                                title='Marginal Net Monetary Benefit',
-                                x_label='Willingness-To-Pay Threshold',
-                                y_label='Marginal Net Monetary Benefit',
-                                show_evpi=False,
-                                y_range=None,
-                                y_axis_multiplier=1,
-                                y_axis_decimal=0,
-                                interval_type='c',
-                                delta_wtp=None,
-                                transparency_lines=0.5,
-                                transparency_intervals=0.2,
-                                show_legend=True,
-                                show_labels_on_frontier=False,
-                                grid_info=None,
-                                figure_size=(5, 5),
-                                file_name=None):
+    def plot_incremental_nmb_lines(self,
+                                   title='Incremental Net Monetary Benefit',
+                                   x_label='Willingness-To-Pay Threshold',
+                                   y_label='Incremental Net Monetary Benefit',
+                                   show_evpi=False,
+                                   y_range=None,
+                                   y_axis_multiplier=1,
+                                   y_axis_decimal=0,
+                                   interval_type='c',
+                                   delta_wtp=None,
+                                   transparency_lines=0.5,
+                                   transparency_intervals=0.2,
+                                   show_legend=True,
+                                   show_labels_on_frontier=False,
+                                   grid_info=None,
+                                   figure_size=(5, 5),
+                                   file_name=None):
         """
-        plots the marginal net-monetary benefit of each strategy
+        plots the incremental net-monetary benefit of each strategy
                 with respect to the base (the first strategy)
         :param title: title
         :param x_label: x-axis label
@@ -1899,8 +1899,8 @@ class CBA(_EconEval):
         :param file_name: (string) filename to save the figure as
         """
 
-        # make marginal NMB curves
-        self.build_marginal_nmb_curves(interval_type=interval_type)
+        # make incremental NMB curves
+        self.build_incremental_nmb_curves(interval_type=interval_type)
 
         if show_evpi:
             self.calculate_evpi_curve()
@@ -1908,8 +1908,8 @@ class CBA(_EconEval):
         # initialize plot
         fig, ax = plt.subplots(figsize=figure_size)
 
-        # add the marginal NMB curves
-        add_curves_to_ax(ax=ax, curves=self.marginalNMBLines,
+        # add the incremental NMB curves
+        add_curves_to_ax(ax=ax, curves=self.incrementalNMBLines,
                          x_range=[self.wtpValues[0], self.wtpValues[-1]],
                          title=title, x_label=x_label,
                          y_label=y_label, y_range=y_range, x_delta=delta_wtp,
@@ -1978,9 +1978,9 @@ class CBA(_EconEval):
         output_figure(plt=fig, filename=file_name)
 
     def add_inmb_lines_to_ax(self, ax,
-                             title='Marginal Net Monetary Benefit',
+                             title='Incremental Net Monetary Benefit',
                              x_label='Willingness-To-Pay Threshold',
-                             y_label='Marginal Net Monetary Benefit',
+                             y_label='Incremental Net Monetary Benefit',
                              show_evpi=False,
                              y_range=None,
                              y_axis_multiplier=1,
@@ -1992,8 +1992,8 @@ class CBA(_EconEval):
                              show_labels_on_frontier=False,
                              grid_info=None):
 
-        # make marginal NMB curves
-        self.build_marginal_nmb_curves(interval_type=interval_type)
+        # make incremental NMB curves
+        self.build_incremental_nmb_curves(interval_type=interval_type)
 
         if show_evpi:
             self.calculate_evpi_curve()
@@ -2004,7 +2004,7 @@ class CBA(_EconEval):
                 Params['plot.legend.loc']
             )
 
-        add_curves_to_ax(ax=ax, curves=self.marginalNMBLines, x_range=[self.wtpValues[0], self.wtpValues[-1]],
+        add_curves_to_ax(ax=ax, curves=self.incrementalNMBLines, x_range=[self.wtpValues[0], self.wtpValues[-1]],
                          title=title, x_label=x_label,
                          y_label=y_label, y_range=y_range, x_delta=delta_wtp,
                          y_axis_decimal=y_axis_decimal,
@@ -2048,7 +2048,7 @@ class CBA(_EconEval):
         """
 
         # make the NMB curves
-        self.build_marginal_nmb_curves(interval_type='n')
+        self.build_incremental_nmb_curves(interval_type='n')
 
         # make the acceptability curves
         self.build_acceptability_curves()
@@ -2087,8 +2087,8 @@ class CBA(_EconEval):
             the acceptability curves
         """
 
-        if len(self.marginalNMBLines) == 0:
-            self.build_marginal_nmb_curves(interval_type='n')
+        if len(self.incrementalNMBLines) == 0:
+            self.build_incremental_nmb_curves(interval_type='n')
 
         if len(self.acceptabilityCurves) == 0:
             self.build_acceptability_curves(normal_approximation=normal_approximation)
@@ -2127,8 +2127,8 @@ class CBA(_EconEval):
             if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
         """
 
-        if len(self.marginalNMBLines) == 0:
-            self.build_marginal_nmb_curves(interval_type='n')
+        if len(self.incrementalNMBLines) == 0:
+            self.build_incremental_nmb_curves(interval_type='n')
 
         if len(self.expectedLossCurves) == 0:
             self.build_expected_loss_curves()
@@ -2202,8 +2202,8 @@ class CBA(_EconEval):
 
         return w_stars, s_star_names, s_stars
 
-    def calculate_exp_marginal_nmbs(self, wtp_random_variate, n_samples, rnd):
-        """ create summary statistics of marginal NMB of all strategies given the
+    def calculate_exp_incremental_nmbs(self, wtp_random_variate, n_samples, rnd):
+        """ create summary statistics of incremental NMB of all strategies given the
         provided probability distribution of WTP value.
         :param wtp_random_variate: random variate generator for the probability distribution of wtp value
         :param n_samples: number of monte carlo samples
@@ -2220,7 +2220,7 @@ class CBA(_EconEval):
                 rnd=rnd
             )
 
-    def report_exp_marginal_nmb(self, interval='c', deci=0):
+    def report_exp_incremental_nmb(self, interval='c', deci=0):
 
         report = []
         for s in self.strategies[1:]:
@@ -2523,13 +2523,13 @@ class _ComparativeEconMeasure:
 
     def get_ave_d_cost(self):
         """
-        :return: average marginal cost
+        :return: average incremental cost
         """
         return self._deltaAveCost
 
     def get_ave_d_effect(self):
         """
-        :return: average marginal effect
+        :return: average incremental effect
         """
         return self._deltaAveEffect
 
@@ -2553,8 +2553,8 @@ class _ICER(_ComparativeEconMeasure):
 
         # calculate ICER
         if not (self._deltaAveEffect > 0 and self._deltaAveCost >= 0):
-            warnings.warn(self.name + ': Mean marginal effect should be > 0 '
-                                      'and mean marginal cost should be >= 0. '
+            warnings.warn(self.name + ': Mean incremental effect should be > 0 '
+                                      'and mean incremental cost should be >= 0. '
                                       'ICER is not computable.')
             self._isDefined = False
             self._ICER = math.nan
@@ -2654,7 +2654,7 @@ class ICER_Paired(_ICER):
         # initialize the base class
         _ICER.__init__(self, costs_new, effects_new, costs_base, effects_base, health_measure, name)
 
-        # marginal observations
+        # incremental observations
         self._deltaCosts = self._costsNew - self._costsBase
         self._deltaEffects = (self._effectsNew - self._effectsBase) * self._effect_multiplier
 
@@ -2769,7 +2769,7 @@ class ICER_Paired(_ICER):
         # calculate ICERs
         if min(self._deltaEffects) <= 0:
             warnings.warn("\nFor '{0},' the prediction interval of ICERs is not computable because at least one "
-                          "marginal effect is negative or zero.".format(self.name))
+                          "incremental effect is negative or zero.".format(self.name))
             return [math.nan, math.nan]
         else:
             icers = np.divide(self._deltaCosts, self._deltaEffects)
@@ -2869,7 +2869,7 @@ class ICER_Indp(_ICER):
             if (mean_effects_new - mean_effects_base) * self._effect_multiplier <= 0:
                 self._isDefined = False
                 warnings.warn('\nFor "{}, the confidence interval of ICER is not computable."'
-                              '\nThis is because at least one of bootstrap mean marginal effect '
+                              '\nThis is because at least one of bootstrap mean incremental effect '
                               'is negative.'
                               '\nIncreasing the number of cost and effect observations '
                               'might resolve the issue.'.format(self.name))
@@ -2915,7 +2915,7 @@ class ICER_Indp(_ICER):
         if min((effects_new - effects_base) * self._effect_multiplier) <= 0:
             self._isDefined = False
             warnings.warn('\nFor "{}, the prediction interval of ICER is not computable."'
-                          '\nThis is because at least one of bootstrap mean marginal effect '
+                          '\nThis is because at least one of bootstrap mean incremental effect '
                           'is negative'.format(self.name))
             return [math.nan, math.nan]
         else:
@@ -2929,8 +2929,8 @@ class ICER_Indp(_ICER):
             return [math.nan, math.nan]
 
 
-class _MarginalNMB(_ComparativeEconMeasure):
-    # marginal net monetary benefit
+class _IncrementalNMB(_ComparativeEconMeasure):
+    # incremental net monetary benefit
     def __init__(self, costs_new, effects_new, costs_base, effects_base, health_measure='u', name=''):
         """
         :param costs_new: (list or numpy.array) cost data for the new strategy
@@ -2944,10 +2944,10 @@ class _MarginalNMB(_ComparativeEconMeasure):
         # initialize the base class
         _ComparativeEconMeasure.__init__(self, costs_new, effects_new, costs_base, effects_base, health_measure, name)
 
-    def get_marginal_nmb(self, wtp):
+    def get_incremental_nmb(self, wtp):
         """
         :param wtp: willingness-to-pay ($ for QALY gained or $ for DALY averted)
-        :returns: the marginal net monetary benefit at the provided willingness-to-pay value
+        :returns: the incremental net monetary benefit at the provided willingness-to-pay value
         """
         return wtp * self._deltaAveEffect - self._deltaAveCost
 
@@ -2979,7 +2979,7 @@ class _MarginalNMB(_ComparativeEconMeasure):
         return wtp
 
 
-class MarginalNMB_Paired(_MarginalNMB):
+class IncrementalNMB_Paired(_IncrementalNMB):
 
     def __init__(self, costs_new, effects_new, costs_base, effects_base, health_measure='u', name=''):
         """
@@ -2995,11 +2995,11 @@ class MarginalNMB_Paired(_MarginalNMB):
         # all cost and effects should have the same length
         if not (len(costs_new) == len(effects_new) == len(costs_base) == len(effects_base)):
             raise ValueError(
-                'Paired marginal NMB assumes the same number of observations for all cost and health outcomes.')
+                'Paired incremental NMB assumes the same number of observations for all cost and health outcomes.')
 
-        _MarginalNMB.__init__(self, costs_new, effects_new, costs_base, effects_base, health_measure, name)
+        _IncrementalNMB.__init__(self, costs_new, effects_new, costs_base, effects_base, health_measure, name)
 
-        # marginal observations
+        # incremental observations
         self._deltaCosts = self._costsNew - self._costsBase
         self._deltaEffects = (self._effectsNew - self._effectsBase) * self._effect_multiplier
 
@@ -3013,7 +3013,7 @@ class MarginalNMB_Paired(_MarginalNMB):
         :param alpha: significance level, a value from [0, 1]
         :return: confidence interval in the format of list [l, u]
         """
-        mean = self.get_marginal_nmb(wtp=wtp)
+        mean = self.get_incremental_nmb(wtp=wtp)
 
         t = math.nan
         if self._n > 1:
@@ -3066,7 +3066,7 @@ class MarginalNMB_Paired(_MarginalNMB):
             raise ValueError('Invalid value for interval_type.')
 
 
-class MarginalNMB_Indp(_MarginalNMB):
+class IncrementalNMB_Indp(_IncrementalNMB):
 
     def __init__(self, costs_new, effects_new, costs_base, effects_base, health_measure='u', name=''):
         """
@@ -3082,10 +3082,10 @@ class MarginalNMB_Indp(_MarginalNMB):
         # all costs and effects should have the same length for each strategy
         if not (len(costs_new) == len(effects_new) and len(costs_base) == len(effects_base)):
             raise ValueError(
-                'Independent marginal NMB assumes that for each strategy there are '
+                'Independent incremental NMB assumes that for each strategy there are '
                 'the same number of observations for cost and health outcomes.')
 
-        _MarginalNMB.__init__(self, costs_new, effects_new, costs_base, effects_base, health_measure, name)
+        _IncrementalNMB.__init__(self, costs_new, effects_new, costs_base, effects_base, health_measure, name)
 
     def get_CI(self, wtp, alpha=0.05):
         """

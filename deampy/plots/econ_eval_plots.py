@@ -51,7 +51,7 @@ def format_ax(ax,
 
     if y_range is None and if_y_axis_prob:
         ax.set_ylim((-0.01, 1.01))
-    if y_range:
+    elif y_range:
         ax.set_ylim(y_range)
     else:
         ax.set_ylim([vals_y[0], vals_y[-1]])
