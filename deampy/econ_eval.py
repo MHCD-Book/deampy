@@ -1763,7 +1763,7 @@ class CEA(_EconEval):
     def plot_min_monte_carlo_parameter_samples(
             self, max_wtp, epsilons, alphas,
             x_range=None, y_range=None, x_multiplier=1, y_multiplier=1,
-            x_label=r'WTP Error Tolerance ($\epsilon$)',
+            x_label=r'Acceptable Error in Estimating ICER ($\epsilon$)',
             y_label='Required Number of Parameter Samples',
             num_bootstrap_samples=None, rng=None,
             fig_size=(4, 4), filename=None):
