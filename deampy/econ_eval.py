@@ -592,7 +592,8 @@ class _EconEval:
                                       health_measure=self._healthMeasure)
 
     def get_min_monte_carlo_parameter_samples(
-            self, max_wtp, epsilon, alpha=0.05, num_bootstrap_samples=1000, rng=None):
+            self, max_wtp, epsilon, alpha=0.05, num_bootstrap_samples=1000, rng=None,
+            comparison_type='frontier'):
         """
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
         :param epsilon: (double) the acceptable error in estimating ICER
@@ -600,38 +601,77 @@ class _EconEval:
         :param num_bootstrap_samples: (int) number of bootstrap samples to characterize
             the distribution of estimated Ns. If None, only the estimated N is returned.
         :param rng: (RandomState) random number generator used for bootstrapping
+        :param comparison_type: (string) 'frontier' to compare strategies on the frontier or
+            'pairwise' to compare all pairwise combinations of strategies
+                ('pairwise is more conservative and may require a substantially more samples)
         :return: (int) the minimum Monte Carlo samples from parameter distributions
         """
 
         # find the minimum required number of Monte Carlo samples from parameter distributions
         max_n = 0
         max_interval = None
-        # go over all pairwise comparisons between strategies
-        for i in range(self._n):
-            for j in range(self._n):
-                if i != j:
-                    s_i = self.strategies[i]
-                    s_j = self.strategies[j]
 
-                    results = get_min_monte_carlo_param_samples(
-                        delta_costs=s_j.costObs - s_i.costObs,
-                        delta_effects=(s_j.effectObs - s_i.effectObs)*self._u_or_d,
-                        max_wtp=max_wtp,
-                        epsilon=epsilon,
-                        alpha=alpha,
-                        num_bootstrap_samples=num_bootstrap_samples,
-                        rng=rng)
+        if comparison_type == 'frontier':
 
-                    if num_bootstrap_samples is None:
-                        n = results
-                        interval = None
-                    else:
-                        n, interval = results
+            # find strategies on the frontier
+            if not self._ifFrontierIsCalculated:
+                self.__find_frontier()
+            strategies_on_frontier = self.get_strategies_on_frontier()
 
-                    if not np.isnan(n):
-                        if n > max_n:
-                            max_n = n
-                            max_interval = interval
+            # go over all strategies on the frontier
+            for i in range(len(strategies_on_frontier)-1):
+
+                results = get_min_monte_carlo_param_samples(
+                    delta_costs=strategies_on_frontier[i+1].costObs - strategies_on_frontier[i].costObs,
+                    delta_effects=(strategies_on_frontier[i+1].effectObs - strategies_on_frontier[i].effectObs) * self._u_or_d,
+                    max_wtp=max_wtp,
+                    epsilon=epsilon,
+                    alpha=alpha,
+                    num_bootstrap_samples=num_bootstrap_samples,
+                    rng=rng)
+
+                if num_bootstrap_samples is None:
+                    n = results
+                    interval = None
+                else:
+                    n, interval = results
+
+                if not np.isnan(n):
+                    if n > max_n:
+                        max_n = n
+                        max_interval = interval
+
+        elif comparison_type == 'pairwise':
+
+            # go over all pairwise comparisons between strategies
+            for i in range(self._n):
+                for j in range(self._n):
+                    if i != j:
+                        s_i = self.strategies[i]
+                        s_j = self.strategies[j]
+
+                        results = get_min_monte_carlo_param_samples(
+                            delta_costs=s_j.costObs - s_i.costObs,
+                            delta_effects=(s_j.effectObs - s_i.effectObs)*self._u_or_d,
+                            max_wtp=max_wtp,
+                            epsilon=epsilon,
+                            alpha=alpha,
+                            num_bootstrap_samples=num_bootstrap_samples,
+                            rng=rng)
+
+                        if num_bootstrap_samples is None:
+                            n = results
+                            interval = None
+                        else:
+                            n, interval = results
+
+                        if not np.isnan(n):
+                            if n > max_n:
+                                max_n = n
+                                max_interval = interval
+
+        else:
+            raise ValueError('comparison_type should be either "frontier" or "pairwise"')
 
         if num_bootstrap_samples is None:
             return max_n
