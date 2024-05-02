@@ -26,9 +26,9 @@ myCEA.plot_CE_plane('CE plane with unpaired observations and showing labels',
 
 # table
 print('')
-myCEA.build_CE_table(interval_type='c',
-                     cost_digits=0, effect_digits=0, icer_digits=1,
-                     file_name='Table-Indp.csv')
+myCEA.export_ce_table(interval_type='c',
+                      cost_digits=0, effect_digits=0, icer_digits=1,
+                      file_name='Table-Indp.csv')
 
 # plot with label and sample cloud
 myCEA.plot_CE_plane('CE plane with paired observations and showing labels',

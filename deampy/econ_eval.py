@@ -22,26 +22,31 @@ from deampy.support.misc_functions import convert_lnl_to_prob, get_prob_x_greate
 Params = {
     'plot.legend.fontsize': 7,
     'plot.legend.loc': 'upper left',
-    'evpi.plot.label': 'Perfect Information'
+
+    'ce.cloud.edgecolors': 'w',
+    'ce.frontier.color': 'k',
+    'ce.frontier.transparency': 0.6,
+    'ce.frontier.line_width': 2,
+    'ce.frontier.label.shift_x': -0.01, # shift labels to right or left (proportional to the length of the x_axis)
+    'ce.frontier.label.shift_y': 0.01, # shift labels to right or left (proportional to the length of the x_axis)
+
+    'ceac.transparency': 0.75,
+    'ceac.line_width': 0.75,
+    'ceaf.line_width': 2.5,
+
+    'nmb.transparency': 0.75,
+    'nmb.line_width': 0.75,
+    'nmb.interval.transparency': 0.5,
+    'nmb.frontier.line_width': 2.5,
+    'evpi.plot.label': 'Perfect Information',
+
+    'elc.transparency': 0.75,
+    'elc.line_width': 0.75,
+    'elc.frontier.line_width': 2.5
 }
 
 # warnings.filterwarnings("always")
 NUM_OF_BOOTSTRAPS = 1000  # number of bootstrap samples to calculate confidence intervals for ICER
-
-CE_FRONTIER_COLOR = 'k'
-CE_FRONTIER_TRANSPARENCY = 0.6
-CE_FRONTIER_LINE_WIDTH = 2
-CE_EDGE_COLOR = 'w'
-
-CEAC_NMB_TRANSPARENCY = 0.75
-CEAC_LINE_WIDTH = 0.75
-CEAF_LINE_WIDTH = 2.5
-NMB_LINE_WIDTH = 0.75
-NMB_INTERVAL_TRANSPARENCY = 0.5
-NMB_FRONTIER_LINE_WIDTH = 2.5
-
-FRONTIER_LABEL_SHIFT_X = -0.01 # shift labels to right or left (proportional to the length of the x_axis)
-FRONTIER_LABEL_SHIFT_Y = 0.01 # shift labels to right or left (proportional to the length of the x_axis)
 
 
 def pv_single_payment(payment, discount_rate, discount_period, discount_continuously=False):
@@ -485,7 +490,8 @@ class _EconEval:
     """ super class for cost-effective analysis (CEA),  cost-benefit analysis (CBA),
         and budget-constrain health optimization (BCHO)"""
 
-    def __init__(self, strategies, if_paired, health_measure='u', if_reset_strategies=False):
+    def __init__(self, strategies, if_paired, health_measure='u',
+                 if_reset_strategies=False, wtp_range=(0, 100000), n_of_wtp_values=200):
         """
         :param strategies: the list of strategies (assumes that the first strategy represents the "base" strategy)
         :param if_paired: set to true to indicate that the strategies are paired
@@ -494,6 +500,8 @@ class _EconEval:
         (e.g. when DALYS is used)
         :param if_reset_strategies: set to True if the cost and effect with respect to
             base, incremental cost and effect, ICER, and CER of strategies should be recalculated.
+        :param wtp_range: ([l, u]) range of willingness-to-pay values over which the NMB analysis should be done
+        :param n_of_wtp_values: number of willingness-to-pay values to construct net monetary benefit curves
         """
 
         if health_measure not in ['u', 'd']:
@@ -514,8 +522,33 @@ class _EconEval:
         # assign colors to strategies
         self.__assign_colors()
 
+        self._strategies_on_frontier = []  # list of strategies on the frontier
+        self._ifFrontierIsCalculated = False  # CE frontier is not calculated yet
+        self._ifPairwiseCEAsAreCalculated = False
+        self._pairwise_ceas = []  # list of list to cea's
+
+        self._incrementalNMBLines = []  # list of incremental NMB curves with respect to the base
+        self._acceptabilityCurves = []  # the list of acceptability curves
+        self._expectedLossCurves = []  # the list of expected loss curves
+        self._evpi = None  # expected value of perfect information
+
+        # wtp values (includes the specified minimum and maximum wtp value)
+        self.wtpValues = np.linspace(wtp_range[0], wtp_range[1],
+                                     num=n_of_wtp_values, endpoint=True)
+
+        # index of strategy with the highest expected net-monetary benefit over the wtp range
+        self.idxHighestExpNMB = []
+        # index of strategy with the lowest expected loss over the wtp range
+        self.idxLowestExpLoss = []
+
+        # shift the strategies
+        self._find_shifted_strategies()
+
+        # find the cost-effectiveness frontier
+        self.__find_frontier()
+
     def __assign_colors(self):
-        """ assignes color to each strategy if colors are not provided """
+        """ assigns color to each strategy if colors are not provided """
 
         # decide about the color of each curve
         rainbow_colors = cm.rainbow(np.linspace(0, 1, self._n))
@@ -590,772 +623,6 @@ class _EconEval:
                                       costs_base=self.strategies[0].costObs,
                                       effects_base=self.strategies[0].effectObs,
                                       health_measure=self._healthMeasure)
-
-    def get_min_monte_carlo_parameter_samples(
-            self, max_wtp, epsilon, alpha=0.05, num_bootstrap_samples=1000, rng=None,
-            comparison_type='frontier'):
-        """
-        :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
-        :param epsilon: (double) the acceptable error in estimating ICER
-        :param alpha: (double) the acceptable probability that the estimated ICER is outside the specified range
-        :param num_bootstrap_samples: (int) number of bootstrap samples to characterize
-            the distribution of estimated Ns. If None, only the estimated N is returned.
-        :param rng: (RandomState) random number generator used for bootstrapping
-        :param comparison_type: (string) 'frontier' to compare strategies on the frontier or
-            'pairwise' to compare all pairwise combinations of strategies
-                ('pairwise is more conservative and may require a substantially more samples)
-        :return: (int) the minimum Monte Carlo samples from parameter distributions
-        """
-
-        # find the minimum required number of Monte Carlo samples from parameter distributions
-        max_n = 0
-        max_interval = None
-
-        if comparison_type == 'frontier':
-
-            # find strategies on the frontier
-            if not self._ifFrontierIsCalculated:
-                self.__find_frontier()
-            strategies_on_frontier = self.get_strategies_on_frontier()
-
-            # go over all strategies on the frontier
-            for i in range(len(strategies_on_frontier)-1):
-
-                results = get_min_monte_carlo_param_samples(
-                    delta_costs=strategies_on_frontier[i+1].costObs - strategies_on_frontier[i].costObs,
-                    delta_effects=(strategies_on_frontier[i+1].effectObs - strategies_on_frontier[i].effectObs) * self._u_or_d,
-                    max_wtp=max_wtp,
-                    epsilon=epsilon,
-                    alpha=alpha,
-                    num_bootstrap_samples=num_bootstrap_samples,
-                    rng=rng)
-
-                if num_bootstrap_samples is None:
-                    n = results
-                    interval = None
-                else:
-                    n, interval = results
-
-                if not np.isnan(n):
-                    if n > max_n:
-                        max_n = n
-                        max_interval = interval
-
-        elif comparison_type == 'pairwise':
-
-            # go over all pairwise comparisons between strategies
-            for i in range(self._n):
-                for j in range(self._n):
-                    if i != j:
-                        s_i = self.strategies[i]
-                        s_j = self.strategies[j]
-
-                        results = get_min_monte_carlo_param_samples(
-                            delta_costs=s_j.costObs - s_i.costObs,
-                            delta_effects=(s_j.effectObs - s_i.effectObs)*self._u_or_d,
-                            max_wtp=max_wtp,
-                            epsilon=epsilon,
-                            alpha=alpha,
-                            num_bootstrap_samples=num_bootstrap_samples,
-                            rng=rng)
-
-                        if num_bootstrap_samples is None:
-                            n = results
-                            interval = None
-                        else:
-                            n, interval = results
-
-                        if not np.isnan(n):
-                            if n > max_n:
-                                max_n = n
-                                max_interval = interval
-
-        else:
-            raise ValueError('comparison_type should be either "frontier" or "pairwise"')
-
-        if num_bootstrap_samples is None:
-            return max_n
-        else:
-            return max_n, max_interval
-
-    def get_dict_min_monte_carlo_parameter_samples(
-            self, max_wtp, epsilons, alphas, num_bootstrap_samples=None, rng=None):
-        """
-        :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
-        :param epsilons: (list) the acceptable errors in estimating ICER
-        :param alphas: (list) the acceptable probabilities that the estimated ICER is
-            outside the specified range from the true ICER
-        :param num_bootstrap_samples: (int) number of bootstrap samples to characterize the distribution of
-            the minimum required  number of parameter samples
-        :param rng: (RandomState) random number generator used for bootstrapping
-        :return: (dictionary) of minimum Monte Carlo samples needed to achieve the desired statistical power
-            first key is power values and the second key is error tolerance
-        """
-
-        if not isinstance(alphas, list):
-            alphas = [alphas]
-        if not isinstance(epsilons, list):
-            epsilons = [epsilons]
-
-        dic_of_ns = {}
-        for alpha in alphas:
-            dic_of_ns[alpha] = {}
-            for epsilon in epsilons:
-                dic_of_ns[alpha][epsilon] = self.get_min_monte_carlo_parameter_samples(
-                    max_wtp=max_wtp, epsilon=epsilon, alpha=alpha,
-                    num_bootstrap_samples=num_bootstrap_samples, rng=rng)
-
-        return dic_of_ns
-
-    def print_minimum_monte_carlo_samples(
-            self, max_wtp, epsilons, alphas, file_name):
-        """
-        :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
-        :param epsilons: (list) of error tolerances
-        :param alphas: (list) of significance levels
-        :param file_name: (string) the filename to save the results as
-        :return: (dictionary) of minimum Monte Carlo samples needed to achieve the desired statistical power
-            first key is power values and the second key is error tolerance
-        """
-
-        if not isinstance(alphas, list):
-            alphas = [alphas]
-        if not isinstance(epsilons, list):
-            epsilons = [epsilons]
-
-        dic_of_ns = self.get_dict_min_monte_carlo_parameter_samples(
-            max_wtp=max_wtp, epsilons=epsilons, alphas=alphas)
-
-        rows = [['Alpha/Epsilon']]
-        for epsilon in epsilons:
-            rows[0].append(epsilon)
-
-        for alpha in alphas:
-            rows.append([alpha])
-            for epsilon in epsilons:
-                rows[-1].append(dic_of_ns[alpha][epsilon])
-
-        write_csv(rows=rows, file_name=file_name)
-
-    def plot_min_monte_carlo_parameter_samples(
-            self, max_wtp, epsilons, alphas,
-            x_range=None, y_range=None, x_multiplier=1, y_multiplier=1,
-            x_label=r'WTP Error Tolerance ($\epsilon$)',
-            y_label='Required Number of Parameter Samples',
-            num_bootstrap_samples=None, rng=None,
-            fig_size=(4, 4), filename=None):
-        """ plots the minimum number of Monte Carlo parameter samples needed to achieve the desired accuracy
-        :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
-        :param epsilons: (list) of epsilon values (the acceptable error in estimating ICER)
-        :param alphas: (list) of significance levels (the acceptable probability that the estimated ICER is
-        outside the specified range from the true ICER)
-        :param x_range: (list) of x-axis range
-        :param y_range: (list) of y-axis range
-        :param x_multiplier: (double) multiplier for x-axis values
-        :param y_multiplier: (double) multiplier for y-axis values
-        :param x_label: (string) x-axis label
-        :param y_label: (string) y-axis label
-        :param fig_size: (tuple) figure size
-        :param filename: (string) filename to save the figure as
-        """
-
-        dict_of_ns = self.get_dict_min_monte_carlo_parameter_samples(
-            max_wtp=max_wtp, epsilons=epsilons, alphas=alphas,
-            num_bootstrap_samples=num_bootstrap_samples, rng=rng)
-
-        f, ax = plt.subplots(figsize=fig_size)
-        add_min_monte_carlo_samples_to_ax(
-            ax=ax, dict_of_ns=dict_of_ns, epsilons=epsilons,
-            x_range=x_range, y_range=y_range, x_multiplier=x_multiplier)
-
-        ax.set_xlabel(x_label)
-        ax.set_ylabel(y_label)
-
-        f.tight_layout()
-
-        output_figure(plt=f, filename=filename)
-
-
-class CEA(_EconEval):
-    """ super class for cost-effective analysis (CEA) and cost-benefit analysis (CBA) """
-
-    def __init__(self, strategies, if_paired, health_measure='u', if_reset_strategies=False):
-        """
-        :param strategies: the list of strategies (assumes that the first strategy represents the "base" strategy)
-        :param if_paired: set to true to indicate that the strategies are paired
-        :param health_measure: (string) choose 'u' if higher "effect" implies better health
-        (e.g. when QALY is used) and set to 'd' if higher "effect" implies worse health
-        (e.g. when DALYS is used)
-        :param if_reset_strategies: set to True if the cost and effect with respect to
-            base, incremental cost and effect, ICER, and CER of strategies should be recalculated.
-        """
-
-        _EconEval.__init__(self, strategies=strategies,
-                           if_paired=if_paired,
-                           health_measure=health_measure,
-                           if_reset_strategies=if_reset_strategies)
-
-        self._strategies_on_frontier = []   # list of strategies on the frontier
-        self._ifFrontierIsCalculated = False  # CE frontier is not calculated yet
-        self._ifPairwiseCEAsAreCalculated = False
-        self._pairwise_ceas = []  # list of list to cea's
-
-        # shift the strategies
-        self._find_shifted_strategies()
-
-        # find the cost-effectiveness frontier
-        self.__find_frontier()
-
-    def get_strategies_on_frontier(self):
-        """
-        :return: strategies on the frontier sorted in the increasing order of effect
-        """
-
-        if not self._ifFrontierIsCalculated:
-            self.__find_frontier()
-
-        return self._strategies_on_frontier
-    
-    def get_strategies_not_on_frontier(self):
-        """
-        :return: strategies not on the frontier 
-        """
-        
-        if not self._ifFrontierIsCalculated:
-            self.__find_frontier()
-        
-        return [s for s in self.strategies if s.ifDominated]
-
-    def get_wtp_switch_thresholds_on_frontier(self, with_confidence_intervals=True, alpha=0.05):
-        """
-        :param with_confidence_intervals (bool) set to False
-            if Bayesian confidence intervals should not be calculated
-        :param alpha: (float) significance level
-        :return: (dictionary) of strategies on the frontier with the estimate of WTP threshold
-            at which the strategy becomes the optimal option.
-            key: strategy name and value: [wtp threshold, confidence interval]
-                or wtp threshold when confidence interval is not requested.
-        """
-
-        dic_of_strategies = {}
-        for s in self.get_strategies_on_frontier():
-            if s.icer is not None:
-                if with_confidence_intervals:
-                    dic_of_strategies[s.name] = [
-                        s.icer.get_ICER(),
-                        s.icer.get_CI(alpha=alpha,
-                                      method='Bayesian',
-                                      num_wtp_thresholds=1000)]
-                else:
-                    dic_of_strategies[s.name] = s.icer.get_ICER()
-
-        return dic_of_strategies
-
-    def build_CE_table(
-            self, interval_type='c',  alpha=0.05, ci_method='bootstrap', num_bootstrap_samples=1000,
-            rng=None, prior_range=None, num_wtp_thresholds=1000,
-            cost_digits=0, effect_digits=2, icer_digits=1,
-            cost_multiplier=1, effect_multiplier=1,
-            file_name='CETable.csv', directory=''):
-        """
-        :param interval_type: (string) the interval type for cost and effect estimates
-            (for ICER, we always report confidence interval)
-            'n' or None for no interval
-            'c' or 'cb' for bootstrap confidence interval, and
-            'p' for percentile interval
-        :param alpha: significance level, a value from [0, 1]
-        :param ci_method: (string) method to calculate confidence interval of ICER ('bootstrap' or 'Bayesian')
-        :param num_bootstrap_samples: number of bootstrap samples when 'bootstrap' method is selected
-        :param rng: random number generator to generate empirical bootstrap samples
-        :param num_wtp_thresholds: (int) number of willingness-to-pay thresholds to evaluate posterior
-            when 'Bayesian' approach is selected
-        :param prior_range: (tuple) in form of (l, u) for the prior range of willingness-to-pay
-            threshold that makes NMB zero (if prior is not provided [0, 4 * ICER] will be used
-        :param cost_digits: digits to round cost estimates to
-        :param effect_digits: digits to round effect estimate to
-        :param icer_digits: digits to round ICER estimates to
-        :param cost_multiplier: set to 1/1000 or 1/100000 to represent cost in terms of
-                thousands or hundred thousands unit
-        :param effect_multiplier: set to 1/1000 or 1/100000 to represent effect in terms of
-                thousands or hundred thousands unit
-        :param file_name: address and file name where the CEA results should be saved to
-        :param directory: directory (relative to the current root) where the files should be located
-            for example use 'Example' to create and save the csv file under the folder Example
-        """
-
-        # find the frontier if not calculated already
-        if not self._ifFrontierIsCalculated:
-            self.__find_frontier()
-
-        table = [['Strategy', 'Cost', 'Effect', 'Incremental Cost', 'Incremental Effect',
-                  'ICER (with confidence interval)']]
-        # sort strategies in increasing order of cost
-        self.strategies.sort(key=get_d_cost)
-
-        for i, s in enumerate(self.strategies):
-            row=[]
-            # strategy name
-            row.append(s.name)
-            # strategy cost
-            row.append(s.cost.get_formatted_mean_and_interval(interval_type=interval_type,
-                                                              alpha=alpha,
-                                                              deci=cost_digits,
-                                                              form=',',
-                                                              multiplier=cost_multiplier))
-            # strategy effect
-            row.append(s.effect.get_formatted_mean_and_interval(interval_type=interval_type,
-                                                                alpha=alpha,
-                                                                deci=effect_digits,
-                                                                form=',',
-                                                                multiplier=effect_multiplier))
-
-            # strategy incremental cost
-            if s.incCost is None:
-                row.append('-')
-            else:
-                row.append(s.incCost.get_formatted_mean_and_interval(interval_type=interval_type,
-                                                                     alpha=alpha,
-                                                                     deci=cost_digits,
-                                                                     form=',',
-                                                                     multiplier=cost_multiplier))
-            # strategy incremental effect
-            if s.incEffect is None:
-                row.append('-')
-            else:
-                row.append(s.incEffect.get_formatted_mean_and_interval(interval_type=interval_type,
-                                                                       alpha=alpha,
-                                                                       deci=effect_digits,
-                                                                       form=',',
-                                                                       multiplier=effect_multiplier))
-
-            # ICER
-            if s.ifDominated:
-                row.append('Dominated')
-            elif s.icer is not None:
-                row.append(s.icer.get_formatted_mean_and_interval(interval_type='c',
-                                                                  alpha=alpha,
-                                                                  method=ci_method,
-                                                                  num_bootstrap_samples=num_bootstrap_samples,
-                                                                  rng=rng,
-                                                                  prior_range=prior_range,
-                                                                  num_wtp_thresholds=num_wtp_thresholds,
-                                                                  deci=icer_digits,
-                                                                  form=',',
-                                                                  multiplier=1))
-            else:
-                row.append('-')
-
-            table.append(row)
-
-        write_csv(file_name=file_name, directory=directory, rows=table, delimiter=',')
-
-        # sort strategies back
-        self.strategies.sort(key=get_index)
-
-    def get_dCost_dEffect_cer(self,
-                              interval_type='n',
-                              alpha=0.05,
-                              cost_digits=0, effect_digits=2, icer_digits=1,
-                              cost_multiplier=1, effect_multiplier=1):
-        """
-        :param interval_type: (string) 'n' for no interval,
-                                       'c' for confidence interval,
-                                       'p' for percentile interval
-        :param alpha: significance level
-        :param cost_digits: digits to round cost estimates to
-        :param effect_digits: digits to round effect estimate to
-        :param icer_digits: digits to round ICER estimates to
-        :param cost_multiplier: set to 1/1000 or 1/100,000 to represent cost in terms of
-                thousands or a hundred thousands unit
-        :param effect_multiplier: set to 1/1000 or 1/100,000 to represent effect in terms of
-                thousands or a hundred thousands unit
-        :return: a dictionary of additional cost, additional effect, and cost-effectiveness ratio for
-                all strategies with respect to the Base strategy
-        """
-
-        dictionary_results = {}
-
-        for s in [s for s in self.strategies if s.idx > 0]:
-
-            d_cost_text = s.dCost.get_formatted_mean_and_interval(interval_type=interval_type,
-                                                                  alpha=alpha,
-                                                                  deci=cost_digits,
-                                                                  form=',',
-                                                                  multiplier=cost_multiplier)
-            d_effect_text = s.dEffect.get_formatted_mean_and_interval(interval_type=interval_type,
-                                                                      alpha=alpha,
-                                                                      deci=effect_digits,
-                                                                      form=',',
-                                                                      multiplier=effect_multiplier)
-            cer_text = s.cer.get_formatted_mean_and_interval(interval_type=interval_type,
-                                                             alpha=alpha,
-                                                             deci=icer_digits,
-                                                             form=',',
-                                                             multiplier=1)
-            # add to the dictionary
-            dictionary_results[s.name] = [d_cost_text, d_effect_text, cer_text]
-
-        return dictionary_results
-
-    def add_ce_plane_to_ax(self, ax,
-                           x_range=None, y_range=None,
-                           add_clouds=True, show_legend=True, show_frontier=True,
-                           center_s=50, cloud_s=10, transparency=0.1,
-                           cost_multiplier=1, effect_multiplier=1,
-                           cost_decimals=None, effect_decimals=None,
-                           interval_type='c', significance_level=0.05, interval_transparency=0.5,
-                           legend_loc_code=0, grid_info=None):
-        """
-        adds a cost-effectiveness plane to the provided ax
-        :param ax: axis
-        :param x_range: (tuple) range of x-axis
-        :param y_range: (tuple) range of y-axis
-        :param add_clouds: (bool) if to add the probability clouds
-        :param show_legend: (bool) if to show the legend
-        :param show_frontier: (bool) if to show the cost-effectiveness frontier
-        :param center_s: (float) the size of the dot showing (x,y) of a strategy
-        :param cloud_s: (float) the size of dots building the probability clouds
-        :param transparency: (float) the transparency of dots building the probability clouds
-        :param cost_multiplier: (float) to multiply the cost values
-        :param effect_multiplier: (float) to multiply the effect values
-        :param cost_decimals: (int) to round the labels of cost axis
-        :param effect_decimals: (int) to round the labels of the effect axis
-        :param interval_type: (string) None to not display the intervals,
-                                       'c' for t-based confidence interval,
-                                       'cb' for bootstrap confidence interval, and
-                                       'p' for percentile interval
-        :param significance_level: (float) significance level for the interval
-        :param interval_transparency: (float) the transparency of intervals
-        :param legend_loc_code: (int) legend location code
-            https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.legend.html
-        :param grid_info: (None or 'default', or tuple of tuple of (color, linestyle, linewidth, alpha))
-            if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
-        """
-
-        # find the frontier (x, y)'s
-        frontier_d_effect = []
-        frontier_d_costs = []
-        for s in self.get_strategies_on_frontier():
-            frontier_d_effect.append(s.dEffect.get_mean()*effect_multiplier)
-            frontier_d_costs.append(s.dCost.get_mean()*cost_multiplier)
-
-        # add all strategies
-        for s in self.strategies:
-            # the mean change in effect and cost
-            ax.scatter(s.dEffect.get_mean()*effect_multiplier, s.dCost.get_mean()*cost_multiplier,
-                       color=s.color,  # color
-                       alpha=1,  # transparency
-                       marker=s.marker,  # markers
-                       s=center_s,  # marker size
-                       label=s.label,  # label to show in the legend
-                       zorder=2,
-                       edgecolors=CE_EDGE_COLOR
-                       )
-            # add error bars
-            if interval_type is not None:
-                x_mean = s.dEffect.get_mean()*effect_multiplier
-                y_mean = s.dCost.get_mean()*cost_multiplier
-
-                x_interval = s.dEffect.get_interval(
-                    interval_type=interval_type, alpha=significance_level, multiplier=effect_multiplier)
-                y_interval = s.dCost.get_interval(
-                    interval_type=interval_type, alpha=significance_level, multiplier=cost_multiplier)
-
-                ax.errorbar(x_mean, y_mean,
-                            xerr=[[x_mean-x_interval[0]], [x_interval[1]-x_mean]],
-                            yerr=[[y_mean-y_interval[0]], [y_interval[1]-y_mean]],
-                            fmt='none', color=s.color, linewidth=1, alpha=interval_transparency)
-
-        # add the frontier line
-        if show_frontier and len(self.get_strategies_on_frontier()) > 1:
-            ax.plot(frontier_d_effect, frontier_d_costs,
-                    color=CE_FRONTIER_COLOR,  # color
-                    alpha=CE_FRONTIER_TRANSPARENCY,  # transparency
-                    linewidth=CE_FRONTIER_LINE_WIDTH,  # line width
-                    zorder=3,
-                    label='Frontier',  # label to show in the legend
-                    )
-
-        if show_legend:
-            ax.legend(fontsize=Params['plot.legend.fontsize'], loc=legend_loc_code)
-
-        # and the clouds
-        if add_clouds:
-            # add all strategies
-            for s in self.strategies:
-                ax.scatter(s.dEffectObs * effect_multiplier, s.dCostObs * cost_multiplier,
-                           color=s.color,  # color of dots
-                           marker=s.marker, # marker
-                           alpha=transparency,  # transparency of dots
-                           s=cloud_s,  # size of dots
-                           zorder=1
-                           )
-
-        ax.set_xlim(x_range)  # x-axis range
-        ax.set_ylim(y_range)  # y-axis range
-
-        # format x-axis
-        if effect_decimals is not None:
-            vals_x = ax.get_xticks()
-            ax.set_xticks(vals_x)
-            ax.set_xticklabels(['{:,.{prec}f}'.format(x, prec=effect_decimals) for x in vals_x])
-
-        # format y-axis
-        if cost_decimals is not None:
-            vals_y = ax.get_yticks()
-            ax.set_yticks(vals_y)
-            ax.set_yticklabels(['{:,.{prec}f}'.format(x, prec=cost_decimals) for x in vals_y])
-
-        ax.set_xlim(x_range)  # x-axis range
-        ax.set_ylim(y_range)  # y-axis range
-
-        ax.axhline(y=0, c='k', linestyle='--', linewidth=0.5)
-        ax.axvline(x=0, c='k', linestyle='--', linewidth=0.5)
-
-        # grid
-        add_grids(ax=ax, grid_info=grid_info)
-
-    def plot_CE_plane(self,
-                      title='Cost-Effectiveness Analysis',
-                      x_label='Additional Health',
-                      y_label='Additional Cost',
-                      x_range=None, y_range=None,
-                      add_clouds=False, fig_size=(5, 5),
-                      show_legend=True,
-                      center_s=75, cloud_s=25, transparency=0.1,
-                      cost_multiplier=1, effect_multiplier=1,
-                      cost_digits=0, effect_digits=1,
-                      interval_type='c', significance_level=0.05, interval_transparency=0.5,
-                      grid_info=None, file_name=None
-                      ):
-        ''' plots a cost-effectiveness plane
-        :param title: (string) title of the figure
-        :param x_label: (string) label of x-axis
-        :param y_label: (string) label of y-axis
-        :param x_range: (tuple) (minimum value, maximum value) of the y-axis
-        :param y_range: (tuple) (minimum value, maximum value) of the y-axis
-        :param add_clouds: (boolean) set to True to show the projection clouds
-        :param fig_size: (tuple) (width, height) of the figure
-        :param show_legend: (boolean) set to True to show the legends
-        :param center_s: (float) size of dots that show the mean cost and health of each strategy
-        :param cloud_s: (float) size of dots that form the clouds
-        :param transparency: (float between 0 and 1) transparency of dots that form the clouds
-        :param cost_multiplier: (float) set to 1/1000 or 1/100000 to represent cost in terms of
-                thousands or hundred thousands unit
-        :param effect_multiplier: (float) set to 1/1000 or 1/100000 to represent effect in terms of
-                thousands or hundred thousands unit
-        :param cost_digits: (int) number of digits to round cost labels to
-        :param effect_digits: (int) number of digits to round effect labels to
-        :param interval_type: (string) None to not display the intervals,
-                               'c' for t-based confidence interval,
-                               'cb' for bootstrap confidence interval, and
-                               'p' for percentile interval
-        :param significance_level: (float) significance level for the interval
-        :param interval_transparency: (float) the transparency of intervals
-        :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
-            if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
-        :param file_name: (string) file name to save the figure as
-        :return:
-        '''
-
-        fig, ax = plt.subplots(figsize=fig_size)
-
-        ax.set_title(title)
-        ax.set_xlabel(x_label)
-        ax.set_ylabel(y_label)
-
-        # add the cost-effectiveness plane
-        self.add_ce_plane_to_ax(ax=ax,
-                                x_range=x_range, y_range=y_range,
-                                add_clouds=add_clouds,
-                                show_legend=show_legend,
-                                center_s=center_s, cloud_s=cloud_s, transparency=transparency,
-                                cost_multiplier=cost_multiplier, effect_multiplier=effect_multiplier,
-                                cost_decimals=cost_digits, effect_decimals=effect_digits,
-                                interval_type=interval_type, significance_level=significance_level,
-                                interval_transparency=interval_transparency, grid_info=grid_info)
-
-        fig.tight_layout()
-        output_figure(plt=fig, filename=file_name)
-
-    def create_pairwise_ceas(self):
-        """
-        creates a list of list for pairwise cost-effectiveness analysis
-        For example for strategies ['Base', 'A', 'B']:
-        [
-            ['Base wr Base',    'A wr Base',    'B wr Base'],
-            ['Base wr A',       'A wr A',       'B wr A'],
-            ['B wr B',          'A wr B',       'B wr B'],
-        ]
-        """
-
-        # create CEA's for all pairs
-        self._pairwise_ceas = []
-        for s_base in self.strategies:
-            list_ceas = []
-            for s_new in self.strategies:#[1:]:
-
-                # if the base and the new strategies are the same
-                if s_base.name == s_new.name:
-                    list_ceas.append(None)
-                else:
-                    list_ceas.append(CEA(strategies=[s_base, s_new],
-                                         if_paired=self._ifPaired,
-                                         health_measure=self._healthMeasure,
-                                         if_reset_strategies=True)
-                                     )
-            self._pairwise_ceas.append(list_ceas)
-
-        self._ifPairwiseCEAsAreCalculated = True
-
-        # since the relative performance of strategies
-        # (relative costs and relative effects) have changed.
-        self._ifFrontierIsCalculated = False
-
-    def print_pairwise_cea(self, interval_type='n',
-                           alpha=0.05,
-                           cost_digits=0, effect_digits=2, icer_digits=1,
-                           cost_multiplier=1, effect_multiplier=1,
-                           directory='Pairwise_CEA'):
-        """
-        :param interval_type: (string) 'n' for no interval,
-                                       'c' for confidence interval,
-                                       'p' for percentile interval
-        :param alpha: significance level
-        :param cost_digits: digits to round cost estimates to
-        :param effect_digits: digits to round effect estimate to
-        :param icer_digits: digits to round ICER estimates to
-        :param cost_multiplier: set to 1/1000 or 1/100,000 to represent cost in terms of
-                thousands or hundred thousands unit
-        :param effect_multiplier: set to 1/1000 or 1/100,000 to represent effect in terms of
-                thousands or hundred thousands unit
-        :param directory: directory (relative to the current root) where the files should be located
-            for example use 'Example' to create and save the csv file under the folder Example
-        """
-
-        # create the pair-wise cost-effectiveness analyses
-        if not self._ifPairwiseCEAsAreCalculated:
-            self.create_pairwise_ceas()
-
-        # save the CEA tables
-        for row_of_ceas in self._pairwise_ceas:
-            for cea in row_of_ceas:
-                if cea is not None:
-                    name = cea.strategies[1].name + ' to ' + cea.strategies[0].name
-                    cea.build_CE_table(interval_type=interval_type,
-                                       alpha=alpha,
-                                       cost_digits=cost_digits,
-                                       effect_digits=effect_digits,
-                                       icer_digits=icer_digits,
-                                       cost_multiplier=cost_multiplier,
-                                       effect_multiplier=effect_multiplier,
-                                       file_name=name+'.csv',
-                                       directory=directory)
-
-    def plot_pairwise_ceas(self,
-                           figure_size=None, font_size=6,
-                           show_subplot_labels=False,
-                           effect_label='', cost_label='',
-                           center_s=50, cloud_s=25, transparency=0.2,
-                           x_range=None, y_range=None,
-                           cost_multiplier=1, effect_multiplier=1,
-                           column_titles=None, row_titles=None,
-                           file_name='pairwise_CEA.png'):
-
-        # identify which CEA is valid
-        # (i.e. comparing strategies that are on the frontier)
-        # valid comparisons are marked with '*'
-        valid_comparison = []
-        for i in range(self._n):
-            valid_comparison.append(['']*self._n)
-        on_frontier = self.get_strategies_on_frontier()
-        for idx in range(len(on_frontier)-1):
-            i = on_frontier[idx].idx
-            j = on_frontier[idx+1].idx
-            valid_comparison[i][j] = '*'
-
-        # set default properties of the figure
-        plt.rc('font', size=font_size) # fontsize of texts
-        plt.rc('axes', titlesize=font_size)  # fontsize of the figure title
-        plt.rc('axes', titleweight='semibold')  # fontweight of the figure title
-
-        # plot each panel
-        f, axarr = plt.subplots(nrows=self._n, ncols=self._n,
-                                sharex=True, sharey=True, figsize=figure_size)
-
-        Y_LABEL_COORD_X = -0.05     # increase to move the A-B-C labels to right
-        abc_idx = 0
-        for i in range(self._n):
-            for j in range(self._n):
-                # get the current axis
-                ax = axarr[i, j]
-
-                # add the A-B-C label if needed
-                if show_subplot_labels:
-                    ax.text(Y_LABEL_COORD_X - 0.05, 1.05,
-                            string.ascii_uppercase[abc_idx] + ')',
-                            transform=ax.transAxes,
-                            size=font_size + 1, weight='bold')
-
-                # add titles for the figures_national in the first row
-                if i == 0:
-                    if column_titles is None:
-                        ax.set_title(self.strategies[j].name)
-                    else:
-                        ax.set_title(column_titles[j])
-
-                # add y_labels for the figures_national in the first column
-                if j == 0:
-                    if row_titles is None:
-                        ax.set_ylabel(self.strategies[i].name, fontweight='bold')
-                    else:
-                        ax.set_ylabel(row_titles[i], fontweight='bold')
-
-                # specify ranges of x- and y-axis
-                if x_range is not None:
-                    ax.set_xlim(x_range)
-                if y_range is not None:
-                    ax.set_ylim(y_range)
-
-                # CEA of these 2 strategies
-                cea = CEA(strategies=[self.strategies[i], self.strategies[j]],
-                          if_paired=self._ifPaired,
-                          health_measure=self._healthMeasure,
-                          if_reset_strategies=True)
-
-                # add the CE figure to this axis
-                cea.add_ce_plane_to_ax(ax=ax, show_legend=False,
-                                       center_s=center_s,
-                                       cloud_s=cloud_s,
-                                       transparency=transparency,
-                                       cost_multiplier=cost_multiplier,
-                                       effect_multiplier=effect_multiplier)
-
-                # add ICER to the figure
-                # could be 'Dominated', 'Cost-Saving' or 'estimated ICER'
-                text = ''
-                if i != j and cea.strategies[1].ifDominated:
-                    text = 'Dominated'
-                elif cea.strategies[1].dCost.get_mean() < 0 and cea.strategies[1].dEffect.get_mean() > 0:
-                    text = 'Cost-Saving' + valid_comparison[i][j]
-                elif cea.strategies[1].icer is not None:
-                    text = F.format_number(cea.strategies[1].icer.get_ICER(), deci=1, format='$') + valid_comparison[i][j]
-                # add the text of the ICER to the figure
-                ax.text(0.95, 0.95, text, transform=ax.transAxes, fontsize=6,
-                        va='top', ha='right')
-
-                abc_idx += 1
-
-        # add the common effect and cost labels
-        f.text(0.55, 0, effect_label, ha='center', va='center', fontweight='bold')
-        f.text(0.99, 0.5, cost_label, va='center', rotation=-90, fontweight='bold')
-
-        # f.show()
-        f.savefig(file_name, bbox_inches='tight', dpi=300)
-
-        # since the relative performance of strategies 
-        # (relative costs and relative effects) have changed.
-        self._ifFrontierIsCalculated = False
 
     def __find_frontier(self):
 
@@ -1505,45 +772,41 @@ class CEA(_EconEval):
                                        effects_base=s_before.effectObs,
                                        health_measure=self._healthMeasure)
 
-
-class CBA(_EconEval):
-    """ class for doing cost-benefit analysis """
-
-    def __init__(self, strategies, wtp_range, if_paired, health_measure='u', n_of_wtp_values=200):
+    def __create_pairwise_ceas(self):
         """
-        :param strategies: the list of strategies (assumes that the first strategy represents the "base" strategy)
-        :param wtp_range: ([l, u]) range of willingness-to-pay values over which the NMB analysis should be done
-        :param if_paired: indicate whether the strategies are paired
-        :param health_measure: (string) choose 'u' if higher "effect" implies better health
-        (e.g. when QALY is used) and set to 'd' if higher "effect" implies worse health
-        (e.g. when DALYS is used)
-        :param n_of_wtp_values: number of willingness-to-pay values to construct net monetary benefit curves
+        creates a list of list for pairwise cost-effectiveness analysis
+        For example for strategies ['Base', 'A', 'B']:
+        [
+            ['Base wr Base',    'A wr Base',    'B wr Base'],
+            ['Base wr A',       'A wr A',       'B wr A'],
+            ['B wr B',          'A wr B',       'B wr B'],
+        ]
         """
-        _EconEval.__init__(self, strategies=strategies,
-                           if_paired=if_paired,
-                           health_measure=health_measure)
 
-        self.incrementalNMBLines = []  # list of incremental NMB curves with respect to the base
-        self.acceptabilityCurves = []  # the list of acceptability curves
-        self.expectedLossCurves = []  # the list of expected loss curves
-        self.evpi = None
+        # create CEA's for all pairs
+        self._pairwise_ceas = []
+        for s_base in self.strategies:
+            list_ceas = []
+            for s_new in self.strategies:#[1:]:
 
-        # use net monetary benefit for utility by default
-        if health_measure == 'u':
-            self.utility = inmb_u
-        else:
-            self.utility = inmb_d
+                # if the base and the new strategies are the same
+                if s_base.name == s_new.name:
+                    list_ceas.append(None)
+                else:
+                    list_ceas.append(CEA(strategies=[s_base, s_new],
+                                         if_paired=self._ifPaired,
+                                         health_measure=self._healthMeasure,
+                                         if_reset_strategies=True)
+                                     )
+            self._pairwise_ceas.append(list_ceas)
 
-        # wtp values (includes the specified minimum and maximum wtp value)
-        self.wtpValues = np.linspace(wtp_range[0], wtp_range[1],
-                                     num=n_of_wtp_values, endpoint=True)
+        self._ifPairwiseCEAsAreCalculated = True
 
-        # index of strategy with the highest expected net-monetary benefit over the wtp range
-        self.idxHighestExpNMB = []
-        # index of strategy with the lowest expected loss over the wtp range
-        self.idxLowestExpLoss = []
+        # since the relative performance of strategies
+        # (relative costs and relative effects) have changed.
+        self._ifFrontierIsCalculated = False
 
-    def build_incremental_nmb_curves(self, interval_type='n'):
+    def __build_incremental_nmb_curves(self, interval_type='n'):
         """
         prepares the information needed to plot the incremental net-monetary benefit lines
         with respect to the first strategy (base)
@@ -1552,7 +815,7 @@ class CBA(_EconEval):
                                        'p' for percentile interval):
         """
 
-        self.incrementalNMBLines = []  # list of incremental NMB curves
+        self._incrementalNMBLines = []  # list of incremental NMB curves
 
         # create the NMB curves
         for s in self.strategies:
@@ -1576,18 +839,18 @@ class CBA(_EconEval):
                                                       health_measure=self._healthMeasure)
 
             # make a NMB curve
-            self.incrementalNMBLines.append(INMBCurve(label=s.label,
-                                                      short_label=s.shortLabel,
-                                                      color=s.color,
-                                                      wtp_values=self.wtpValues,
-                                                      inmb_stat=incremental_nmb,
-                                                      interval_type=interval_type)
-                                            )
+            self._incrementalNMBLines.append(INMBCurve(label=s.label,
+                                                       short_label=s.shortLabel,
+                                                       color=s.color,
+                                                       wtp_values=self.wtpValues,
+                                                       inmb_stat=incremental_nmb,
+                                                       interval_type=interval_type)
+                                             )
 
         self.idxHighestExpNMB = update_curves_with_highest_values(
-            wtp_values=self.wtpValues, curves=self.incrementalNMBLines)
+            wtp_values=self.wtpValues, curves=self._incrementalNMBLines)
 
-    def build_acceptability_curves(self, normal_approximation=False):
+    def __build_acceptability_curves(self, normal_approximation=False):
         """
         prepares the information needed to plot the cost-effectiveness acceptability curves
         :param normal_approximation: (bool) set to True to use normal distributions to approximate the
@@ -1599,9 +862,9 @@ class CBA(_EconEval):
                              'across strategies is not implemented.')
 
         # initialize acceptability curves
-        self.acceptabilityCurves = []
+        self._acceptabilityCurves = []
         for s in self.strategies:
-            self.acceptabilityCurves.append(
+            self._acceptabilityCurves.append(
                 AcceptabilityCurve(label=s.label,
                                    short_label=s.shortLabel,
                                    color=s.color))
@@ -1622,7 +885,7 @@ class CBA(_EconEval):
                 d_cost_st_devs.append(s.dCost.get_stdev())
                 d_effect_means.append(s.dEffect.get_mean())
                 d_effect_st_devs.append(s.dEffect.get_stdev())
-                corr = corrcoef(s.dEffectObs, s.dCostObs)[0,1]
+                corr = corrcoef(s.dEffectObs, s.dCostObs)[0, 1]
                 if np.isnan(corr):
                     cov_d_effect_and_d_cost.append(0)
                 else:
@@ -1662,8 +925,8 @@ class CBA(_EconEval):
                         x_mean=nmb_mean_i, x_st_dev=nmb_st_dev_i,
                         y_means=nmb_means_others, y_st_devs=nmb_st_devs_others)
 
-                    self.acceptabilityCurves[i].xs.append(w)
-                    self.acceptabilityCurves[i].ys.append(prob_i_max)
+                    self._acceptabilityCurves[i].xs.append(w)
+                    self._acceptabilityCurves[i].ys.append(prob_i_max)
 
             else:
 
@@ -1687,24 +950,24 @@ class CBA(_EconEval):
                 prob_maximum = count_maximum / n_obs
 
                 for i in range(self._n):
-                    self.acceptabilityCurves[i].xs.append(w)
-                    self.acceptabilityCurves[i].ys.append(prob_maximum[i])
+                    self._acceptabilityCurves[i].xs.append(w)
+                    self._acceptabilityCurves[i].ys.append(prob_maximum[i])
 
         if len(self.idxHighestExpNMB) == 0:
             self.idxHighestExpNMB = update_curves_with_highest_values(
-                wtp_values=self.wtpValues, curves=self.incrementalNMBLines)
+                wtp_values=self.wtpValues, curves=self._incrementalNMBLines)
 
         # find the optimal strategy for each wtp value
         for wtp_idx, wtp in enumerate(self.wtpValues):
             opt_idx = self.idxHighestExpNMB[wtp_idx]
-            self.acceptabilityCurves[opt_idx].frontierXs.append(wtp)
-            self.acceptabilityCurves[opt_idx].frontierYs.append(
-                self.acceptabilityCurves[opt_idx].ys[wtp_idx])
+            self._acceptabilityCurves[opt_idx].frontierXs.append(wtp)
+            self._acceptabilityCurves[opt_idx].frontierYs.append(
+                self._acceptabilityCurves[opt_idx].ys[wtp_idx])
 
-        for c in self.acceptabilityCurves:
+        for c in self._acceptabilityCurves:
             c.convert_lists_to_arrays()
 
-    def build_expected_loss_curves(self):
+    def __build_expected_loss_curves(self):
         """
         prepares the information needed to plot the expected loss curves
         """
@@ -1714,9 +977,9 @@ class CBA(_EconEval):
                              'across strategies is not implemented.')
 
         # initialize expected loss curves
-        self.expectedLossCurves = []
+        self._expectedLossCurves = []
         for s in self.strategies:
-            self.expectedLossCurves.append(
+            self._expectedLossCurves.append(
                 ExpectedLossCurve(label=s.label,
                                   short_label=s.shortLabel,
                                   color=s.color))
@@ -1745,127 +1008,17 @@ class CBA(_EconEval):
 
             # store x and y values for this expected loss in NMB curve
             for s_i in range(self._n):
-                self.expectedLossCurves[s_i].xs.append(w)
-                self.expectedLossCurves[s_i].ys.append(mean_max_nmb - self.incrementalNMBLines[s_i].ys[w_idx])
+                self._expectedLossCurves[s_i].xs.append(w)
+                self._expectedLossCurves[s_i].ys.append(mean_max_nmb - self._incrementalNMBLines[s_i].ys[w_idx])
 
         if len(self.idxLowestExpLoss) == 0:
             self.idxLowestExpLoss = update_curves_with_lowest_values(
-                wtp_values=self.wtpValues, curves=self.expectedLossCurves)
+                wtp_values=self.wtpValues, curves=self._expectedLossCurves)
 
-    def find_optimal_switching_wtp_values(
-            self, interval_type='n', deci=0, alpha=0.05, num_wtp_thresholds=1000):
-
-        w_stars = []  # wtp values to switch between strategies
-        w_star_intervals = [] # confidence intervals of optimal wtp values
-        s_stars = []  # indices of optimal strategies between wtp values
-        s_star_names = []   # names of optimal strategies
-
-        # working wtp value
-        w = self.wtpValues[0]
-
-        # find the optimal strategy at wtp = 0
-        max_nmb = float('-inf')
-        s_star = 0
-        for s in self.strategies:
-            u = self.utility(d_effect=s.dEffect.get_mean(),
-                             d_cost=s.dCost.get_mean())
-            u_value = u(w)
-            if u_value > max_nmb:
-                max_nmb = u_value
-                s_star = s.idx
-
-        # record the information of the optimal strategy at wtp = 0
-        w_stars.append(w)
-        w_star_intervals.append([w, w])
-        s_stars.append(s_star)
-        s_star_names.append(self.strategies[s_star].name)
-
-        # find the optimal switching wtp values
-        while w <= self.wtpValues[-1] and len(s_stars) < len(self.strategies):
-
-            # find the intersection of the current strategy with other
-            w_min = float('inf')
-            next_s_star = None
-            for s in self.strategies:
-                if s.idx not in s_stars:
-
-                    line = Line(x1=self.strategies[s_star].dEffect.get_mean(),
-                                x2=s.dEffect.get_mean(),
-                                y1=self.strategies[s_star].dCost.get_mean(),
-                                y2=s.dCost.get_mean())
-                    w_star = line.slope
-
-                    if w_star is not math.nan and w_star >= w:
-                        if w_star < w_min:
-                            w_min = w_star
-                            next_s_star = s.idx
-
-            w = w_min
-            s_star = next_s_star
-            if w != float('inf'):
-                w_stars.append(w)
-                s_stars.append(s_star)
-                s_star_names.append(self.strategies[s_star].name)
-
-        # find and store the confidence or projection intervals of
-        # switching wtp values
-        for i, s_index in enumerate(s_stars[0:-1]):
-            next_s_index = s_stars[i+1]
-            if self._ifPaired:
-                inmb = IncrementalNMB_Paired(
-                    name='',
-                    costs_new=self.strategies[next_s_index].costObs,
-                    effects_new=self.strategies[next_s_index].effectObs,
-                    costs_base=self.strategies[s_index].costObs,
-                    effects_base=self.strategies[s_index].effectObs,
-                    health_measure=self._healthMeasure
-                )
-            else:
-                inmb = IncrementalNMB_Indp(
-                    name='',
-                    costs_new=self.strategies[next_s_index].costObs,
-                    effects_new=self.strategies[next_s_index].effectObs,
-                    costs_base=self.strategies[s_index].costObs,
-                    effects_base=self.strategies[s_index].effectObs,
-                    health_measure=self._healthMeasure
-                )
-
-            w_star, interval = inmb.get_switch_wtp_and_ci_interval(
-                alpha=alpha,
-                interval_type=interval_type,
-                num_wtp_thresholds=num_wtp_thresholds,
-            )
-            w_star_intervals.append(interval)
-
-        # update status of strategies
-        i = 0
-        for s in self.strategies:
-            if s.idx in s_stars:
-                s.ifDominated = False
-                s.switchingWTP = w_stars[i]
-                s.switchingWTPInterval = w_star_intervals[i]
-                i += 1
-            else:
-                s.ifDominated = True
-
-        # populate the results to report back
-        result = [['Strategy', 'ID', 'WTP', 'Interval']]
-        for i in range(len(s_stars)):
-            result.append(
-                [
-                    s_star_names[i],
-                    s_stars[i],
-                    F.format_number(w_stars[i], deci=deci, format=','),
-                    F.format_interval(w_star_intervals[i], deci=deci, format=',')
-                ]
-            )
-
-        return result
-
-    def calculate_evpi_curve(self):
+    def __calculate_evpi_curve(self):
         """ calculates the expected value of perfect information (EVPI) curve """
 
-        self.evpi = []
+        self._evpi = []
         n_of_sims = len(self.strategies[0].dCostObs)
 
         # for all budget value
@@ -1886,16 +1039,733 @@ class CBA(_EconEval):
                         max_nmb = nmb
                 max_nmbs.append(max_nmb)
 
-            self.evpi.append(average(max_nmbs))
+            self._evpi.append(average(max_nmbs))
 
         # curve
-        self.incrementalNMBLines.append(
-            EVPI(xs=self.wtpValues, ys=self.evpi, label=Params['evpi.plot.label'], color='k'))
+        self._incrementalNMBLines.append(
+            EVPI(xs=self.wtpValues, ys=self._evpi, label=Params['evpi.plot.label'], color='k'))
 
-    def built_table_of_optimal_switch_thresholds(self):
 
-        pass
-        # rows = self.find_optimal_switching_wtp_values(interval_type=, alpha=,num_wtp_thresholds=)
+class CEA(_EconEval):
+    """ class for cost-effective analysis (CEA) and cost-benefit analysis (CBA) """
+
+    def __init__(self, strategies, if_paired, health_measure='u', if_reset_strategies=False):
+        """
+        :param strategies: the list of strategies (assumes that the first strategy represents the "base" strategy)
+        :param if_paired: set to true to indicate that the strategies are paired
+        :param health_measure: (string) choose 'u' if higher "effect" implies better health
+        (e.g. when QALY is used) and set to 'd' if higher "effect" implies worse health
+        (e.g. when DALYS is used)
+        :param if_reset_strategies: set to True if the cost and effect with respect to
+            base, incremental cost and effect, ICER, and CER of strategies should be recalculated.
+        """
+
+        _EconEval.__init__(self, strategies=strategies,
+                           if_paired=if_paired,
+                           health_measure=health_measure,
+                           if_reset_strategies=if_reset_strategies)
+
+    def export_ce_table(
+            self, interval_type='c',  alpha=0.05, ci_method='bootstrap', num_bootstrap_samples=1000,
+            rng=None, prior_range=None, num_wtp_thresholds=1000,
+            cost_digits=0, effect_digits=2, icer_digits=1,
+            cost_multiplier=1, effect_multiplier=1,
+            file_name='ce_table.csv', directory=''):
+        """
+        :param interval_type: (string) the interval type for cost and effect estimates
+            (for ICER, we always report confidence interval)
+            'n' or None for no interval
+            'c' or 'cb' for bootstrap confidence interval, and
+            'p' for percentile interval
+        :param alpha: significance level, a value from [0, 1]
+        :param ci_method: (string) method to calculate confidence interval of ICER ('bootstrap' or 'Bayesian')
+        :param num_bootstrap_samples: number of bootstrap samples when 'bootstrap' method is selected
+        :param rng: random number generator to generate empirical bootstrap samples
+        :param num_wtp_thresholds: (int) number of willingness-to-pay thresholds to evaluate posterior
+            when 'Bayesian' approach is selected
+        :param prior_range: (tuple) in form of (l, u) for the prior range of willingness-to-pay
+            threshold that makes NMB zero (if prior is not provided [0, 4 * ICER] will be used
+        :param cost_digits: digits to round cost estimates to
+        :param effect_digits: digits to round effect estimate to
+        :param icer_digits: digits to round ICER estimates to
+        :param cost_multiplier: set to 1/1000 or 1/100000 to represent cost in terms of
+                thousands or hundred thousands unit
+        :param effect_multiplier: set to 1/1000 or 1/100000 to represent effect in terms of
+                thousands or hundred thousands unit
+        :param file_name: address and file name where the CEA results should be saved to
+        :param directory: directory (relative to the current root) where the files should be located
+            for example use 'Example' to create and save the csv file under the folder Example
+        """
+
+        # find the frontier if not calculated already
+        if not self._ifFrontierIsCalculated:
+            self.__find_frontier()
+
+        table = [['Strategy', 'Cost', 'Effect', 'Incremental Cost', 'Incremental Effect',
+                  'ICER (with confidence interval)']]
+        # sort strategies in increasing order of cost
+        self.strategies.sort(key=get_d_cost)
+
+        for i, s in enumerate(self.strategies):
+            row=[]
+            # strategy name
+            row.append(s.name)
+            # strategy cost
+            row.append(s.cost.get_formatted_mean_and_interval(interval_type=interval_type,
+                                                              alpha=alpha,
+                                                              deci=cost_digits,
+                                                              form=',',
+                                                              multiplier=cost_multiplier))
+            # strategy effect
+            row.append(s.effect.get_formatted_mean_and_interval(interval_type=interval_type,
+                                                                alpha=alpha,
+                                                                deci=effect_digits,
+                                                                form=',',
+                                                                multiplier=effect_multiplier))
+
+            # strategy incremental cost
+            if s.incCost is None:
+                row.append('-')
+            else:
+                row.append(s.incCost.get_formatted_mean_and_interval(interval_type=interval_type,
+                                                                     alpha=alpha,
+                                                                     deci=cost_digits,
+                                                                     form=',',
+                                                                     multiplier=cost_multiplier))
+            # strategy incremental effect
+            if s.incEffect is None:
+                row.append('-')
+            else:
+                row.append(s.incEffect.get_formatted_mean_and_interval(interval_type=interval_type,
+                                                                       alpha=alpha,
+                                                                       deci=effect_digits,
+                                                                       form=',',
+                                                                       multiplier=effect_multiplier))
+
+            # ICER
+            if s.ifDominated:
+                row.append('Dominated')
+            elif s.icer is not None:
+                row.append(s.icer.get_formatted_mean_and_interval(interval_type='c',
+                                                                  alpha=alpha,
+                                                                  method=ci_method,
+                                                                  num_bootstrap_samples=num_bootstrap_samples,
+                                                                  rng=rng,
+                                                                  prior_range=prior_range,
+                                                                  num_wtp_thresholds=num_wtp_thresholds,
+                                                                  deci=icer_digits,
+                                                                  form=',',
+                                                                  multiplier=1))
+            else:
+                row.append('-')
+
+            table.append(row)
+
+        write_csv(file_name=file_name, directory=directory, rows=table, delimiter=',')
+
+        # sort strategies back
+        self.strategies.sort(key=get_index)
+
+    def get_strategies_on_frontier(self):
+        """
+        :return: strategies on the frontier sorted in the increasing order of effect
+        """
+
+        if not self._ifFrontierIsCalculated:
+            self.__find_frontier()
+
+        return self._strategies_on_frontier
+
+    def get_strategies_not_on_frontier(self):
+        """
+        :return: strategies not on the frontier
+        """
+
+        if not self._ifFrontierIsCalculated:
+            self.__find_frontier()
+
+        return [s for s in self.strategies if s.ifDominated]
+
+    def get_wtp_switch_thresholds_on_frontier(self, with_confidence_intervals=True, alpha=0.05):
+        """
+        :param with_confidence_intervals (bool) set to False
+            if confidence intervals should not be calculated
+        :param alpha: (float) significance level
+        :return: (dictionary) of strategies on the frontier with the estimate of WTP threshold
+            at which the strategy becomes the optimal option.
+            key: strategy name and value: [wtp threshold, confidence interval]
+                or wtp threshold when confidence interval is not requested.
+        """
+
+        dic_of_strategies = {}
+        for s in self.get_strategies_on_frontier():
+            if s.icer is not None:
+                if with_confidence_intervals:
+                    dic_of_strategies[s.name] = [
+                        s.icer.get_ICER(),
+                        s.icer.get_CI(alpha=alpha,
+                                      method='bootstrap',
+                                      num_bootstrap_samples=1000)]
+                else:
+                    dic_of_strategies[s.name] = s.icer.get_ICER()
+
+        return dic_of_strategies
+
+    def get_min_monte_carlo_parameter_samples(
+            self, max_wtp, epsilon, alpha=0.05, num_bootstrap_samples=1000, rng=None,
+            comparison_type='frontier'):
+        """
+        :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
+        :param epsilon: (double) the acceptable error in estimating ICER
+        :param alpha: (double) the acceptable probability that the estimated ICER is outside the specified range
+        :param num_bootstrap_samples: (int) number of bootstrap samples to characterize
+            the distribution of estimated Ns. If None, only the estimated N is returned.
+        :param rng: (RandomState) random number generator used for bootstrapping
+        :param comparison_type: (string) 'frontier' to compare strategies on the frontier or
+            'pairwise' to compare all pairwise combinations of strategies
+                ('pairwise is more conservative and may require a substantially more samples)
+        :return: (int) the minimum Monte Carlo samples from parameter distributions
+        """
+
+        # find the minimum required number of Monte Carlo samples from parameter distributions
+        max_n = 0
+        max_interval = None
+
+        if comparison_type == 'frontier':
+
+            # find strategies on the frontier
+            if not self._ifFrontierIsCalculated:
+                self.__find_frontier()
+            strategies_on_frontier = self.get_strategies_on_frontier()
+
+            # go over all strategies on the frontier
+            for i in range(len(strategies_on_frontier) - 1):
+
+                results = get_min_monte_carlo_param_samples(
+                    delta_costs=strategies_on_frontier[i + 1].costObs - strategies_on_frontier[i].costObs,
+                    delta_effects=(strategies_on_frontier[i + 1].effectObs - strategies_on_frontier[
+                        i].effectObs) * self._u_or_d,
+                    max_wtp=max_wtp,
+                    epsilon=epsilon,
+                    alpha=alpha,
+                    num_bootstrap_samples=num_bootstrap_samples,
+                    rng=rng)
+
+                if num_bootstrap_samples is None:
+                    n = results
+                    interval = None
+                else:
+                    n, interval = results
+
+                if not np.isnan(n):
+                    if n > max_n:
+                        max_n = n
+                        max_interval = interval
+
+        elif comparison_type == 'pairwise':
+
+            # go over all pairwise comparisons between strategies
+            for i in range(self._n):
+                for j in range(self._n):
+                    if i != j:
+                        s_i = self.strategies[i]
+                        s_j = self.strategies[j]
+
+                        results = get_min_monte_carlo_param_samples(
+                            delta_costs=s_j.costObs - s_i.costObs,
+                            delta_effects=(s_j.effectObs - s_i.effectObs) * self._u_or_d,
+                            max_wtp=max_wtp,
+                            epsilon=epsilon,
+                            alpha=alpha,
+                            num_bootstrap_samples=num_bootstrap_samples,
+                            rng=rng)
+
+                        if num_bootstrap_samples is None:
+                            n = results
+                            interval = None
+                        else:
+                            n, interval = results
+
+                        if not np.isnan(n):
+                            if n > max_n:
+                                max_n = n
+                                max_interval = interval
+
+        else:
+            raise ValueError('comparison_type should be either "frontier" or "pairwise"')
+
+        if num_bootstrap_samples is None:
+            return max_n
+        else:
+            return max_n, max_interval
+
+    def get_dict_min_monte_carlo_parameter_samples(
+            self, max_wtp, epsilons, alphas, num_bootstrap_samples=None, rng=None):
+        """
+        :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
+        :param epsilons: (list) the acceptable errors in estimating ICER
+        :param alphas: (list) the acceptable probabilities that the estimated ICER is
+            outside the specified range from the true ICER
+        :param num_bootstrap_samples: (int) number of bootstrap samples to characterize the distribution of
+            the minimum required  number of parameter samples
+        :param rng: (RandomState) random number generator used for bootstrapping
+        :return: (dictionary) of minimum Monte Carlo samples needed to achieve the desired statistical power
+            first key is power values and the second key is error tolerance
+        """
+
+        if not isinstance(alphas, list):
+            alphas = [alphas]
+        if not isinstance(epsilons, list):
+            epsilons = [epsilons]
+
+        dic_of_ns = {}
+        for alpha in alphas:
+            dic_of_ns[alpha] = {}
+            for epsilon in epsilons:
+                dic_of_ns[alpha][epsilon] = self.get_min_monte_carlo_parameter_samples(
+                    max_wtp=max_wtp, epsilon=epsilon, alpha=alpha,
+                    num_bootstrap_samples=num_bootstrap_samples, rng=rng)
+
+        return dic_of_ns
+
+    def get_dCost_dEffect_cer(self,
+                              interval_type='n',
+                              alpha=0.05,
+                              cost_digits=0, effect_digits=2, icer_digits=1,
+                              cost_multiplier=1, effect_multiplier=1):
+        """
+        :param interval_type: (string) 'n' for no interval,
+                                       'c' for confidence interval,
+                                       'p' for percentile interval
+        :param alpha: significance level
+        :param cost_digits: digits to round cost estimates to
+        :param effect_digits: digits to round effect estimate to
+        :param icer_digits: digits to round ICER estimates to
+        :param cost_multiplier: set to 1/1000 or 1/100,000 to represent cost in terms of
+                thousands or a hundred thousands unit
+        :param effect_multiplier: set to 1/1000 or 1/100,000 to represent effect in terms of
+                thousands or a hundred thousands unit
+        :return: a dictionary of additional cost, additional effect, and cost-effectiveness ratio for
+                all strategies with respect to the Base strategy
+        """
+
+        dictionary_results = {}
+
+        for s in [s for s in self.strategies if s.idx > 0]:
+
+            d_cost_text = s.dCost.get_formatted_mean_and_interval(interval_type=interval_type,
+                                                                  alpha=alpha,
+                                                                  deci=cost_digits,
+                                                                  form=',',
+                                                                  multiplier=cost_multiplier)
+            d_effect_text = s.dEffect.get_formatted_mean_and_interval(interval_type=interval_type,
+                                                                      alpha=alpha,
+                                                                      deci=effect_digits,
+                                                                      form=',',
+                                                                      multiplier=effect_multiplier)
+            cer_text = s.cer.get_formatted_mean_and_interval(interval_type=interval_type,
+                                                             alpha=alpha,
+                                                             deci=icer_digits,
+                                                             form=',',
+                                                             multiplier=1)
+            # add to the dictionary
+            dictionary_results[s.name] = [d_cost_text, d_effect_text, cer_text]
+
+        return dictionary_results
+
+    def add_ce_plane_to_ax(self, ax,
+                           x_range=None, y_range=None,
+                           add_clouds=True, show_legend=True, show_frontier=True,
+                           center_s=50, cloud_s=10, transparency=0.1,
+                           cost_multiplier=1, effect_multiplier=1,
+                           cost_decimals=None, effect_decimals=None,
+                           interval_type='c', significance_level=0.05, interval_transparency=0.5,
+                           legend_loc_code=0, grid_info=None):
+        """
+        adds a cost-effectiveness plane to the provided ax
+        :param ax: axis
+        :param x_range: (tuple) range of x-axis
+        :param y_range: (tuple) range of y-axis
+        :param add_clouds: (bool) if to add the probability clouds
+        :param show_legend: (bool) if to show the legend
+        :param show_frontier: (bool) if to show the cost-effectiveness frontier
+        :param center_s: (float) the size of the dot showing (x,y) of a strategy
+        :param cloud_s: (float) the size of dots building the probability clouds
+        :param transparency: (float) the transparency of dots building the probability clouds
+        :param cost_multiplier: (float) to multiply the cost values
+        :param effect_multiplier: (float) to multiply the effect values
+        :param cost_decimals: (int) to round the labels of cost axis
+        :param effect_decimals: (int) to round the labels of the effect axis
+        :param interval_type: (string) None to not display the intervals,
+                                       'c' for t-based confidence interval,
+                                       'cb' for bootstrap confidence interval, and
+                                       'p' for percentile interval
+        :param significance_level: (float) significance level for the interval
+        :param interval_transparency: (float) the transparency of intervals
+        :param legend_loc_code: (int) legend location code
+            https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.legend.html
+        :param grid_info: (None or 'default', or tuple of tuple of (color, linestyle, linewidth, alpha))
+            if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
+        """
+
+        # find the frontier (x, y)'s
+        frontier_d_effect = []
+        frontier_d_costs = []
+        for s in self.get_strategies_on_frontier():
+            frontier_d_effect.append(s.dEffect.get_mean()*effect_multiplier)
+            frontier_d_costs.append(s.dCost.get_mean()*cost_multiplier)
+
+        # add all strategies
+        for s in self.strategies:
+            # the mean change in effect and cost
+            ax.scatter(s.dEffect.get_mean()*effect_multiplier, s.dCost.get_mean()*cost_multiplier,
+                       color=s.color,  # color
+                       alpha=1,  # transparency
+                       marker=s.marker,  # markers
+                       s=center_s,  # marker size
+                       label=s.label,  # label to show in the legend
+                       zorder=2,
+                       edgecolors=Params['ce.cloud.edgecolors']
+                       )
+            # add error bars
+            if interval_type is not None:
+                x_mean = s.dEffect.get_mean()*effect_multiplier
+                y_mean = s.dCost.get_mean()*cost_multiplier
+
+                x_interval = s.dEffect.get_interval(
+                    interval_type=interval_type, alpha=significance_level, multiplier=effect_multiplier)
+                y_interval = s.dCost.get_interval(
+                    interval_type=interval_type, alpha=significance_level, multiplier=cost_multiplier)
+
+                ax.errorbar(x_mean, y_mean,
+                            xerr=[[x_mean-x_interval[0]], [x_interval[1]-x_mean]],
+                            yerr=[[y_mean-y_interval[0]], [y_interval[1]-y_mean]],
+                            fmt='none', color=s.color, linewidth=1, alpha=interval_transparency)
+
+        # add the frontier line
+        if show_frontier and len(self.get_strategies_on_frontier()) > 1:
+            ax.plot(frontier_d_effect, frontier_d_costs,
+                    color=Params['ce.frontier.color'],  # color
+                    alpha=Params['ce.frontier.transparency'],  # transparency
+                    linewidth=Params['ceac.line_width'],  # line width
+                    zorder=3,
+                    label='Frontier',  # label to show in the legend
+                    )
+
+        if show_legend:
+            ax.legend(fontsize=Params['plot.legend.fontsize'], loc=legend_loc_code)
+
+        # and the clouds
+        if add_clouds:
+            # add all strategies
+            for s in self.strategies:
+                ax.scatter(s.dEffectObs * effect_multiplier, s.dCostObs * cost_multiplier,
+                           color=s.color,  # color of dots
+                           marker=s.marker, # marker
+                           alpha=transparency,  # transparency of dots
+                           s=cloud_s,  # size of dots
+                           zorder=1
+                           )
+
+        ax.set_xlim(x_range)  # x-axis range
+        ax.set_ylim(y_range)  # y-axis range
+
+        # format x-axis
+        if effect_decimals is not None:
+            vals_x = ax.get_xticks()
+            ax.set_xticks(vals_x)
+            ax.set_xticklabels(['{:,.{prec}f}'.format(x, prec=effect_decimals) for x in vals_x])
+
+        # format y-axis
+        if cost_decimals is not None:
+            vals_y = ax.get_yticks()
+            ax.set_yticks(vals_y)
+            ax.set_yticklabels(['{:,.{prec}f}'.format(x, prec=cost_decimals) for x in vals_y])
+
+        ax.set_xlim(x_range)  # x-axis range
+        ax.set_ylim(y_range)  # y-axis range
+
+        ax.axhline(y=0, c='k', linestyle='--', linewidth=0.5)
+        ax.axvline(x=0, c='k', linestyle='--', linewidth=0.5)
+
+        # grid
+        add_grids(ax=ax, grid_info=grid_info)
+
+    def plot_CE_plane(self,
+                      title='Cost-Effectiveness Analysis',
+                      x_label='Additional Health',
+                      y_label='Additional Cost',
+                      x_range=None, y_range=None,
+                      add_clouds=False, fig_size=(5, 5),
+                      show_legend=True,
+                      center_s=75, cloud_s=25, transparency=0.1,
+                      cost_multiplier=1, effect_multiplier=1,
+                      cost_digits=0, effect_digits=1,
+                      interval_type='c', significance_level=0.05, interval_transparency=0.5,
+                      grid_info=None, file_name=None
+                      ):
+        ''' plots a cost-effectiveness plane
+        :param title: (string) title of the figure
+        :param x_label: (string) label of x-axis
+        :param y_label: (string) label of y-axis
+        :param x_range: (tuple) (minimum value, maximum value) of the y-axis
+        :param y_range: (tuple) (minimum value, maximum value) of the y-axis
+        :param add_clouds: (boolean) set to True to show the projection clouds
+        :param fig_size: (tuple) (width, height) of the figure
+        :param show_legend: (boolean) set to True to show the legends
+        :param center_s: (float) size of dots that show the mean cost and health of each strategy
+        :param cloud_s: (float) size of dots that form the clouds
+        :param transparency: (float between 0 and 1) transparency of dots that form the clouds
+        :param cost_multiplier: (float) set to 1/1000 or 1/100000 to represent cost in terms of
+                thousands or hundred thousands unit
+        :param effect_multiplier: (float) set to 1/1000 or 1/100000 to represent effect in terms of
+                thousands or hundred thousands unit
+        :param cost_digits: (int) number of digits to round cost labels to
+        :param effect_digits: (int) number of digits to round effect labels to
+        :param interval_type: (string) None to not display the intervals,
+                               'c' for t-based confidence interval,
+                               'cb' for bootstrap confidence interval, and
+                               'p' for percentile interval
+        :param significance_level: (float) significance level for the interval
+        :param interval_transparency: (float) the transparency of intervals
+        :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
+            if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
+        :param file_name: (string) file name to save the figure as
+        :return:
+        '''
+
+        fig, ax = plt.subplots(figsize=fig_size)
+
+        ax.set_title(title)
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(y_label)
+
+        # add the cost-effectiveness plane
+        self.add_ce_plane_to_ax(ax=ax,
+                                x_range=x_range, y_range=y_range,
+                                add_clouds=add_clouds,
+                                show_legend=show_legend,
+                                center_s=center_s, cloud_s=cloud_s, transparency=transparency,
+                                cost_multiplier=cost_multiplier, effect_multiplier=effect_multiplier,
+                                cost_decimals=cost_digits, effect_decimals=effect_digits,
+                                interval_type=interval_type, significance_level=significance_level,
+                                interval_transparency=interval_transparency, grid_info=grid_info)
+
+        fig.tight_layout()
+        output_figure(plt=fig, filename=file_name)
+
+    def export_pairwise_cea(self, interval_type='n',
+                            alpha=0.05,
+                            cost_digits=0, effect_digits=2, icer_digits=1,
+                            cost_multiplier=1, effect_multiplier=1,
+                            directory='Pairwise_CEA'):
+        """
+        :param interval_type: (string) 'n' for no interval,
+                                       'c' for confidence interval,
+                                       'p' for percentile interval
+        :param alpha: significance level
+        :param cost_digits: digits to round cost estimates to
+        :param effect_digits: digits to round effect estimate to
+        :param icer_digits: digits to round ICER estimates to
+        :param cost_multiplier: set to 1/1000 or 1/100,000 to represent cost in terms of
+                thousands or a hundred thousands unit
+        :param effect_multiplier: set to 1/1000 or 1/100,000 to represent effect in terms of
+                thousands or a hundred thousands unit
+        :param directory: directory (relative to the current root) where the files should be located
+            for example use 'Example' to create and save the csv file under the folder Example
+        """
+
+        # create the pair-wise cost-effectiveness analyses
+        if not self._ifPairwiseCEAsAreCalculated:
+            self.__create_pairwise_ceas()
+
+        # save the CEA tables
+        for row_of_ceas in self._pairwise_ceas:
+            for cea in row_of_ceas:
+                if cea is not None:
+                    name = cea.strategies[1].name + ' to ' + cea.strategies[0].name
+                    cea.export_ce_table(interval_type=interval_type,
+                                        alpha=alpha,
+                                        cost_digits=cost_digits,
+                                        effect_digits=effect_digits,
+                                        icer_digits=icer_digits,
+                                        cost_multiplier=cost_multiplier,
+                                        effect_multiplier=effect_multiplier,
+                                        file_name=name+'.csv',
+                                        directory=directory)
+
+    def plot_pairwise_ceas(self,
+                           figure_size=None, font_size=6,
+                           show_subplot_labels=False,
+                           effect_label='', cost_label='',
+                           center_s=50, cloud_s=25, transparency=0.2,
+                           x_range=None, y_range=None,
+                           cost_multiplier=1, effect_multiplier=1,
+                           column_titles=None, row_titles=None,
+                           file_name='pairwise_CEA.png'):
+
+        # identify which CEA is valid
+        # (i.e. comparing strategies that are on the frontier)
+        # valid comparisons are marked with '*'
+        valid_comparison = []
+        for i in range(self._n):
+            valid_comparison.append(['']*self._n)
+        on_frontier = self.get_strategies_on_frontier()
+        for idx in range(len(on_frontier)-1):
+            i = on_frontier[idx].idx
+            j = on_frontier[idx+1].idx
+            valid_comparison[i][j] = '*'
+
+        # set default properties of the figure
+        plt.rc('font', size=font_size) # fontsize of texts
+        plt.rc('axes', titlesize=font_size)  # fontsize of the figure title
+        plt.rc('axes', titleweight='semibold')  # fontweight of the figure title
+
+        # plot each panel
+        f, axarr = plt.subplots(nrows=self._n, ncols=self._n,
+                                sharex=True, sharey=True, figsize=figure_size)
+
+        Y_LABEL_COORD_X = -0.05     # increase to move the A-B-C labels to right
+        abc_idx = 0
+        for i in range(self._n):
+            for j in range(self._n):
+                # get the current axis
+                ax = axarr[i, j]
+
+                # add the A-B-C label if needed
+                if show_subplot_labels:
+                    ax.text(Y_LABEL_COORD_X - 0.05, 1.05,
+                            string.ascii_uppercase[abc_idx] + ')',
+                            transform=ax.transAxes,
+                            size=font_size + 1, weight='bold')
+
+                # add titles for the figures_national in the first row
+                if i == 0:
+                    if column_titles is None:
+                        ax.set_title(self.strategies[j].name)
+                    else:
+                        ax.set_title(column_titles[j])
+
+                # add y_labels for the figures_national in the first column
+                if j == 0:
+                    if row_titles is None:
+                        ax.set_ylabel(self.strategies[i].name, fontweight='bold')
+                    else:
+                        ax.set_ylabel(row_titles[i], fontweight='bold')
+
+                # specify ranges of x- and y-axis
+                if x_range is not None:
+                    ax.set_xlim(x_range)
+                if y_range is not None:
+                    ax.set_ylim(y_range)
+
+                # CEA of these 2 strategies
+                cea = CEA(strategies=[self.strategies[i], self.strategies[j]],
+                          if_paired=self._ifPaired,
+                          health_measure=self._healthMeasure,
+                          if_reset_strategies=True)
+
+                # add the CE figure to this axis
+                cea.add_ce_plane_to_ax(ax=ax, show_legend=False,
+                                       center_s=center_s,
+                                       cloud_s=cloud_s,
+                                       transparency=transparency,
+                                       cost_multiplier=cost_multiplier,
+                                       effect_multiplier=effect_multiplier)
+
+                # add ICER to the figure
+                # could be 'Dominated', 'Cost-Saving' or 'estimated ICER'
+                text = ''
+                if i != j and cea.strategies[1].ifDominated:
+                    text = 'Dominated'
+                elif cea.strategies[1].dCost.get_mean() < 0 and cea.strategies[1].dEffect.get_mean() > 0:
+                    text = 'Cost-Saving' + valid_comparison[i][j]
+                elif cea.strategies[1].icer is not None:
+                    text = F.format_number(cea.strategies[1].icer.get_ICER(), deci=1, format='$') + valid_comparison[i][j]
+                # add the text of the ICER to the figure
+                ax.text(0.95, 0.95, text, transform=ax.transAxes, fontsize=6,
+                        va='top', ha='right')
+
+                abc_idx += 1
+
+        # add the common effect and cost labels
+        f.text(0.55, 0, effect_label, ha='center', va='center', fontweight='bold')
+        f.text(0.99, 0.5, cost_label, va='center', rotation=-90, fontweight='bold')
+
+        # f.show()
+        f.savefig(file_name, bbox_inches='tight', dpi=300)
+
+        # since the relative performance of strategies 
+        # (relative costs and relative effects) have changed.
+        self._ifFrontierIsCalculated = False
+
+    def export_minimum_monte_carlo_samples(
+            self, max_wtp, epsilons, alphas, file_name):
+        """
+        :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
+        :param epsilons: (list) of error tolerances
+        :param alphas: (list) of significance levels
+        :param file_name: (string) the filename to save the results as
+        :return: (dictionary) of minimum Monte Carlo samples needed to achieve the desired statistical power
+            first key is power values and the second key is error tolerance
+        """
+
+        if not isinstance(alphas, list):
+            alphas = [alphas]
+        if not isinstance(epsilons, list):
+            epsilons = [epsilons]
+
+        dic_of_ns = self.get_dict_min_monte_carlo_parameter_samples(
+            max_wtp=max_wtp, epsilons=epsilons, alphas=alphas)
+
+        rows = [['Alpha/Epsilon']]
+        for epsilon in epsilons:
+            rows[0].append(epsilon)
+
+        for alpha in alphas:
+            rows.append([alpha])
+            for epsilon in epsilons:
+                rows[-1].append(dic_of_ns[alpha][epsilon])
+
+        write_csv(rows=rows, file_name=file_name)
+
+    def plot_min_monte_carlo_parameter_samples(
+            self, max_wtp, epsilons, alphas,
+            x_range=None, y_range=None, x_multiplier=1, y_multiplier=1,
+            x_label=r'WTP Error Tolerance ($\epsilon$)',
+            y_label='Required Number of Parameter Samples',
+            num_bootstrap_samples=None, rng=None,
+            fig_size=(4, 4), filename=None):
+        """ plots the minimum number of Monte Carlo parameter samples needed to achieve the desired accuracy
+        :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
+        :param epsilons: (list) of epsilon values (the acceptable error in estimating ICER)
+        :param alphas: (list) of significance levels (the acceptable probability that the estimated ICER is
+        outside the specified range from the true ICER)
+        :param x_range: (list) of x-axis range
+        :param y_range: (list) of y-axis range
+        :param x_multiplier: (double) multiplier for x-axis values
+        :param y_multiplier: (double) multiplier for y-axis values
+        :param x_label: (string) x-axis label
+        :param y_label: (string) y-axis label
+        :param fig_size: (tuple) figure size
+        :param filename: (string) filename to save the figure as
+        """
+
+        dict_of_ns = self.get_dict_min_monte_carlo_parameter_samples(
+            max_wtp=max_wtp, epsilons=epsilons, alphas=alphas,
+            num_bootstrap_samples=num_bootstrap_samples, rng=rng)
+
+        f, ax = plt.subplots(figsize=fig_size)
+        add_min_monte_carlo_samples_to_ax(
+            ax=ax, dict_of_ns=dict_of_ns, epsilons=epsilons,
+            x_range=x_range, y_range=y_range, x_multiplier=x_multiplier)
+
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(y_label)
+
+        f.tight_layout()
+
+        output_figure(plt=f, filename=filename)
 
     def plot_incremental_nmb_lines(self,
                                    title='Incremental Net Monetary Benefit',
@@ -1940,16 +1810,16 @@ class CBA(_EconEval):
         """
 
         # make incremental NMB curves
-        self.build_incremental_nmb_curves(interval_type=interval_type)
+        self.__build_incremental_nmb_curves(interval_type=interval_type)
 
         if show_evpi:
-            self.calculate_evpi_curve()
+            self.__calculate_evpi_curve()
 
         # initialize plot
         fig, ax = plt.subplots(figsize=figure_size)
 
         # add the incremental NMB curves
-        add_curves_to_ax(ax=ax, curves=self.incrementalNMBLines,
+        add_curves_to_ax(ax=ax, curves=self._incrementalNMBLines,
                          x_range=[self.wtpValues[0], self.wtpValues[-1]],
                          title=title, x_label=x_label,
                          y_label=y_label, y_range=y_range, x_delta=delta_wtp,
@@ -2033,10 +1903,10 @@ class CBA(_EconEval):
                              grid_info=None):
 
         # make incremental NMB curves
-        self.build_incremental_nmb_curves(interval_type=interval_type)
+        self.__build_incremental_nmb_curves(interval_type=interval_type)
 
         if show_evpi:
-            self.calculate_evpi_curve()
+            self.__calculate_evpi_curve()
 
         if legend_font_size_and_loc is None:
             legend_font_size_and_loc = (
@@ -2044,22 +1914,22 @@ class CBA(_EconEval):
                 Params['plot.legend.loc']
             )
 
-        add_curves_to_ax(ax=ax, curves=self.incrementalNMBLines, x_range=[self.wtpValues[0], self.wtpValues[-1]],
+        add_curves_to_ax(ax=ax, curves=self._incrementalNMBLines, x_range=[self.wtpValues[0], self.wtpValues[-1]],
                          title=title, x_label=x_label,
                          y_label=y_label, y_range=y_range, x_delta=delta_wtp,
                          y_axis_decimal=y_axis_decimal,
                          y_axis_multiplier=y_axis_multiplier,
-                         transparency_lines=CEAC_NMB_TRANSPARENCY,
+                         transparency_lines=Params['nmb.transparency'],
                          transparency_intervals=NMB_INTERVAL_TRANSPARENCY,
                          show_legend=show_legend,
                          legend_font_size_and_loc=legend_font_size_and_loc,
                          show_labels_on_frontier=show_labels_on_frontier,
                          show_frontier=True,
-                         curve_line_width=NMB_LINE_WIDTH,
-                         frontier_line_width=NMB_FRONTIER_LINE_WIDTH,
+                         curve_line_width=Params['nmb.line_width'],
+                         frontier_line_width=Params['nmb.frontier.line_width'],
                          if_format_y_numbers=True if y_axis_decimal is not None else False,
-                         frontier_label_shift_x=FRONTIER_LABEL_SHIFT_X,
-                         frontier_label_shift_y=FRONTIER_LABEL_SHIFT_Y,
+                         frontier_label_shift_x=Params['ce.frontier.label.shift_x'],
+                         frontier_label_shift_y=Params['ce.frontier.label.shift_y'],
                          grid_info=grid_info)
 
     def plot_acceptability_curves(self,
@@ -2088,10 +1958,10 @@ class CBA(_EconEval):
         """
 
         # make the NMB curves
-        self.build_incremental_nmb_curves(interval_type='n')
+        self.__build_incremental_nmb_curves(interval_type='n')
 
         # make the acceptability curves
-        self.build_acceptability_curves()
+        self.__build_acceptability_curves()
 
         # initialize plot
         fig, ax = plt.subplots(figsize=fig_size)
@@ -2127,11 +1997,11 @@ class CBA(_EconEval):
             the acceptability curves
         """
 
-        if len(self.incrementalNMBLines) == 0:
-            self.build_incremental_nmb_curves(interval_type='n')
+        if len(self._incrementalNMBLines) == 0:
+            self.__build_incremental_nmb_curves(interval_type='n')
 
-        if len(self.acceptabilityCurves) == 0:
-            self.build_acceptability_curves(normal_approximation=normal_approximation)
+        if len(self._acceptabilityCurves) == 0:
+            self.__build_acceptability_curves(normal_approximation=normal_approximation)
 
         if legend_font_size_and_loc is None:
             legend_font_size_and_loc = (
@@ -2140,13 +2010,14 @@ class CBA(_EconEval):
             )
 
         add_curves_to_ax(ax=ax,
-                         curves=self.acceptabilityCurves,
+                         curves=self._acceptabilityCurves,
                          legends=legends,
                          x_range=[self.wtpValues[0], self.wtpValues[-1]],
                          x_delta=wtp_delta,
                          y_range=y_range, show_legend=show_legend,
-                         transparency_lines=CEAC_NMB_TRANSPARENCY,
-                         curve_line_width=CEAC_LINE_WIDTH, frontier_line_width=CEAF_LINE_WIDTH,
+                         transparency_lines=Params['ceac.transparency'],
+                         curve_line_width=Params['ceac.line_width'],
+                         frontier_line_width=Params['ceaf.line_width'],
                          legend_font_size_and_loc=legend_font_size_and_loc,
                          if_y_axis_prob=True, grid_info=grid_info)
 
@@ -2167,11 +2038,11 @@ class CBA(_EconEval):
             if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
         """
 
-        if len(self.incrementalNMBLines) == 0:
-            self.build_incremental_nmb_curves(interval_type='n')
+        if len(self._incrementalNMBLines) == 0:
+            self.__build_incremental_nmb_curves(interval_type='n')
 
-        if len(self.expectedLossCurves) == 0:
-            self.build_expected_loss_curves()
+        if len(self._expectedLossCurves) == 0:
+            self.__build_expected_loss_curves()
 
         if legend_font_size_and_loc is None:
             legend_font_size_and_loc = (
@@ -2180,153 +2051,18 @@ class CBA(_EconEval):
             )
 
         add_curves_to_ax(ax=ax,
-                         curves=self.expectedLossCurves,
+                         curves=self._expectedLossCurves,
                          legends=legends,
                          x_range=[self.wtpValues[0], self.wtpValues[-1]],
                          x_delta=wtp_delta,
                          y_range=y_range, show_legend=show_legend,
-                         transparency_lines=CEAC_NMB_TRANSPARENCY,
-                         curve_line_width=NMB_LINE_WIDTH, frontier_line_width=NMB_FRONTIER_LINE_WIDTH,
+                         transparency_lines=Params['nmb.transparency'],
+                         curve_line_width=Params['nmb.line_width'],
+                         frontier_line_width=Params['nmb.frontier.line_width'],
                          legend_font_size_and_loc=legend_font_size_and_loc,
                          y_axis_multiplier=y_axis_multiplier, y_axis_decimal=y_axis_decimal,
                          if_y_axis_prob=False,
                          grid_info=grid_info)
-
-    def get_w_starts(self):
-
-        w_stars = []
-        s_stars = []
-        s_star_names = []
-
-        w = self.wtpValues[0]
-
-        # at initial w
-        max_nmb = float('-inf')
-        s_star = 0
-        for s in self.strategies:
-            u = self.utility(d_effect=s.dEffect.get_mean(),
-                             d_cost=s.dCost.get_mean())
-            u_value = u(w)
-            if u_value > max_nmb:
-                max_nmb = u_value
-                s_star = s.idx
-
-        w_stars.append(w)
-        s_stars.append(s_star)
-        s_star_names.append(self.strategies[s_star].name)
-
-        while w <= self.wtpValues[-1] and len(s_stars) < len(self.strategies):
-
-            # find the intersect of the current strategy with other
-            w_min = float('inf')
-            for s in self.strategies:
-                if s.idx not in s_stars:
-
-                    w_star = find_intersecting_wtp(
-                        w0=w,
-                        u_new=self.utility(d_effect=s.dEffect.get_mean(),
-                                           d_cost=s.dCost.get_mean()),
-                        u_base=self.utility(d_effect=self.strategies[s_star].dEffect.get_mean(),
-                                            d_cost=self.strategies[s_star].dCost.get_mean()))
-
-                    if w_star is not None:
-                        if w_star < w_min:
-                            w_min = w_star
-                            s_star = s.idx
-
-            w = w_min
-            if w != float('inf'):
-                w_stars.append(w)
-                s_stars.append(s_star)
-                s_star_names.append(self.strategies[s_star].name)
-
-        return w_stars, s_star_names, s_stars
-
-    def calculate_exp_incremental_nmbs(self, wtp_random_variate, n_samples, rnd):
-        """ create summary statistics of incremental NMB of all strategies given the
-        provided probability distribution of WTP value.
-        :param wtp_random_variate: random variate generator for the probability distribution of wtp value
-        :param n_samples: number of monte carlo samples
-        :param rnd: the random number generator
-        """
-
-        for s in self.strategies[1:]:
-            s.eIncNMB = utility_sample_stat(
-                utility=self.utility,
-                d_cost_samples=s.dCostObs,
-                d_effect_samples=s.dEffectObs,
-                wtp_random_variate=wtp_random_variate,
-                n_samples=n_samples,
-                rnd=rnd
-            )
-
-    def report_exp_incremental_nmb(self, interval='c', deci=0):
-
-        report = []
-        for s in self.strategies[1:]:
-
-            mean_and_interval = s.eIncNMB.get_formatted_mean_and_interval(
-                     interval_type=interval,
-                     deci=deci,
-                     form=','
-                 )
-
-            report.append([s.name, mean_and_interval])
-
-        return report
-
-    # def plot_exp_marginal_nmb(self,
-    #                           title=None,
-    #                           y_label='Marginal Net Monetary Benefit',
-    #                           y_range=None,
-    #                           figure_size=(5, 5),
-    #                           if_show_conf_interval=True,
-    #                           file_name=None):
-    #
-    #     # initialize plot
-    #     fig, ax = plt.subplots(figsize=figure_size)
-    #
-    #     ax.set_title(title)
-    #     ax.set_ylabel(y_label)
-    #
-    #     for s in self.strategies[1:]:
-    #         ax.scatter(x=s.idx, y=s.eIncNMB.get_mean(),
-    #                    c=s.color, label=s.label)
-    #
-    #         interval = s.eIncNMB.get_interval(interval_type='p')
-    #         y = s.eIncNMB.get_mean()
-    #         err = [[y-interval[0]], [interval[1]-y]]
-    #
-    #         ax.errorbar(x=s.idx, y=y,
-    #                     yerr=err,
-    #                     c=s.color)
-    #
-    #         if if_show_conf_interval:
-    #             width = 0.1
-    #             interval = s.eIncNMB.get_interval(interval_type='c')
-    #             xy = [
-    #                 [s.idx, interval[0]],
-    #                 [s.idx - width, y],
-    #                 [s.idx, interval[1]],
-    #                 [s.idx + width, y]
-    #             ]
-    #             ax.add_patch(patches.Polygon(xy=xy, fill=False, edgecolor=s.color))
-    #
-    #     ax.set_xticks([])
-    #     ax.set_xlim([0.5, len(self.strategies)-0.5])
-    #     ax.axhline(y=0, c='k', ls='--', lw=1)
-    #
-    #     # format y-axis
-    #     ax.set_ylim(y_range)
-    #     vals_y = ax.get_yticks()
-    #     ax.set_yticks(vals_y)
-    #     ax.set_yticklabels(['{:,.{prec}f}'.format(x, prec=0) for x in vals_y])
-    #
-    #     ax.legend()
-    #     if file_name is None:
-    #         fig.show()
-    #     else:
-    #         fig.savefig(file_name, bbox_inches='tight', dpi=300)
 
 
 class ConstrainedOpt(_EconEval):
@@ -2409,7 +2145,7 @@ class ConstrainedOpt(_EconEval):
         for c in self.curves:
             c.convert_lists_to_arrays()
 
-    def calculate_evpi_curve(self):
+    def __calculate_evpi_curve(self):
         """ calculates the expected value of perfect information (EVPI) curve """
 
         self.evpi = []
@@ -2441,7 +2177,8 @@ class ConstrainedOpt(_EconEval):
             self.evpi.append(average(max_effects))
 
         # curve
-        self.curves.append(EVPI(xs=self.budget_values, ys=self.evpi, label='PI', color='k'))
+        self.curves.append(
+            EVPI(xs=self.budget_values, ys=self.evpi, label='PI', color='k'))
 
     def plot(self,
              title='Expected Increase in Effect',
@@ -2461,7 +2198,7 @@ class ConstrainedOpt(_EconEval):
         fig, ax = plt.subplots(figsize=figure_size)
 
         if show_evpi:
-            self.calculate_evpi_curve()
+            self.__calculate_evpi_curve()
 
         # add plot to the ax
         add_curves_to_ax(ax=ax,
@@ -2503,7 +2240,7 @@ class ConstrainedOpt(_EconEval):
         """
 
         if show_evpi:
-            self.calculate_evpi_curve()
+            self.__calculate_evpi_curve()
 
         if legend_font_size_and_loc is None:
             legend_font_size_and_loc = (
@@ -2516,15 +2253,17 @@ class ConstrainedOpt(_EconEval):
             x_range=[self.budget_values[0], self.budget_values[-1]],
             x_delta=delta_budget, x_label=x_label,
             y_label=y_label, y_axis_decimal=effect_decimals, y_range=y_range, y_axis_multiplier=y_axis_multiplier,
-            transparency_lines=1, transparency_intervals=NMB_INTERVAL_TRANSPARENCY,
+            transparency_lines=1,
+            transparency_intervals=Params['nmb.interval.transparency'],
             show_legend=show_legend,
             show_frontier=show_frontier,
             show_labels_on_frontier=show_labels_on_frontier,
-            curve_line_width=NMB_LINE_WIDTH, frontier_line_width=NMB_FRONTIER_LINE_WIDTH,
+            curve_line_width=Params['nmb.line_width'],
+            frontier_line_width=Params['nmb.frontier.line_width'],
             if_format_y_numbers=True if effect_decimals is not None else False,
             legend_font_size_and_loc=legend_font_size_and_loc,
-            frontier_label_shift_x=FRONTIER_LABEL_SHIFT_X,
-            frontier_label_shift_y=FRONTIER_LABEL_SHIFT_Y
+            frontier_label_shift_x=Params['ce.frontier.label.shift_x'],
+            frontier_label_shift_y=Params['ce.frontier.label.shift_y'],
         )
 
         add_grids(ax=ax, grid_info=grid_info)
@@ -2835,6 +2574,7 @@ class ICER_Paired(_ICER):
                 icer_over_iterations.append(math.nan)
 
         return icer_over_iterations
+
 
 class ICER_Indp(_ICER):
 
