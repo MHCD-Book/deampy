@@ -21,7 +21,7 @@ s9 = ce.Strategy("s10", s_center[9, 0]+np.random.normal(0, 200, 10), s_center[9,
 myCEA = ce.CEA([s0, s1, s2, s3, s4, s5, s6, s7, s8, s9], if_paired=False)
 
 # plot with label and sample cloud
-myCEA.plot_CE_plane('CE plane with unpaired observations and showing labels',
+myCEA.plot_ce_plane('CE plane with unpaired observations and showing labels',
                     x_label='E[Effect]', y_label='E[Cost]', show_legend=True, add_clouds=True, fig_size=(6, 6))
 
 # table
@@ -31,7 +31,7 @@ myCEA.export_ce_table(interval_type='c',
                       file_name='Table-Indp.csv')
 
 # plot with label and sample cloud
-myCEA.plot_CE_plane('CE plane with paired observations and showing labels',
+myCEA.plot_ce_plane('CE plane with paired observations and showing labels',
                     x_label='E[Effect]', y_label='E[Cost]', show_legend=True, add_clouds=True, fig_size=(6, 6))
 
 dict = myCEA.get_dCost_dEffect_cer(interval_type='c', alpha=0.05,

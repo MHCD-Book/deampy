@@ -144,7 +144,7 @@ def add_curves_to_ax(ax, curves, title=None,
                     x = 0.5 * (curve.frontierXs[0] + curve.frontierXs[-1]) + frontier_label_shift_x * x_axis_length
                     y = 0.5 * (curve.frontierYs[0] + curve.frontierYs[-1]) * y_axis_multiplier \
                         + frontier_label_shift_y * y_axis_length
-                    ax.text(x=x, y=y, s=curve.label, fontsize=legend_font_size_and_loc + 1, c=curve.color)
+                    ax.text(x=x, y=y, s=curve.label, fontsize=legend_font_size_and_loc[0], c=curve.color)
 
     # grids
     add_grids(ax=ax, grid_info=grid_info)

@@ -13,7 +13,7 @@ from numpy.random import RandomState
 import deampy.format_functions as F
 from deampy.in_out_functions import write_csv
 from deampy.plots.econ_eval_plots import add_curves_to_ax, add_min_monte_carlo_samples_to_ax, add_grids
-from deampy.plots.plot_support import output_figure
+from deampy.plots.plot_support import output_figure, add_labels_to_panels
 from deampy.statistics import SummaryStat, RatioOfMeansStatPaired
 from deampy.support.econ_eval_support import *
 from deampy.support.misc_classes import *
@@ -38,6 +38,8 @@ Params = {
     'nmb.line_width': 0.75,
     'nmb.interval.transparency': 0.25,
     'nmb.frontier.line_width': 2.5,
+    'nmb.frontier.label.shift_x': -0.01, # shift labels to right or left (proportional to the length of the x_axis)
+    'nmb.frontier.label.shift_y': 0.03, # shift labels to right or left (proportional to the length of the x_axis)
     'evpi.plot.label': 'Perfect Information',
 
     'elc.transparency': 0.75,
@@ -506,6 +508,13 @@ class _EconEval:
 
         if health_measure not in ['u', 'd']:
             raise ValueError("health_measure can be either 'u' (for utility) or 'd' (for disutility).")
+
+        if strategies is None:
+            raise ValueError('A list of strategies must be provided)')
+        elif isinstance(strategies, list) is False:
+            raise ValueError('strategies should be a list of Strategy objects.')
+        elif len(strategies) < 2:
+            raise ValueError('strategies should include at least two Strategies.')
 
         self.strategies = strategies  # list of strategies
         # assign the index of each strategy
@@ -1395,7 +1404,7 @@ class CEA(_EconEval):
         return dictionary_results
 
     def add_ce_plane_to_ax(self, ax,
-                           x_range=None, y_range=None,
+                           title=None, x_range=None, y_range=None,
                            add_clouds=True, show_legend=True, show_frontier=True,
                            center_s=50, cloud_s=10, transparency=0.1,
                            cost_multiplier=1, effect_multiplier=1,
@@ -1509,10 +1518,12 @@ class CEA(_EconEval):
         ax.axhline(y=0, c='k', linestyle='--', linewidth=0.5)
         ax.axvline(x=0, c='k', linestyle='--', linewidth=0.5)
 
+        ax.set_title(title)
+
         # grid
         add_grids(ax=ax, grid_info=grid_info)
 
-    def plot_CE_plane(self,
+    def plot_ce_plane(self,
                       title='Cost-Effectiveness Analysis',
                       x_label='Additional Health',
                       y_label='Additional Cost',
@@ -1557,13 +1568,12 @@ class CEA(_EconEval):
 
         fig, ax = plt.subplots(figsize=fig_size)
 
-        ax.set_title(title)
         ax.set_xlabel(x_label)
         ax.set_ylabel(y_label)
 
         # add the cost-effectiveness plane
         self.add_ce_plane_to_ax(ax=ax,
-                                x_range=x_range, y_range=y_range,
+                                title=title, x_range=x_range, y_range=y_range,
                                 add_clouds=add_clouds,
                                 show_legend=show_legend,
                                 center_s=center_s, cloud_s=cloud_s, transparency=transparency,
@@ -1795,7 +1805,7 @@ class CEA(_EconEval):
                                    y_label='Incremental Net Monetary Benefit',
                                    show_evpi=False,
                                    y_range=None,
-                                   y_axis_multiplier=1,
+                                   y_axis_multiplier=1.0,
                                    y_axis_decimal=0,
                                    interval_type='c',
                                    delta_wtp=None,
@@ -1868,7 +1878,7 @@ class CEA(_EconEval):
                                   show_legend=True,
                                   legend_font_size_and_loc=None,
                                   legends=None,
-                                  y_axis_multiplier=1, y_axis_format_decimals=None,
+                                  y_axis_multiplier=1.0, y_axis_format_decimals=None,
                                   grid_info=None,
                                   file_name=None, fig_size=(5, 5), ):
         """
@@ -1917,7 +1927,7 @@ class CEA(_EconEval):
                              y_label='Incremental Net Monetary Benefit',
                              show_evpi=False,
                              y_range=None,
-                             y_axis_multiplier=1,
+                             y_axis_multiplier=1.0,
                              y_axis_format_decimals=None,
                              delta_wtp=None,
                              interval_type='n',
@@ -1951,8 +1961,8 @@ class CEA(_EconEval):
                          show_frontier=True,
                          curve_line_width=Params['nmb.line_width'],
                          frontier_line_width=Params['nmb.frontier.line_width'],
-                         frontier_label_shift_x=Params['ce.frontier.label.shift_x'],
-                         frontier_label_shift_y=Params['ce.frontier.label.shift_y'],
+                         frontier_label_shift_x=Params['nmb.frontier.label.shift_x'],
+                         frontier_label_shift_y=Params['nmb.frontier.label.shift_y'],
                          grid_info=grid_info)
 
     def plot_acceptability_curves(self,
@@ -2086,6 +2096,56 @@ class CEA(_EconEval):
                          y_axis_multiplier=y_axis_multiplier, y_axis_format_decimals=y_axis_format_decimals,
                          if_y_axis_prob=False,
                          grid_info=grid_info)
+
+    def plot_cep_nmb(self,
+                     cost_multiplier=1, effect_multiplier=1, nmb_multiplier=0.001,
+                     cep_title='', nmb_title='',
+                     cost_decimals=0, effect_decimals=0, nmb_decimals=0,
+                     cost_range=None, effect_range=None, nmb_range=None,
+                     cep_x_label='Additional Effect',  cep_y_label='Additional Cost',
+                     nmb_x_label='Willingness-To-Pay Threshold', nmb_y_label='Incremental Net Monetary Benefit',
+                     delta_wtp=None, show_strategy_label_on_nmb_frontier=False,
+                     file_name='cep-nmb.png', fig_size=(3, 7)):
+        """
+        produces a figure with 2 panels displaying
+            cost-effectiveness plane,
+            net-monetary benefit,
+        :param file_name: (string) the filename to save the figure as
+        :param fig_size: (tuple) figure size
+        """
+
+        f, axes = plt.subplots(1, 2, figsize=fig_size)
+
+        # add labels
+        add_labels_to_panels(axarr=axes,
+                             x_coord=-0.0, y_coord=1.05, font_size=10)
+
+        # add cost-effectiveness plane
+        self.add_ce_plane_to_ax(
+            ax=axes[0], title=cep_title,
+            cost_multiplier=cost_multiplier, effect_multiplier=effect_multiplier,
+            cost_decimals=cost_decimals,  effect_decimals=effect_decimals,
+            center_s=25, cloud_s=5,
+            x_range=effect_range, y_range=cost_range,
+            grid_info='default')
+        axes[0].set_xlabel(cep_x_label)
+        axes[0].set_ylabel(cep_y_label)
+
+        # add net monetary benefit curve
+        self.add_inmb_lines_to_ax(
+            ax=axes[1], y_axis_format_decimals=(',', nmb_decimals),
+            title=nmb_title,
+            y_range=nmb_range,
+            delta_wtp=delta_wtp,
+            y_axis_multiplier=nmb_multiplier,
+            x_label=nmb_x_label,
+            y_label=nmb_y_label,
+            interval_type='c',
+            grid_info='default',
+            show_labels_on_frontier=show_strategy_label_on_nmb_frontier,
+            show_evpi=False)
+
+        output_figure(plt=f, filename=file_name)
 
 
 class ConstrainedOpt(_EconEval):
