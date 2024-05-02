@@ -75,7 +75,7 @@ def add_grids(ax, grid_info):
 
 def add_curves_to_ax(ax, curves, title=None,
                      x_range=None, x_label=None, y_label=None, y_range=None,
-                     y_axis_multiplier=1, y_axis_decimal=1,
+                     y_axis_multiplier=1,
                      x_delta=None,
                      transparency_lines=0.5,
                      transparency_intervals=0.2,
@@ -84,8 +84,7 @@ def add_curves_to_ax(ax, curves, title=None,
                      show_frontier=True,
                      show_labels_on_frontier=False,
                      curve_line_width=1.0, frontier_line_width=4.0,
-                     if_y_axis_prob=False,
-                     if_format_y_numbers=True,
+                     if_y_axis_prob=False, y_axis_format_decimals=None,
                      legend_font_size_and_loc=(7, 'upper left'),
                      frontier_label_shift_x=-0.01,
                      frontier_label_shift_y=0.01,
@@ -154,7 +153,7 @@ def add_curves_to_ax(ax, curves, title=None,
     format_ax(ax=ax, y_range=y_range,
               x_range=x_range, x_delta=x_delta,
               if_y_axis_prob=if_y_axis_prob,
-              y_axis_format_deci=[',', y_axis_decimal])
+              y_axis_format_deci=y_axis_format_decimals)
 
 
 def add_min_monte_carlo_samples_to_ax(

@@ -36,7 +36,7 @@ Params = {
 
     'nmb.transparency': 0.75,
     'nmb.line_width': 0.75,
-    'nmb.interval.transparency': 0.5,
+    'nmb.interval.transparency': 0.25,
     'nmb.frontier.line_width': 2.5,
     'evpi.plot.label': 'Perfect Information',
 
@@ -491,7 +491,7 @@ class _EconEval:
         and budget-constrain health optimization (BCHO)"""
 
     def __init__(self, strategies, if_paired, health_measure='u',
-                 if_reset_strategies=False, wtp_range=(0, 100000), n_of_wtp_values=200):
+                 if_reset_strategies=False, wtp_range=None, n_of_wtp_values=200):
         """
         :param strategies: the list of strategies (assumes that the first strategy represents the "base" strategy)
         :param if_paired: set to true to indicate that the strategies are paired
@@ -501,7 +501,7 @@ class _EconEval:
         :param if_reset_strategies: set to True if the cost and effect with respect to
             base, incremental cost and effect, ICER, and CER of strategies should be recalculated.
         :param wtp_range: ([l, u]) range of willingness-to-pay values over which the NMB analysis should be done
-        :param n_of_wtp_values: number of willingness-to-pay values to construct net monetary benefit curves
+        :param n_of_wtp_values: (int) number of wtp values over which the NMB analysis should be done
         """
 
         if health_measure not in ['u', 'd']:
@@ -520,7 +520,7 @@ class _EconEval:
         self._u_or_d = 1 if health_measure == 'u' else -1
 
         # assign colors to strategies
-        self.__assign_colors()
+        self._assign_colors()
 
         self._strategies_on_frontier = []  # list of strategies on the frontier
         self._ifFrontierIsCalculated = False  # CE frontier is not calculated yet
@@ -533,8 +533,9 @@ class _EconEval:
         self._evpi = None  # expected value of perfect information
 
         # wtp values (includes the specified minimum and maximum wtp value)
-        self.wtpValues = np.linspace(wtp_range[0], wtp_range[1],
-                                     num=n_of_wtp_values, endpoint=True)
+        self.wtpValues = None
+        if wtp_range is not None:
+            self.wtpValues = np.linspace(wtp_range[0], wtp_range[1], num=n_of_wtp_values, endpoint=True)
 
         # index of strategy with the highest expected net-monetary benefit over the wtp range
         self.idxHighestExpNMB = []
@@ -545,9 +546,16 @@ class _EconEval:
         self._find_shifted_strategies()
 
         # find the cost-effectiveness frontier
-        self.__find_frontier()
+        self._find_frontier()
 
-    def __assign_colors(self):
+    def _check_if_wtp_range_provided(self):
+
+        if self.wtpValues is None:
+            raise ValueError('Willingness-to-pay range is not provided. '
+                             'It could be provided when the CEA class is instantiated using '
+                             'argument wtp_range=(l, u).')
+
+    def _assign_colors(self):
         """ assigns color to each strategy if colors are not provided """
 
         # decide about the color of each curve
@@ -624,7 +632,7 @@ class _EconEval:
                                       effects_base=self.strategies[0].effectObs,
                                       health_measure=self._healthMeasure)
 
-    def __find_frontier(self):
+    def _find_frontier(self):
 
         # apply criteria 1 (strict dominance)
         # if a strategy i yields less health than strategy j but costs more, it is dominated
@@ -703,9 +711,9 @@ class _EconEval:
         self._ifFrontierIsCalculated = True
 
         # calculate the incremental outcomes
-        self.__calculate_incremental_outcomes()
+        self._calculate_incremental_outcomes()
 
-    def __calculate_incremental_outcomes(self):
+    def _calculate_incremental_outcomes(self):
 
         if self._ifPaired:
 
@@ -772,7 +780,7 @@ class _EconEval:
                                        effects_base=s_before.effectObs,
                                        health_measure=self._healthMeasure)
 
-    def __create_pairwise_ceas(self):
+    def _create_pairwise_ceas(self):
         """
         creates a list of list for pairwise cost-effectiveness analysis
         For example for strategies ['Base', 'A', 'B']:
@@ -806,7 +814,7 @@ class _EconEval:
         # (relative costs and relative effects) have changed.
         self._ifFrontierIsCalculated = False
 
-    def __build_incremental_nmb_curves(self, interval_type='n'):
+    def _build_incremental_nmb_curves(self, interval_type='n'):
         """
         prepares the information needed to plot the incremental net-monetary benefit lines
         with respect to the first strategy (base)
@@ -814,6 +822,8 @@ class _EconEval:
                                        'c' for confidence interval,
                                        'p' for percentile interval):
         """
+
+        self._check_if_wtp_range_provided()
 
         self._incrementalNMBLines = []  # list of incremental NMB curves
 
@@ -850,12 +860,14 @@ class _EconEval:
         self.idxHighestExpNMB = update_curves_with_highest_values(
             wtp_values=self.wtpValues, curves=self._incrementalNMBLines)
 
-    def __build_acceptability_curves(self, normal_approximation=False):
+    def _build_acceptability_curves(self, normal_approximation=False):
         """
         prepares the information needed to plot the cost-effectiveness acceptability curves
         :param normal_approximation: (bool) set to True to use normal distributions to approximate the
             acceptability curves (assumes that all cost and effect estimates are independent across strategies)
         """
+
+        self._check_if_wtp_range_provided()
 
         if not self._ifPaired:
             raise ValueError('Calculating the acceptability curves when outcomes are not paired'
@@ -967,10 +979,12 @@ class _EconEval:
         for c in self._acceptabilityCurves:
             c.convert_lists_to_arrays()
 
-    def __build_expected_loss_curves(self):
+    def _build_expected_loss_curves(self):
         """
         prepares the information needed to plot the expected loss curves
         """
+
+        self._check_if_wtp_range_provided()
 
         if not self._ifPaired:
             raise ValueError('Calculating the expected loss curves when outcomes are not paired'
@@ -1015,8 +1029,10 @@ class _EconEval:
             self.idxLowestExpLoss = update_curves_with_lowest_values(
                 wtp_values=self.wtpValues, curves=self._expectedLossCurves)
 
-    def __calculate_evpi_curve(self):
+    def _calculate_evpi_curve(self):
         """ calculates the expected value of perfect information (EVPI) curve """
+
+        self._check_if_wtp_range_provided()
 
         self._evpi = []
         n_of_sims = len(self.strategies[0].dCostObs)
@@ -1049,7 +1065,8 @@ class _EconEval:
 class CEA(_EconEval):
     """ class for cost-effective analysis (CEA) and cost-benefit analysis (CBA) """
 
-    def __init__(self, strategies, if_paired, health_measure='u', if_reset_strategies=False):
+    def __init__(self, strategies, if_paired, health_measure='u', if_reset_strategies=False,
+                 wtp_range=None, n_of_wtp_values=200):
         """
         :param strategies: the list of strategies (assumes that the first strategy represents the "base" strategy)
         :param if_paired: set to true to indicate that the strategies are paired
@@ -1058,12 +1075,16 @@ class CEA(_EconEval):
         (e.g. when DALYS is used)
         :param if_reset_strategies: set to True if the cost and effect with respect to
             base, incremental cost and effect, ICER, and CER of strategies should be recalculated.
+        :param wtp_range: ([l, u]) range of willingness-to-pay values over which the NMB analysis should be done
+        :param n_of_wtp_values: (int) number of wtp values over which the NMB analysis should be done
         """
 
         _EconEval.__init__(self, strategies=strategies,
                            if_paired=if_paired,
                            health_measure=health_measure,
-                           if_reset_strategies=if_reset_strategies)
+                           if_reset_strategies=if_reset_strategies,
+                           wtp_range=wtp_range,
+                           n_of_wtp_values=n_of_wtp_values)
 
     def export_ce_table(
             self, interval_type='c',  alpha=0.05, ci_method='bootstrap', num_bootstrap_samples=1000,
@@ -1099,7 +1120,7 @@ class CEA(_EconEval):
 
         # find the frontier if not calculated already
         if not self._ifFrontierIsCalculated:
-            self.__find_frontier()
+            self._find_frontier()
 
         table = [['Strategy', 'Cost', 'Effect', 'Incremental Cost', 'Incremental Effect',
                   'ICER (with confidence interval)']]
@@ -1172,7 +1193,7 @@ class CEA(_EconEval):
         """
 
         if not self._ifFrontierIsCalculated:
-            self.__find_frontier()
+            self._find_frontier()
 
         return self._strategies_on_frontier
 
@@ -1182,7 +1203,7 @@ class CEA(_EconEval):
         """
 
         if not self._ifFrontierIsCalculated:
-            self.__find_frontier()
+            self._find_frontier()
 
         return [s for s in self.strategies if s.ifDominated]
 
@@ -1235,7 +1256,7 @@ class CEA(_EconEval):
 
             # find strategies on the frontier
             if not self._ifFrontierIsCalculated:
-                self.__find_frontier()
+                self._find_frontier()
             strategies_on_frontier = self.get_strategies_on_frontier()
 
             # go over all strategies on the frontier
@@ -1577,7 +1598,7 @@ class CEA(_EconEval):
 
         # create the pair-wise cost-effectiveness analyses
         if not self._ifPairwiseCEAsAreCalculated:
-            self.__create_pairwise_ceas()
+            self._create_pairwise_ceas()
 
         # save the CEA tables
         for row_of_ceas in self._pairwise_ceas:
@@ -1768,6 +1789,7 @@ class CEA(_EconEval):
         output_figure(plt=f, filename=filename)
 
     def plot_incremental_nmb_lines(self,
+                                   wtp_range,
                                    title='Incremental Net Monetary Benefit',
                                    x_label='Willingness-To-Pay Threshold',
                                    y_label='Incremental Net Monetary Benefit',
@@ -1783,10 +1805,12 @@ class CEA(_EconEval):
                                    show_labels_on_frontier=False,
                                    grid_info=None,
                                    figure_size=(5, 5),
-                                   file_name=None):
+                                   file_name=None,
+                                   n_of_wtp_values=250):
         """
         plots the incremental net-monetary benefit of each strategy
                 with respect to the base (the first strategy)
+        :param wtp_range: (min, max) of WTP values
         :param title: title
         :param x_label: x-axis label
         :param y_label: y-axis label
@@ -1810,10 +1834,10 @@ class CEA(_EconEval):
         """
 
         # make incremental NMB curves
-        self.__build_incremental_nmb_curves(interval_type=interval_type)
+        self._build_incremental_nmb_curves(interval_type=interval_type)
 
         if show_evpi:
-            self.__calculate_evpi_curve()
+            self._calculate_evpi_curve()
 
         # initialize plot
         fig, ax = plt.subplots(figsize=figure_size)
@@ -1844,7 +1868,7 @@ class CEA(_EconEval):
                                   show_legend=True,
                                   legend_font_size_and_loc=None,
                                   legends=None,
-                                  y_axis_multiplier=1, y_axis_decimal=None,
+                                  y_axis_multiplier=1, y_axis_format_decimals=None,
                                   grid_info=None,
                                   file_name=None, fig_size=(5, 5), ):
         """
@@ -1858,7 +1882,7 @@ class CEA(_EconEval):
         :param legends: (list of strings) texts for legends
         :param legend_font_size_and_loc: (tuple) (font size, location) for the legend
         :param y_axis_multiplier: (float) multiplier for the y-axis
-        :param y_axis_decimal: (int) number of decimal places to show on the y-axis
+        :param y_axis_format_decimals: (format, int) format and number of decimal places to show on the y-axis
         :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
            if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
         :param fig_size: (tuple) size of the figure (e.g. (2, 3)
@@ -1877,7 +1901,7 @@ class CEA(_EconEval):
             legends=legends,
             legend_font_size_and_loc=legend_font_size_and_loc,
             y_axis_multiplier=y_axis_multiplier,
-            y_axis_decimal=y_axis_decimal,
+            y_axis_format_decimals=y_axis_format_decimals,
             grid_info=grid_info)
 
         ax.set_title(title)
@@ -1894,7 +1918,7 @@ class CEA(_EconEval):
                              show_evpi=False,
                              y_range=None,
                              y_axis_multiplier=1,
-                             y_axis_decimal=None,
+                             y_axis_format_decimals=None,
                              delta_wtp=None,
                              interval_type='n',
                              show_legend=True,
@@ -1903,10 +1927,10 @@ class CEA(_EconEval):
                              grid_info=None):
 
         # make incremental NMB curves
-        self.__build_incremental_nmb_curves(interval_type=interval_type)
+        self._build_incremental_nmb_curves(interval_type=interval_type)
 
         if show_evpi:
-            self.__calculate_evpi_curve()
+            self._calculate_evpi_curve()
 
         if legend_font_size_and_loc is None:
             legend_font_size_and_loc = (
@@ -1917,17 +1941,16 @@ class CEA(_EconEval):
         add_curves_to_ax(ax=ax, curves=self._incrementalNMBLines, x_range=[self.wtpValues[0], self.wtpValues[-1]],
                          title=title, x_label=x_label,
                          y_label=y_label, y_range=y_range, x_delta=delta_wtp,
-                         y_axis_decimal=y_axis_decimal,
+                         y_axis_format_decimals=y_axis_format_decimals,
                          y_axis_multiplier=y_axis_multiplier,
                          transparency_lines=Params['nmb.transparency'],
-                         transparency_intervals=NMB_INTERVAL_TRANSPARENCY,
+                         transparency_intervals=Params['nmb.interval.transparency'],
                          show_legend=show_legend,
                          legend_font_size_and_loc=legend_font_size_and_loc,
                          show_labels_on_frontier=show_labels_on_frontier,
                          show_frontier=True,
                          curve_line_width=Params['nmb.line_width'],
                          frontier_line_width=Params['nmb.frontier.line_width'],
-                         if_format_y_numbers=True if y_axis_decimal is not None else False,
                          frontier_label_shift_x=Params['ce.frontier.label.shift_x'],
                          frontier_label_shift_y=Params['ce.frontier.label.shift_y'],
                          grid_info=grid_info)
@@ -1958,10 +1981,10 @@ class CEA(_EconEval):
         """
 
         # make the NMB curves
-        self.__build_incremental_nmb_curves(interval_type='n')
+        self._build_incremental_nmb_curves(interval_type='n')
 
         # make the acceptability curves
-        self.__build_acceptability_curves()
+        self._build_acceptability_curves()
 
         # initialize plot
         fig, ax = plt.subplots(figsize=fig_size)
@@ -1998,10 +2021,10 @@ class CEA(_EconEval):
         """
 
         if len(self._incrementalNMBLines) == 0:
-            self.__build_incremental_nmb_curves(interval_type='n')
+            self._build_incremental_nmb_curves(interval_type='n')
 
         if len(self._acceptabilityCurves) == 0:
-            self.__build_acceptability_curves(normal_approximation=normal_approximation)
+            self._build_acceptability_curves(normal_approximation=normal_approximation)
 
         if legend_font_size_and_loc is None:
             legend_font_size_and_loc = (
@@ -2023,7 +2046,7 @@ class CEA(_EconEval):
 
     def add_expected_loss_curves_to_ax(
             self, ax, wtp_delta=None, y_range=None, show_legend=True, legend_font_size_and_loc=None, legends=None,
-            y_axis_multiplier=1, y_axis_decimal=None, grid_info=None):
+            y_axis_multiplier=1, y_axis_format_decimals=None, grid_info=None):
         """
         adds the acceptability curves to the provided ax
         :param ax: axis
@@ -2033,16 +2056,16 @@ class CEA(_EconEval):
         :param legends: (list of strings) texts for legends
         :param legend_font_size_and_loc: (tuple) (font size, location) for the legend
         :param y_axis_multiplier: (float) multiplier for the y-axis
-        :param y_axis_decimal: (int) number of decimal places to show on the y-axis
+        :param y_axis_format_decimals: (format, int) format and number of decimal places to show on the y-axis
         :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
             if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
         """
 
         if len(self._incrementalNMBLines) == 0:
-            self.__build_incremental_nmb_curves(interval_type='n')
+            self._build_incremental_nmb_curves(interval_type='n')
 
         if len(self._expectedLossCurves) == 0:
-            self.__build_expected_loss_curves()
+            self._build_expected_loss_curves()
 
         if legend_font_size_and_loc is None:
             legend_font_size_and_loc = (
@@ -2060,7 +2083,7 @@ class CEA(_EconEval):
                          curve_line_width=Params['nmb.line_width'],
                          frontier_line_width=Params['nmb.frontier.line_width'],
                          legend_font_size_and_loc=legend_font_size_and_loc,
-                         y_axis_multiplier=y_axis_multiplier, y_axis_decimal=y_axis_decimal,
+                         y_axis_multiplier=y_axis_multiplier, y_axis_format_decimals=y_axis_format_decimals,
                          if_y_axis_prob=False,
                          grid_info=grid_info)
 
@@ -2145,7 +2168,7 @@ class ConstrainedOpt(_EconEval):
         for c in self.curves:
             c.convert_lists_to_arrays()
 
-    def __calculate_evpi_curve(self):
+    def _calculate_evpi_curve(self):
         """ calculates the expected value of perfect information (EVPI) curve """
 
         self.evpi = []
@@ -2198,7 +2221,7 @@ class ConstrainedOpt(_EconEval):
         fig, ax = plt.subplots(figsize=figure_size)
 
         if show_evpi:
-            self.__calculate_evpi_curve()
+            self._calculate_evpi_curve()
 
         # add plot to the ax
         add_curves_to_ax(ax=ax,
@@ -2240,7 +2263,7 @@ class ConstrainedOpt(_EconEval):
         """
 
         if show_evpi:
-            self.__calculate_evpi_curve()
+            self._calculate_evpi_curve()
 
         if legend_font_size_and_loc is None:
             legend_font_size_and_loc = (
