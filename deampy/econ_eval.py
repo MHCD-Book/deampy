@@ -1414,6 +1414,7 @@ class CEA(_EconEval):
         """
         adds a cost-effectiveness plane to the provided ax
         :param ax: axis
+        :param title: (string) title of the panel
         :param x_range: (tuple) range of x-axis
         :param y_range: (tuple) range of y-axis
         :param add_clouds: (bool) if to add the probability clouds
@@ -2110,6 +2111,23 @@ class CEA(_EconEval):
         produces a figure with 2 panels displaying
             cost-effectiveness plane,
             net-monetary benefit,
+        :param cost_multiplier: (float) multiplier for cost values
+        :param effect_multiplier: (float) multiplier for effect values
+        :param nmb_multiplier: (float) multiplier for NMB values
+        :param cep_title: (string) title of the cost-effectiveness plane
+        :param nmb_title: (string) title of the net-monetary benefit figure
+        :param cost_decimals: (int) number of decimals to show for cost values
+        :param effect_decimals: (int) number of decimals to show for effect values
+        :param nmb_decimals: (int) number of decimals to show for NMB values
+        :param cost_range: (tuple) range of x-axis for the cost-effectiveness plane
+        :param effect_range: (tuple) range of y-axis for the cost-effectiveness plane
+        :param nmb_range: (tuple) range of y-axis for the NMB figure
+        :param cep_x_label: (string) x-axis label for the cost-effectiveness plane
+        :param cep_y_label: (string) y-axis label for the cost-effectiveness plane
+        :param nmb_x_label: (string) x-axis label for the NMB figure
+        :param nmb_y_label: (string) y-axis label for the NMB figure
+        :param delta_wtp: (float) distance between the labels of WTP values shown on the x-axis
+        :param show_strategy_label_on_nmb_frontier: (bool) set to True to show the strategy labels on the NMB frontier
         :param file_name: (string) the file name to save the figure as
         :param fig_size: (tuple) figure size
         """
