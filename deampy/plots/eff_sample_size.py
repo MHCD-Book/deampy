@@ -39,5 +39,5 @@ def plot_eff_sample_size(likelihood_weights, if_randomize=True,
 
     # if f_star is not None:
     #     plt.axhline(y=f_star, linestyle='--', color='black', linewidth=1)
-    Fig.output_figure(fig, filename=file_name)
+    Fig.output_figure(fig, file_name=file_name)
 

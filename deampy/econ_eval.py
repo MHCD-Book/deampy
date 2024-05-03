@@ -1583,7 +1583,7 @@ class CEA(_EconEval):
                                 interval_transparency=interval_transparency, grid_info=grid_info)
 
         fig.tight_layout()
-        output_figure(plt=fig, filename=file_name)
+        output_figure(plt=fig, file_name=file_name)
 
     def export_pairwise_cea(self, interval_type='n',
                             alpha=0.05,
@@ -1736,7 +1736,7 @@ class CEA(_EconEval):
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
         :param epsilons: (list) of error tolerances
         :param alphas: (list) of significance levels
-        :param file_name: (string) the filename to save the results as
+        :param file_name: (string) the file name to save the results as
         :return: (dictionary) of minimum Monte Carlo samples needed to achieve the desired statistical power
             first key is power values and the second key is error tolerance
         """
@@ -1766,7 +1766,7 @@ class CEA(_EconEval):
             x_label=r'Acceptable Error in Estimating ICER ($\epsilon$)',
             y_label='Required Number of Parameter Samples',
             num_bootstrap_samples=None, rng=None,
-            fig_size=(4, 4), filename=None):
+            fig_size=(4, 4), file_name=None):
         """ plots the minimum number of Monte Carlo parameter samples needed to achieve the desired accuracy
         :param max_wtp: (double) the highest willingness-to-pay (WTP) value that is deemed reasonable to consider
         :param epsilons: (list) of epsilon values (the acceptable error in estimating ICER)
@@ -1779,7 +1779,7 @@ class CEA(_EconEval):
         :param x_label: (string) x-axis label
         :param y_label: (string) y-axis label
         :param fig_size: (tuple) figure size
-        :param filename: (string) filename to save the figure as
+        :param file_name: (string) file name to save the figure as
         """
 
         dict_of_ns = self.get_dict_min_monte_carlo_parameter_samples(
@@ -1796,7 +1796,7 @@ class CEA(_EconEval):
 
         f.tight_layout()
 
-        output_figure(plt=f, filename=filename)
+        output_figure(plt=f, file_name=file_name)
 
     def plot_incremental_nmb_lines(self,
                                    wtp_range,
@@ -1840,7 +1840,7 @@ class CEA(_EconEval):
         :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
             if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
         :param figure_size: (tuple) size of the figure (e.g. (2, 3)
-        :param file_name: (string) filename to save the figure as
+        :param file_name: (string) file name to save the figure as
         """
 
         # make incremental NMB curves
@@ -1867,7 +1867,7 @@ class CEA(_EconEval):
         fig.tight_layout()
 
         fig.tight_layout()
-        output_figure(plt=fig, filename=file_name)
+        output_figure(plt=fig, file_name=file_name)
 
     def plot_expected_loss_curves(self,
                                   title='Expected Loss Curves',
@@ -1896,7 +1896,7 @@ class CEA(_EconEval):
         :param grid_info: (None or 'default', or tuple of (color, linestyle, linewidth, alpha))
            if 'default is selected the tuple ('k', '--', 0.5, 0.2) is used
         :param fig_size: (tuple) size of the figure (e.g. (2, 3)
-        :param file_name: (string) filename to save the figure as
+        :param file_name: (string) file name to save the figure as
         """
 
         # initialize plot
@@ -1919,7 +1919,7 @@ class CEA(_EconEval):
         ax.set_ylabel(y_label)
 
         fig.tight_layout()
-        output_figure(plt=fig, filename=file_name)
+        output_figure(plt=fig, file_name=file_name)
 
     def add_inmb_lines_to_ax(self, ax,
                              title='Incremental Net Monetary Benefit',
@@ -2012,7 +2012,7 @@ class CEA(_EconEval):
         ax.set_ylabel(y_label)
 
         fig.tight_layout()
-        output_figure(plt=fig, filename=file_name)
+        output_figure(plt=fig, file_name=file_name)
 
     def add_acceptability_curves_to_ax(
             self, ax, wtp_delta=None, y_range=None, show_legend=True, legend_font_size_and_loc=None, legends=None,
@@ -2110,7 +2110,7 @@ class CEA(_EconEval):
         produces a figure with 2 panels displaying
             cost-effectiveness plane,
             net-monetary benefit,
-        :param file_name: (string) the filename to save the figure as
+        :param file_name: (string) the file name to save the figure as
         :param fig_size: (tuple) figure size
         """
 
@@ -2145,7 +2145,7 @@ class CEA(_EconEval):
             show_labels_on_frontier=show_strategy_label_on_nmb_frontier,
             show_evpi=False)
 
-        output_figure(plt=f, filename=file_name)
+        output_figure(plt=f, file_name=file_name)
 
 
 class ConstrainedOpt(_EconEval):

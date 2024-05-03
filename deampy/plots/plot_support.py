@@ -4,10 +4,10 @@ import string
 from deampy.support.misc_functions import *
 
 
-def output_figure(plt, filename=None, dpi=300, tight_layout=True, bbox_inches='tight'):
+def output_figure(plt, file_name=None, dpi=300, tight_layout=True, bbox_inches='tight'):
     """
     :param plt: reference to the plot
-    :param filename: filename to save this figure as (e.g. 'figure.png') (if None, the figure will be displayed)
+    :param file_name: filename to save this figure as (e.g. 'figure.png') (if None, the figure will be displayed)
     :param dpi: dpi of the figure
     """
 
@@ -15,13 +15,13 @@ def output_figure(plt, filename=None, dpi=300, tight_layout=True, bbox_inches='t
         plt.tight_layout()
 
     # output
-    if filename is None or filename == '':
+    if file_name is None or file_name == '':
         plt.show()
     else:
-        if filename[0] == '/':
-            filename = filename[1:]
+        if file_name[0] == '/':
+            file_name = file_name[1:]
         # get directory
-        directory_path = os.path.dirname(filename)
+        directory_path = os.path.dirname(file_name)
 
         # create the directory if does not exist
         if directory_path != '':
@@ -29,10 +29,10 @@ def output_figure(plt, filename=None, dpi=300, tight_layout=True, bbox_inches='t
                 os.makedirs(directory_path)
 
         try:
-            plt.savefig(proper_file_name(filename), dpi=dpi, bbox_inches=bbox_inches)
+            plt.savefig(proper_file_name(file_name), dpi=dpi, bbox_inches=bbox_inches)
         except Exception as e:
             raise ValueError("Error in saving figure '{}'. "
-                             "Ensure that the filename is valid. Error Message: {}".format(filename, str(e)))
+                             "Ensure that the filename is valid. Error Message: {}".format(file_name, str(e)))
 
         # try:
         #     plt.savefig(proper_file_name(filename), dpi=dpi, bbox_inches=bbox_inches)

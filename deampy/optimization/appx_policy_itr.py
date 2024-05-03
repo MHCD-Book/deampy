@@ -390,7 +390,7 @@ class ApproximatePolicyIteration:
         f.tight_layout()
         f.align_ylabels()
 
-        output_figure(plt=plt, filename=filename)
+        output_figure(plt=plt, file_name=filename)
 
     def plot_cost_itr(self, moving_ave_window=None,
                       y_range=None,

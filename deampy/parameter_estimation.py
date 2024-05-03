@@ -4,7 +4,6 @@ from enum import Enum
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.polynomial.polynomial import polyfit
-from numpy.random import choice
 from scipy.stats import pearsonr
 
 import deampy.in_out_functions as IO
@@ -290,7 +289,7 @@ class ParameterAnalyzer:
 
         f.align_ylabels(axarr[:, 0])
         f.tight_layout()
-        output_figure(plt=f, filename=fig_filename, dpi=300)
+        output_figure(plt=f, file_name=fig_filename, dpi=300)
 
     def export_means_and_intervals(self,
                                    poster_file='ParameterEstimates.csv',
