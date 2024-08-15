@@ -86,11 +86,9 @@ class ExpRegression (_OneVarRegression):
         _OneVarRegression.__init__(self, x, y)
         self._ifC0Zero = if_c0_zero
         if if_c0_zero:
-            self._coeffs, cov = curve_fit(self.exp_func_c0_zero, x, y,
-                                          p0=p0) #jac=self.Jac_c0_zero)
+            self._coeffs, cov = curve_fit(self.exp_func_c0_zero, x, y, p0=p0) #jac=self.Jac_c0_zero)
         else:
-            self._coeffs, cov = curve_fit(self.exp_func, x, y,
-                                          p0=p0) # jac=self.Jac)
+            self._coeffs, cov = curve_fit(self.exp_func, x, y, p0=p0) # jac=self.Jac)
 
     def get_predicted_y(self, x):
         if self._ifC0Zero:
