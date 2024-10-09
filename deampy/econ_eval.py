@@ -1530,7 +1530,7 @@ class CEA(_EconEval):
                       y_label='Additional Cost',
                       x_range=None, y_range=None,
                       add_clouds=False, fig_size=(5, 5),
-                      show_legend=True,
+                      show_legend=True, show_frontier=True,
                       center_s=75, cloud_s=25, transparency=0.1,
                       cost_multiplier=1, effect_multiplier=1,
                       cost_digits=0, effect_digits=1,
@@ -1546,6 +1546,7 @@ class CEA(_EconEval):
         :param add_clouds: (boolean) set to True to show the projection clouds
         :param fig_size: (tuple) (width, height) of the figure
         :param show_legend: (boolean) set to True to show the legends
+        :param show_frontier: (boolean) set to True to show the frontier
         :param center_s: (float) size of dots that show the mean cost and health of each strategy
         :param cloud_s: (float) size of dots that form the clouds
         :param transparency: (float between 0 and 1) transparency of dots that form the clouds
@@ -1576,7 +1577,7 @@ class CEA(_EconEval):
         self.add_ce_plane_to_ax(ax=ax,
                                 title=title, x_range=x_range, y_range=y_range,
                                 add_clouds=add_clouds,
-                                show_legend=show_legend,
+                                show_legend=show_legend, show_frontier=show_frontier,
                                 center_s=center_s, cloud_s=cloud_s, transparency=transparency,
                                 cost_multiplier=cost_multiplier, effect_multiplier=effect_multiplier,
                                 cost_decimals=cost_digits, effect_decimals=effect_digits,
@@ -1800,7 +1801,6 @@ class CEA(_EconEval):
         output_figure(plt=f, file_name=file_name)
 
     def plot_incremental_nmb_lines(self,
-                                   wtp_range,
                                    title='Incremental Net Monetary Benefit',
                                    x_label='Willingness-To-Pay Threshold',
                                    y_label='Incremental Net Monetary Benefit',
@@ -1816,8 +1816,7 @@ class CEA(_EconEval):
                                    show_labels_on_frontier=False,
                                    grid_info=None,
                                    figure_size=(5, 5),
-                                   file_name=None,
-                                   n_of_wtp_values=250):
+                                   file_name=None):
         """
         plots the incremental net-monetary benefit of each strategy
                 with respect to the base (the first strategy)
@@ -1859,7 +1858,7 @@ class CEA(_EconEval):
                          title=title, x_label=x_label,
                          y_label=y_label, y_range=y_range, x_delta=delta_wtp,
                          y_axis_multiplier=y_axis_multiplier,
-                         y_axis_decimal=y_axis_decimal,
+                         y_axis_format_decimals=None,
                          transparency_lines=transparency_lines,
                          transparency_intervals=transparency_intervals,
                          show_legend=show_legend,
@@ -2349,11 +2348,12 @@ class ConstrainedOpt(_EconEval):
                 Params['plot.legend.loc']
             )
 
+        y_axis_format_decimals = [',', effect_decimals] if effect_decimals is not None else None
         add_curves_to_ax(
             ax=ax, curves=self.curves, title=title,
             x_range=[self.budget_values[0], self.budget_values[-1]],
             x_delta=delta_budget, x_label=x_label,
-            y_label=y_label, y_axis_decimal=effect_decimals, y_range=y_range, y_axis_multiplier=y_axis_multiplier,
+            y_label=y_label, y_range=y_range, y_axis_multiplier=y_axis_multiplier,
             transparency_lines=1,
             transparency_intervals=Params['nmb.interval.transparency'],
             show_legend=show_legend,
@@ -2361,7 +2361,7 @@ class ConstrainedOpt(_EconEval):
             show_labels_on_frontier=show_labels_on_frontier,
             curve_line_width=Params['nmb.line_width'],
             frontier_line_width=Params['nmb.frontier.line_width'],
-            if_format_y_numbers=True if effect_decimals is not None else False,
+            y_axis_format_decimals=y_axis_format_decimals,
             legend_font_size_and_loc=legend_font_size_and_loc,
             frontier_label_shift_x=Params['ce.frontier.label.shift_x'],
             frontier_label_shift_y=Params['ce.frontier.label.shift_y'],
