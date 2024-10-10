@@ -1410,7 +1410,7 @@ class CEA(_EconEval):
                            cost_multiplier=1, effect_multiplier=1,
                            cost_decimals=None, effect_decimals=None,
                            interval_type='c', significance_level=0.05, interval_transparency=0.5,
-                           legend_loc_code=0, grid_info=None):
+                           legend_loc_code=2, grid_info=None):
         """
         adds a cost-effectiveness plane to the provided ax
         :param ax: axis
