@@ -14,11 +14,11 @@ effect_intervention = np.random.normal(loc=2, scale=.2, size=1000)
 print('')
 
 # ICER calculation assuming paired observations
-icer_paired = econ_eval.ICER_Paired(name='Testing paired ICER',
-                                    costs_new=cost_intervention,
-                                    effects_new=effect_intervention,
-                                    costs_base=cost_base,
-                                    effects_base=effect_base)
+icer_paired = econ_eval.ICERPaired(name='Testing paired ICER',
+                                   costs_new=cost_intervention,
+                                   effects_new=effect_intervention,
+                                   costs_base=cost_base,
+                                   effects_base=effect_base)
 print('Paired ICER:'
       '\n\tICER: {} '
       '\n\tCI (boostrap): {} '
@@ -44,29 +44,29 @@ for epsilon in (500, 1000, 2000):
     print(epsilon, n)
 
 # ICER calculation assuming independent observations
-ICER_indp = econ_eval.ICER_Indp(costs_new=cost_intervention,
-                                effects_new=effect_intervention,
-                                costs_base=cost_base,
-                                effects_base=effect_base)
+ICER_indp = econ_eval.ICERIndp(costs_new=cost_intervention,
+                               effects_new=effect_intervention,
+                               costs_base=cost_base,
+                               effects_base=effect_base)
 print('Independent ICER (confidence and prediction interval): ',
       ICER_indp.get_ICER(),
       ICER_indp.get_CI(0.05),
       ICER_indp.get_PI(0.05, ))
 
 # NMB
-NMB_paired = econ_eval.IncrementalNMB_Paired(costs_new=cost_intervention,
-                                             effects_new=effect_intervention,
-                                             costs_base=cost_base,
-                                             effects_base=effect_base)
+NMB_paired = econ_eval.IncrementalNMBPaired(costs_new=cost_intervention,
+                                            effects_new=effect_intervention,
+                                            costs_base=cost_base,
+                                            effects_base=effect_base)
 print('Paired NMB (confidence and prediction interval): ',
       NMB_paired.get_incremental_nmb(wtp=10000),
       NMB_paired.get_CI(wtp=10000, alpha=.05),
       NMB_paired.get_PI(wtp=10000, alpha=.05))
 
-NMB_indp = econ_eval.IncrementalNMB_Indp(costs_new=cost_intervention,
-                                         effects_new=effect_intervention,
-                                         costs_base=cost_base,
-                                         effects_base=effect_base)
+NMB_indp = econ_eval.IncrementalNMBIndp(costs_new=cost_intervention,
+                                        effects_new=effect_intervention,
+                                        costs_base=cost_base,
+                                        effects_base=effect_base)
 print('Independent NMB (confidence and prediction interval): ',
       NMB_indp.get_incremental_nmb(wtp=10000),
       NMB_indp.get_CI(wtp=10000, alpha=.05),

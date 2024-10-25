@@ -12,8 +12,8 @@ effect_intervention = np.random.normal(loc=1, scale=.2, size=1000)
 print('')
 
 # ICER calculation assuming paired observations
-ICER_paired = EconEval.ICER_Paired(cost_intervention, effect_intervention, cost_base, effect_base,
-                                   health_measure='d')
+ICER_paired = EconEval.ICERPaired(cost_intervention, effect_intervention, cost_base, effect_base,
+                                  health_measure='d')
 print('Paired ICER:\n\tICER: {} '
       '\n\tCI (boostrap): {} '
       '\n\tCI (Bayesian): {} '
@@ -28,23 +28,23 @@ print('Paired ICER:\n\tICER: {} '
       ICER_paired.get_PI(alpha=0.05)))
 
 # ICER calculation assuming independent observations
-ICER_indp = EconEval.ICER_Indp(cost_intervention, effect_intervention, cost_base, effect_base,
-                               health_measure='d')
+ICER_indp = EconEval.ICERIndp(cost_intervention, effect_intervention, cost_base, effect_base,
+                              health_measure='d')
 print('Independent ICER (confidence and prediction interval): \n\t{}\n\t{}\n\t{}'.format(
       ICER_indp.get_ICER(),
       ICER_indp.get_CI(0.05, 1000),
       ICER_indp.get_PI(0.05)))
 
 # try NMB
-NMB_paired = EconEval.IncrementalNMB_Paired(cost_intervention, effect_intervention, cost_base, effect_base,
-                                            health_measure='d')
+NMB_paired = EconEval.IncrementalNMBPaired(cost_intervention, effect_intervention, cost_base, effect_base,
+                                           health_measure='d')
 print('Paired NMB (confidence and prediction interval): \n\t{}\n\t{}\n\t{}'.format(
       NMB_paired.get_incremental_nmb(wtp=10000),
       NMB_paired.get_CI(wtp=10000, alpha=.05),
       NMB_paired.get_PI(wtp=10000, alpha=.05)))
 
-NMB_indp = EconEval.IncrementalNMB_Indp(cost_intervention, effect_intervention, cost_base, effect_base,
-                                        health_measure='d')
+NMB_indp = EconEval.IncrementalNMBIndp(cost_intervention, effect_intervention, cost_base, effect_base,
+                                       health_measure='d')
 print('Independent NMB (confidence and prediction interval): \n\t{}\n\t{}\n\t{}'.format(
       NMB_indp.get_incremental_nmb(wtp=10000),
       NMB_indp.get_CI(wtp=10000, alpha=.05),

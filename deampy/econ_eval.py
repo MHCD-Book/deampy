@@ -116,6 +116,23 @@ def equivalent_annual_value(present_value, discount_rate, discount_period):
     return discount_rate*present_value/(1-power(1+discount_rate, -discount_period))
 
 
+def get_var_of_inmb(wtp, st_d_cost, st_d_effect, corr):
+    """
+    :param wtp: (double) willingness-to-pay threshold
+    :param st_d_cost: (double) st dev of incremental cost observations
+    :param st_d_effect: (double) st dev of incremental effect observations
+    :param corr (double) correlation between incremental cost and effect
+    :return: the variance of incremental NMB
+    """
+
+    variance = wtp ** 2 * st_d_effect ** 2 + st_d_cost ** 2 - 2 * wtp * corr * st_d_effect * st_d_cost
+
+    # if np.isnan(variance) or variance < 0:
+    #     raise ValueError(st_d_effect, st_d_cost, corr)
+
+    return variance
+
+
 def get_variance_of_incremental_nmb(wtp, delta_costs, delta_effects):
     """
     :param wtp: (double) willingness-to-pay threshold
@@ -603,12 +620,12 @@ class _EconEval:
 
                 # cost-effectiveness ratio of non-base strategies
                 if i > 0:
-                    s.cer = ICER_Paired(name='Cost-effectiveness ratio of ' + s.name,
-                                        costs_new=s.costObs,
-                                        effects_new=s.effectObs,
-                                        costs_base=self.strategies[0].costObs,
-                                        effects_base=self.strategies[0].effectObs,
-                                        health_measure=self._healthMeasure)
+                    s.cer = ICERPaired(name='Cost-effectiveness ratio of ' + s.name,
+                                       costs_new=s.costObs,
+                                       effects_new=s.effectObs,
+                                       costs_base=self.strategies[0].costObs,
+                                       effects_base=self.strategies[0].effectObs,
+                                       health_measure=self._healthMeasure)
 
         else:  # if not paired
             # get average cost and effect of the base strategy
@@ -634,12 +651,12 @@ class _EconEval:
 
                 # cost-effectiveness ratio of non-base strategies
                 if i > 0:
-                    s.cer = ICER_Indp(name='Cost-effectiveness ratio of ' + s.name,
-                                      costs_new=s.costObs,
-                                      effects_new=s.effectObs,
-                                      costs_base=self.strategies[0].costObs,
-                                      effects_base=self.strategies[0].effectObs,
-                                      health_measure=self._healthMeasure)
+                    s.cer = ICERIndp(name='Cost-effectiveness ratio of ' + s.name,
+                                     costs_new=s.costObs,
+                                     effects_new=s.effectObs,
+                                     costs_base=self.strategies[0].costObs,
+                                     effects_base=self.strategies[0].effectObs,
+                                     health_measure=self._healthMeasure)
 
     def _find_frontier(self):
 
@@ -747,12 +764,12 @@ class _EconEval:
                                                                 x=s_before.effectObs,
                                                                 y_ref=s.effectObs)
                     # ICER
-                    s.icer = ICER_Paired(name='ICER of {} relative to {}'.format(s.name, s_before.name),
-                                         costs_new=s.costObs,
-                                         effects_new=s.effectObs,
-                                         costs_base=s_before.costObs,
-                                         effects_base=s_before.effectObs,
-                                         health_measure=self._healthMeasure)
+                    s.icer = ICERPaired(name='ICER of {} relative to {}'.format(s.name, s_before.name),
+                                        costs_new=s.costObs,
+                                        effects_new=s.effectObs,
+                                        costs_base=s_before.costObs,
+                                        effects_base=s_before.effectObs,
+                                        health_measure=self._healthMeasure)
 
         else:  # if not paired
 
@@ -782,12 +799,12 @@ class _EconEval:
                                                               y_ref=s.effectObs)
 
                     # ICER
-                    s.icer = ICER_Indp(name='ICER of {} relative to {}'.format(s.name, s_before.name),
-                                       costs_new=s.costObs,
-                                       effects_new=s.effectObs,
-                                       costs_base=s_before.costObs,
-                                       effects_base=s_before.effectObs,
-                                       health_measure=self._healthMeasure)
+                    s.icer = ICERIndp(name='ICER of {} relative to {}'.format(s.name, s_before.name),
+                                      costs_new=s.costObs,
+                                      effects_new=s.effectObs,
+                                      costs_base=s_before.costObs,
+                                      effects_base=s_before.effectObs,
+                                      health_measure=self._healthMeasure)
 
     def _create_pairwise_ceas(self):
         """
@@ -841,21 +858,21 @@ class _EconEval:
 
             if self._ifPaired:
                 # create a paired NMB object
-                incremental_nmb = IncrementalNMB_Paired(name=s.name,
-                                                        costs_new=s.costObs,
-                                                        effects_new=s.effectObs,
-                                                        costs_base=self.strategies[0].costObs,
-                                                        effects_base=self.strategies[0].effectObs,
-                                                        health_measure=self._healthMeasure)
+                incremental_nmb = IncrementalNMBPaired(name=s.name,
+                                                       costs_new=s.costObs,
+                                                       effects_new=s.effectObs,
+                                                       costs_base=self.strategies[0].costObs,
+                                                       effects_base=self.strategies[0].effectObs,
+                                                       health_measure=self._healthMeasure)
 
             else:
                 # create an independent NMB object
-                incremental_nmb = IncrementalNMB_Indp(name=s.name,
-                                                      costs_new=s.costObs,
-                                                      effects_new=s.effectObs,
-                                                      costs_base=self.strategies[0].costObs,
-                                                      effects_base=self.strategies[0].effectObs,
-                                                      health_measure=self._healthMeasure)
+                incremental_nmb = IncrementalNMBIndp(name=s.name,
+                                                     costs_new=s.costObs,
+                                                     effects_new=s.effectObs,
+                                                     costs_base=self.strategies[0].costObs,
+                                                     effects_base=self.strategies[0].effectObs,
+                                                     health_measure=self._healthMeasure)
 
             # make a NMB curve
             self._incrementalNMBLines.append(INMBCurve(label=s.label,
@@ -2387,7 +2404,8 @@ class _ComparativeEconMeasure:
 
         self.name = name
         # if QALY or DALY is being used
-        self._effect_multiplier = 1 if health_measure == 'u' else -1
+        self._effectMeasure = health_measure
+        self._effectMultiplier = 1 if health_measure == 'u' else -1
 
         # convert input data to numpy.array if needed
         self._costsNew = assert_np_list(costs_new, "cost_new should be list or np.array.")
@@ -2399,7 +2417,7 @@ class _ComparativeEconMeasure:
         self._deltaAveCost = np.average(self._costsNew) - np.average(self._costsBase)
         # change in effect: DALY averted or QALY gained
         self._deltaAveEffect = (np.average(self._effectsNew) - np.average(self._effectsBase)) \
-                               * self._effect_multiplier
+                               * self._effectMultiplier
 
     def get_ave_d_cost(self):
         """
@@ -2514,7 +2532,7 @@ class _ICER(_ComparativeEconMeasure):
                                           format=form)
 
 
-class ICER_Paired(_ICER):
+class ICERPaired(_ICER):
 
     def __init__(self, costs_new, effects_new, costs_base, effects_base, health_measure='u', name=''):
         """
@@ -2536,7 +2554,7 @@ class ICER_Paired(_ICER):
 
         # incremental observations
         self._deltaCosts = self._costsNew - self._costsBase
-        self._deltaEffects = (self._effectsNew - self._effectsBase) * self._effect_multiplier
+        self._deltaEffects = (self._effectsNew - self._effectsBase) * self._effectMultiplier
 
     def get_CI(self, alpha=0.05, method='bootstrap', num_bootstrap_samples=1000, rng=None,
                prior_range=None, num_wtp_thresholds=1000):
@@ -2677,7 +2695,7 @@ class ICER_Paired(_ICER):
         return icer_over_iterations
 
 
-class ICER_Indp(_ICER):
+class ICERIndp(_ICER):
 
     def __init__(self, costs_new, effects_new, costs_base, effects_base, health_measure='u', name=''):
         """
@@ -2716,7 +2734,7 @@ class ICER_Indp(_ICER):
             return [math.nan, math.nan]
 
         if method == 'Bayesian':
-            raise ValueError('The Bayesian approach is not yet implemented. Use bootstrap instead.')
+            raise ValueError('The Bayesian approach is not implemented. Use bootstrap instead.')
 
         # create a new random number generator if one is not provided.
         if rng is None:
@@ -2747,7 +2765,7 @@ class ICER_Indp(_ICER):
             mean_effects_base = np.mean(effects_base)
 
             # calculate this bootstrap ICER
-            if (mean_effects_new - mean_effects_base) * self._effect_multiplier <= 0:
+            if (mean_effects_new - mean_effects_base) * self._effectMultiplier <= 0:
                 self._isDefined = False
                 warnings.warn('\nFor "{}, the confidence interval of ICER is not computable."'
                               '\nThis is because at least one of bootstrap mean incremental effect '
@@ -2759,7 +2777,7 @@ class ICER_Indp(_ICER):
             else:
                 icer_bootstrap_means[i] = \
                     (mean_costs_new - mean_costs_base) / (mean_effects_new - mean_effects_base) \
-                    * self._effect_multiplier
+                    * self._effectMultiplier
 
         if self._isDefined:
             return np.percentile(icer_bootstrap_means, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
@@ -2793,7 +2811,7 @@ class ICER_Indp(_ICER):
         costs_base = self._costsBase[indices_base]
         effects_base = self._effectsBase[indices_base]
 
-        if min((effects_new - effects_base) * self._effect_multiplier) <= 0:
+        if min((effects_new - effects_base) * self._effectMultiplier) <= 0:
             self._isDefined = False
             warnings.warn('\nFor "{}, the prediction interval of ICER is not computable."'
                           '\nThis is because at least one of bootstrap mean incremental effect '
@@ -2802,7 +2820,7 @@ class ICER_Indp(_ICER):
         else:
             sample_icers = np.divide(
                 (costs_new - costs_base),
-                (effects_new - effects_base) * self._effect_multiplier)
+                (effects_new - effects_base) * self._effectMultiplier)
 
         if self._isDefined:
             return np.percentile(sample_icers, [100 * alpha / 2.0, 100 * (1 - alpha / 2.0)])
@@ -2860,7 +2878,7 @@ class _IncrementalNMB(_ComparativeEconMeasure):
         return wtp
 
 
-class IncrementalNMB_Paired(_IncrementalNMB):
+class IncrementalNMBPaired(_IncrementalNMB):
 
     def __init__(self, costs_new, effects_new, costs_base, effects_base, health_measure='u', name=''):
         """
@@ -2882,11 +2900,12 @@ class IncrementalNMB_Paired(_IncrementalNMB):
 
         # incremental observations
         self._deltaCosts = self._costsNew - self._costsBase
-        self._deltaEffects = (self._effectsNew - self._effectsBase) * self._effect_multiplier
+        self._deltaEffects = (self._effectsNew - self._effectsBase) * self._effectMultiplier
 
         self._n = len(costs_new)
         self._statDeltaCost = Stat.SummaryStat(name=self.name, data=self._deltaCosts)
         self._statDeltaEffect = Stat.SummaryStat(name=self.name, data=self._deltaEffects)
+        self._corr = corrcoef(self._deltaCosts, self._deltaEffects)[0, 1]
 
     def get_CI(self, wtp, alpha=0.05):
         """
@@ -2900,7 +2919,10 @@ class IncrementalNMB_Paired(_IncrementalNMB):
         if self._n > 1:
             t = stat.t.ppf(1 - alpha / 2, self._n - 1)
 
-        st_dev = math.sqrt(wtp ** 2 * self._statDeltaEffect.get_var() + self._statDeltaCost.get_var())
+        st_dev = math.sqrt(get_var_of_inmb(wtp=wtp,
+                                           st_d_cost=self._statDeltaCost.get_stdev(),
+                                           st_d_effect=self._statDeltaEffect.get_stdev(),
+                                           corr=self._corr))
         st_err = st_dev/math.sqrt(self._n)
 
         l = mean - t * st_err
@@ -2917,6 +2939,7 @@ class IncrementalNMB_Paired(_IncrementalNMB):
                                 data=wtp * self._deltaEffects - self._deltaCosts).get_PI(alpha)
 
     def get_switch_wtp_and_ci_interval(self, alpha=0.05, interval_type='n',
+                                       num_bootstrap_samples=1000,
                                        num_wtp_thresholds=1000, prior_range=None, rng=None):
         """
         :param alpha: (double) significance level, a value from [0, 1]
@@ -2934,20 +2957,29 @@ class IncrementalNMB_Paired(_IncrementalNMB):
         if interval_type == 'n' or interval_type is None:
             return wtp, None
         elif interval_type == 'c':
-            return wtp, get_bayesian_ci_for_switch_wtp(
-                delta_costs=self._deltaCosts,
-                delta_effects=self._deltaEffects,
-                alpha=alpha,
-                num_wtp_thresholds=num_wtp_thresholds,
-                prior_range=prior_range, rng=rng
-            )
+
+            icer =ICERPaired(costs_new=self._costsNew,
+                             effects_new=self._effectsNew,
+                             costs_base=self._costsBase,
+                             effects_base=self._effectsBase,
+                             health_measure=self._effectMeasure)
+
+            return icer.get_CI(alpha, method='bootstrap', num_bootstrap_samples=num_bootstrap_samples, rng=rng)
+
+            # return wtp, get_bayesian_ci_for_switch_wtp(
+            #     delta_costs=self._deltaCosts,
+            #     delta_effects=self._deltaEffects,
+            #     alpha=alpha,
+            #     num_wtp_thresholds=num_wtp_thresholds,
+            #     prior_range=prior_range, rng=rng
+            # )
         elif interval_type == 'p':
             raise ValueError('Not yet implemented.')
         else:
             raise ValueError('Invalid value for interval_type.')
 
 
-class IncrementalNMB_Indp(_IncrementalNMB):
+class IncrementalNMBIndp(_IncrementalNMB):
 
     def __init__(self, costs_new, effects_new, costs_base, effects_base, health_measure='u', name=''):
         """
@@ -2975,8 +3007,8 @@ class IncrementalNMB_Indp(_IncrementalNMB):
         :return: confidence interval in the format of list [l, u]
         """
         # NMB observations of two alternatives
-        stat_new = wtp * self._effectsNew * self._effect_multiplier - self._costsNew
-        stat_base = wtp * self._effectsBase * self._effect_multiplier - self._costsBase
+        stat_new = wtp * self._effectsNew * self._effectMultiplier - self._costsNew
+        stat_base = wtp * self._effectsBase * self._effectMultiplier - self._costsBase
 
         # to get CI for stat_new - stat_base
         diff_stat = Stat.DifferenceStatIndp(name=self.name, x=stat_new, y_ref=stat_base)
@@ -2989,8 +3021,8 @@ class IncrementalNMB_Indp(_IncrementalNMB):
         :return: percentile interval in the format of list [l, u]
         """
         # NMB observations of two alternatives
-        stat_new = wtp * self._effectsNew * self._effect_multiplier - self._costsNew
-        stat_base = wtp * self._effectsBase * self._effect_multiplier - self._costsBase
+        stat_new = wtp * self._effectsNew * self._effectMultiplier - self._costsNew
+        stat_base = wtp * self._effectsBase * self._effectMultiplier - self._costsBase
 
         # to get PI for stat_new - stat_base
         diff_stat = Stat.DifferenceStatIndp(name=self.name, x=stat_new, y_ref=stat_base)
