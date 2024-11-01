@@ -2974,7 +2974,7 @@ class IncrementalNMBPaired(_IncrementalNMB):
             #     prior_range=prior_range, rng=rng
             # )
         elif interval_type == 'p':
-            raise ValueError('Not yet implemented.')
+            raise ValueError('Not implemented.')
         else:
             raise ValueError('Invalid value for interval_type.')
 
