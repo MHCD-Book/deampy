@@ -2754,7 +2754,7 @@ class ICERIndp(_ICER):
             effects_new = self._effectsNew[indices_new]
 
             # for the base alternative
-            indices_base = np.random.choice(a=range(n_obs_base), size=n_obs_base, replace=True)
+            indices_base = rng.choice(a=range(n_obs_base), size=n_obs_base, replace=True)
             costs_base = self._costsBase[indices_base]
             effects_base = self._effectsBase[indices_base]
 
