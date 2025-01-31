@@ -423,7 +423,7 @@ class PolynomialQFunction(_QFunction):
         """
 
         if values_of_continuous_features is None or len(values_of_continuous_features) == 0:
-            # if the values of continuous features are provided, we assume 1 continuous feature
+            # if the values of continuous features are not provided, we assume 1 continuous feature
             # with value set to 0. This is to make sure we can calculate the intercept.
             values_of_continuous_features = [0]
 
@@ -441,10 +441,10 @@ class PolynomialQFunction(_QFunction):
 
         return x_continuous
 
-    def update(self, f, values_of_continuous_features=None, values_of_indicator_features=None, forgetting_factor=1):
+    def update(self, y, values_of_continuous_features=None, values_of_indicator_features=None, forgetting_factor=1):
         """
         updates the fitted Q-function
-        :param f: the observed value of the Q-function at the given feature values
+        :param y: the observed value of the Q-function at the given feature values
         :param values_of_continuous_features: (list) of values for continuous features
         :param values_of_indicator_features: (list) of values for indicator features (can take only 0 or 1)
         :param forgetting_factor: (float) forgetting factor
@@ -452,7 +452,7 @@ class PolynomialQFunction(_QFunction):
 
         self.reg.update(x=self._get_x(values_of_continuous_features=values_of_continuous_features,
                                       values_of_indicator_features=values_of_indicator_features),
-                        y=f,
+                        y=y,
                         forgetting_factor=forgetting_factor)
 
     def f(self, values_of_continuous_features=None, values_of_indicator_features=None):

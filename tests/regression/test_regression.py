@@ -2,7 +2,8 @@ import numpy as np
 
 from deampy.regression_models import LinearRegression, RecursiveLinearReg
 
-coeffs = [1, -2, 3]  # y = 1 + 2x1 + 3x2
+# testing regression model y = 1 + 2x1 + 3x2
+coeffs = [1, -2, 3]
 N = 1000
 sigma = 1
 l2_reg = 0.01
@@ -13,12 +14,12 @@ np.random.seed(seed=1)
 # generate X
 X = []
 for n in range(N):
-    # 3 random numbers over [-1, 1]
+    # each row is 3 random numbers over [-1, 1]
     x = 2*np.random.sample(3)-1
     X.append(x)
 
 # find y's
-y = np.dot(X, np.array(coeffs)) + np.random.normal(0, sigma)
+y = np.dot(X, np.array(coeffs)) + np.random.normal(0, sigma, N)
 
 # fit a linear regression
 lr = LinearRegression()
