@@ -1,6 +1,6 @@
 import numpy as np
 
-from deampy.regression import LinearRegression, RecursiveLinearReg
+from deampy.regression_models import LinearRegression, RecursiveLinearReg
 
 coeffs = [1, -2, 3]  # y = 1 + 2x1 + 3x2
 N = 1000
