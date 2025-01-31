@@ -6,7 +6,7 @@ from scipy import stats
 from scipy.optimize import curve_fit
 from sklearn.preprocessing import PolynomialFeatures, OneHotEncoder
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
-np.seterr(all='raise')
+# np.seterr(all='raise')
 
 
 # ------- Single variable regression models ----------
@@ -366,12 +366,12 @@ class RecursiveLinearReg(LinearRegression):
             # turn x into a column vector
             x = np.atleast_2d(np.array(x)).T
             # gamma = lambda + xT.B.x
-            gamma = float(forgetting_factor + np.transpose(x) @ self._B @ x)
+            gamma = (forgetting_factor + np.transpose(x) @ self._B @ x)[0]
             if gamma <= forgetting_factor:
                 raise ValueError('Unstable regression, iteration: {}.'.format(self.itr))
 
             # epsilon = y - thetaT*x
-            epsilon = float(y - self._coeffs @ x)
+            epsilon = (y - self._coeffs @ x)[0]
             # theta = theta + B.x.epsilon/gamma
             self._coeffs += (self._B @ x * epsilon / gamma).flatten()
             # B = (B-B.x.xT.B/gamma)/lambda
