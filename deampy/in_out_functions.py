@@ -77,7 +77,7 @@ def write_csv(rows, file_name='csvfile.csv', delimiter=',', directory='', delete
         csv_file = csv.writer(file, delimiter=delimiter)
 
         for row in rows:
-            if not isinstance(row, list):
+            if not (isinstance(row, list) or isinstance(row, numpy.ndarray)):
                 csv_file.writerow([row])
             else:
                 csv_file.writerow(row)
