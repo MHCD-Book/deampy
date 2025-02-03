@@ -1,3 +1,6 @@
+# np.seterr(all='raise')
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
 import statsmodels.api as sm
@@ -6,7 +9,6 @@ from scipy import stats
 from scipy.optimize import curve_fit
 from sklearn.preprocessing import PolynomialFeatures, OneHotEncoder
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
-# np.seterr(all='raise')
 
 
 # ------- Single variable regression models ----------
@@ -368,7 +370,7 @@ class RecursiveLinearReg(LinearRegression):
             # gamma = lambda + xT.B.x
             gamma = (forgetting_factor + np.transpose(x) @ self._B @ x)[0]
             if gamma <= forgetting_factor:
-                raise ValueError('Unstable regression, iteration: {}.'.format(self.itr))
+                warnings.warn('Unstable regression, iteration: {}.'.format(self.itr))
 
             # epsilon = y - thetaT*x
             epsilon = (y - self._coeffs @ x)[0]
