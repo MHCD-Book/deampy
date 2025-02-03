@@ -101,8 +101,8 @@ class _ApproxDecisionMaker:
             if self.qFunctions[i].get_coeffs() is None:
                 q_value = 0
             else:
-                q_value = self.qFunctions[i].f(x=continuous_feature_values,
-                                               binaries=indicator_feature_values)
+                q_value = self.qFunctions[i].f(x_cont=continuous_feature_values,
+                                               x_bin=indicator_feature_values)
 
             if q_value < minimum:
                 minimum = q_value

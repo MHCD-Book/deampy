@@ -387,10 +387,10 @@ class _QFunction:
     def __init__(self, name=None):
         self.name = name
 
-    def update(self, f, x, binaries=None, forgetting_factor=1):
+    def update(self, f, x_cont, x_bin=None, forgetting_factor=1):
         raise NotImplementedError
 
-    def f(self, x, binaries=None):
+    def f(self, x_cont, x_bin=None):
         raise NotImplementedError
 
 
@@ -413,27 +413,27 @@ class PolynomialQFunction(_QFunction):
         # recursive linear regression
         self.reg = RecursiveLinearReg(l2_penalty=l2_penalty)
 
-    def _get_x(self, x, binaries=None):
+    def _get_x(self, x_cont, x_bin=None):
         """
         use the values of the continuous and categorical features to find the row data to use for fitting
         a linear regression
-        :param x: (list) of values for continuous features
-        :param binaries: (list) of values for indicator features (only 0 and 1 values)
+        :param x_cont: (list) of values for continuous features
+        :param x_bin: (list) of values for indicator features (only 0 and 1 values)
         :return: the row data to use for fitting a linear regression
         """
 
-        if x is None or len(x) == 0:
+        if x_cont is None or len(x_cont) == 0:
             # if the values of continuous features are not provided, we assume 1 continuous feature
             # with value set to 0. This is to make sure we can calculate the intercept.
-            x = [0]
+            x_cont = [0]
 
         x_continuous = []
-        if x is not None:
-            x = np.atleast_1d(x)
-            x_continuous = self.poly.fit_transform(X=[x])[0]
+        if x_cont is not None:
+            x_cont = np.atleast_1d(x_cont)
+            x_continuous = self.poly.fit_transform(X=[x_cont])[0]
 
-        if binaries is not None and len(binaries) > 0:
-            x_indicator = np.atleast_1d(binaries)
+        if x_bin is not None and len(x_bin) > 0:
+            x_indicator = np.atleast_1d(x_bin)
 
             # update the regressors based on the value of indicator features
             for i in x_indicator:
@@ -441,28 +441,28 @@ class PolynomialQFunction(_QFunction):
 
         return x_continuous
 
-    def update(self, y, x=None, binaries=None, forgetting_factor=1):
+    def update(self, y, x_cont=None, x_bin=None, forgetting_factor=1):
         """
         updates the fitted Q-function
         :param y: the observed value of the Q-function at the given feature values
-        :param x: (list) of values for continuous features
-        :param binaries: (list) of values for indicator features (can take only 0 or 1)
+        :param x_cont: (list) of values for continuous features
+        :param x_bin: (list) of values for indicator features (can take only 0 or 1)
         :param forgetting_factor: (float) forgetting factor
         """
 
-        self.reg.update(x=self._get_x(x=x, binaries=binaries),
+        self.reg.update(x=self._get_x(x_cont=x_cont, x_bin=x_bin),
                         y=y,
                         forgetting_factor=forgetting_factor)
 
-    def f(self, x, binaries=None):
+    def f(self, x_cont, x_bin=None):
         """
-        :param x: (list) of values for continuous features
-        :param binaries: (list) of values for indicator features (only takes 0 or 1)
+        :param x_cont: (list) of values for continuous features
+        :param x_bin: (list) of values for indicator features (only takes 0 or 1)
         :return: the value of Q-function at the provided features
         """
         return self.reg.get_y(x=self._get_x(
-            x=x,
-            binaries=binaries))
+            x_cont=x_cont,
+            x_bin=x_bin))
 
     def get_coeffs(self):
         """

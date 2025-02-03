@@ -25,8 +25,9 @@ def get_moving_average(data, window=2):
         raise ValueError('The window over which the moving averages '
                          'should be calculated should be greater than 1.')
     if window >= len(data):
-        raise ValueError('The window over which the moving averages '
-                         'should be calculated should be less than the number of data points.')
+        window = len(data) - 1
+        # raise ValueError('The window over which the moving averages '
+        #                  'should be calculated should be less than the number of data points.')
 
     window = int(window)
 

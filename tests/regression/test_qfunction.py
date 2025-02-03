@@ -34,7 +34,7 @@ y = np.dot(X, np.array(coeffs)) + np.random.normal(0, sigma, N)
 # fit a polynomial regression
 q = PolynomialQFunction(degree=2, l2_penalty=l2_reg)
 for i in range(N):
-    q.update(y=y[i], x=[x1s[i], x2s[i]])
+    q.update(y=y[i], x_cont=[x1s[i], x2s[i]])
 
 print('Regression with only continuous variables: ')
 print('True Coeffs:', coeffs, 'vs.\nEsti Coeffs: ', q.get_coeffs())
@@ -77,13 +77,13 @@ y = np.dot(X, np.array(coeffs)) + np.random.normal(0, sigma, N)
 q = PolynomialQFunction(degree=2, l2_penalty=l2_reg)
 for i in range(N):
     q.update(y=y[i],
-             x=[x1s[i], x2s[i]],
-             binaries=[Is[i]])
+             x_cont=[x1s[i], x2s[i]],
+             x_bin=[Is[i]])
 
 print('\nRegression with both: ')
 print('True Coeffs:', coeffs, 'vs.\nEsti Coeffs: ', q.get_coeffs())
 print('True y([2, -1], [0]) = ', np.dot([1, 2, -1, 4, -2, 1, 0, 0, 0, 0, 0, 0], coeffs), 'vs.\n'
-      'Esti y([2, -1], [0]) = ', q.f(x=[2, -1], binaries=[0]))
+      'Esti y([2, -1], [0]) = ', q.f(x_cont=[2, -1], x_bin=[0]))
 print('True y([2, -1], [1]) = ', np.dot([1, 2, -1, 4, -2, 1, 1, 2, -1, 4, -2, 1], coeffs), 'vs.\n'
-      'Esti y([2, -1], [1]) = ', q.f(x=[2, -1], binaries=[1]))
+      'Esti y([2, -1], [1]) = ', q.f(x_cont=[2, -1], x_bin=[1]))
 

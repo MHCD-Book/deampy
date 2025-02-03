@@ -62,24 +62,24 @@ hs = [h(i) for i in I]
 # fit a Q-function with continuous variables only
 q_cont = PolynomialQFunction(degree=degree, l2_penalty=l2_reg)
 for i in range(N):
-    q_cont.update(y=fs[i], x=X[i])
+    q_cont.update(y=fs[i], x_cont=X[i])
 print('\nQ-function with continuous variables: ')
 print('Coeffs: ', q_cont.get_coeffs(), 'vs.', COEFFS_C0)
-print('f([1, -1]) should be 7 = ', q_cont.f(x=[1, -1]))
+print('f([1, -1]) should be 7 = ', q_cont.f(x_cont=[1, -1]))
 
 # fit a Q-function with a categorical variable
 q_cat = PolynomialQFunction(degree=0, l2_penalty=l2_reg)
 for i in range(N):
-    q_cat.update(y=hs[i], binaries=I[i])
+    q_cat.update(y=hs[i], x_bin=I[i])
 print('\nQ-function with categorical variables: ')
 print('Coeffs: ', q_cat.get_coeffs(), 'vs.', COEFFS_I)
-print('h([1]) should be 1) = ', q_cat.f(binaries=1))
+print('h([1]) should be 1) = ', q_cat.f(x_bin=1))
 
 # fit a Q-function with continuous and categorical variables
 q_cont_cat = PolynomialQFunction(degree=degree, l2_penalty=l2_reg)
 for i in range(N):
-    q_cont_cat.update(y=gs[i], x=X[i], binaries=I[i])
+    q_cont_cat.update(y=gs[i], x_cont=X[i], x_bin=I[i])
 print('\nQ-function with continuous and categorical variables: ')
 print('Coeffs: ', q_cont_cat.get_coeffs(), 'vs.', np.append(COEFFS_C0, COEFFS_C1))
-print('f([1, -1, 0] should be 7) = ', q_cont_cat.f(x=[1, -1], binaries=0))
-print('f([1, -1, 1] should be 0) = ', q_cont_cat.f(x=[1, -1], binaries=1))
+print('f([1, -1, 0] should be 7) = ', q_cont_cat.f(x_cont=[1, -1], x_bin=0))
+print('f([1, -1, 1] should be 0) = ', q_cont_cat.f(x_cont=[1, -1], x_bin=1))
