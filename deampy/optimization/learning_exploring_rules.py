@@ -1,5 +1,7 @@
 from math import pow
 
+import matplotlib.pyplot as plt
+
 
 class _ExplorationRule:
 
@@ -29,8 +31,19 @@ class EpsilonGreedy(_ExplorationRule):
         return 'Beta{}'.format(self._beta)
 
     def get_epsilon(self, itr):
-
         return pow(itr, -self._beta)
+
+    @staticmethod
+    def plot(betas, n_itrs):
+        x = range(1, n_itrs + 1)
+        for beta in betas:
+            y = [EpsilonGreedy(beta).get_epsilon(i) for i in x]
+            plt.plot(x, y, label='Beta={}'.format(beta))
+        plt.xlabel('Iteration')
+        plt.ylabel('Epsilon')
+        plt.title('Epsilon-Greedy Exploration Rule')
+        plt.legend()
+        plt.show()
 
 
 class Harmonic(_LearningRule):
@@ -45,3 +58,20 @@ class Harmonic(_LearningRule):
 
     def get_step_size(self, itr):
         return self._b / (self._b + itr - 1)
+
+    @staticmethod
+    def plot(bs, n_itrs):
+        x = range(1, n_itrs + 1)
+        for b in bs:
+            y = [Harmonic(b).get_forgetting_factor(i) for i in x]
+            plt.plot(x, y, label='b={}'.format(b))
+        plt.plot(x, y)
+        plt.xlabel('Iteration')
+        plt.ylabel('Forgetting Factor')
+        plt.title('Harmonic Learning Rule')
+        plt.show()
+
+
+if __name__ == '__main__':
+    EpsilonGreedy.plot(betas=[0.5, 0.75, 1], n_itrs=1000)
+    Harmonic.plot(bs=[1, 10, 20], n_itrs=1000)
