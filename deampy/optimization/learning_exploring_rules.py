@@ -107,4 +107,4 @@ if __name__ == '__main__':
     EpsilonGreedy.plot(formula='exp', maxes=[1], mins=[0.05], betas=[0.01, 0.02, .03], n_itrs=1000)
     EpsilonGreedy.plot(formula='pow', maxes=[1], mins=[0.05], betas=[0.5, 0.7, 0.9], n_itrs=1000)
 
-    # Harmonic.plot(bs=[1, 10, 20], n_itrs=1000)
+    Harmonic.plot(bs=[1, 10, 20], n_itrs=1000)
