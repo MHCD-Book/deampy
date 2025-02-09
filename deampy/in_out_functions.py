@@ -69,7 +69,7 @@ def write_csv(rows, file_name='csvfile.csv', delimiter=',', directory='', delete
     # delete existing files
     if delete_existing_files:
         delete_files(extension='.csv',
-                     path=directory # path=os.getcwd() + '/' + directory
+                     path=os.getcwd() + '/' + directory
                      )
 
     # create the directory if does not exist
