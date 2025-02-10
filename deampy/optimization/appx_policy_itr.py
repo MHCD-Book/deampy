@@ -261,7 +261,7 @@ class ApproximatePolicyIteration:
 
             # store iteration, exploration rate, and forgetting factor
             self.itr_i.append(itr)
-            self.itr_forgetting_factor.append(self.learningRule.get_forgetting_factor(itr=itr))
+            self.itr_forgetting_factor.append(self.learningRule.get_learning_rate(itr=itr))
             self.itr_exploration_rate.append(self.appoxDecisionMaker.explorationRule.get_epsilon(itr=itr))
 
             # update the iteration of the approximate decision maker (to calculate exploration rate)
@@ -335,7 +335,7 @@ class ApproximatePolicyIteration:
             self.itr_error.append(self.states[0].costToGo - predicted_cost)
 
         # update q-functions
-        forgetting_factor = self.learningRule.get_forgetting_factor(itr=itr)
+        forgetting_factor = self.learningRule.get_learning_rate(itr=itr)
 
         for s in self.states:
             q_index = index_of_an_action_combo(s.actionCombo)

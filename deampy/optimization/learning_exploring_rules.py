@@ -3,24 +3,39 @@ from math import pow, exp
 import matplotlib.pyplot as plt
 
 
-class _ExplorationRule:
+# class _ExplorationRule:
+#
+#     def get_epsilon(self, itr):
+#         pass
+#
+#     def get_learning_rate(self, itr):
+#         # goes to 1 as itr goes to infinity
+#         # return 1/(1+self.get_step_size(itr))
+#
+#         s_n_minus1 = self.get_epsilon(itr-1)
+#         s_n = self.get_epsilon(itr)
+#
+#         return 1-s_n # s_n_minus1 * (1-s_n)/s_n
+
+
+class _StepSizeRule:
 
     def get_epsilon(self, itr):
+        # goes to zero as itr goes to infinity
         pass
 
-
-class _LearningRule:
-
-    def get_step_size(self, itr):
-        # goes to zero as itr goes to infinity
-        return 0
-
-    def get_forgetting_factor(self, itr):
+    def get_learning_rate(self, itr):
         # goes to 1 as itr goes to infinity
-        return 1/(1+self.get_step_size(itr))
+        # return 1- self.get_step_size(itr)
+
+        # s_n_minus1 = self.get_epsilon(itr-1)
+        s_n = self.get_epsilon(itr)
+        # return s_n_minus1 * (1 - s_n)/s_n
+
+        return 1-s_n
 
 
-class EpsilonGreedy(_ExplorationRule):
+class EpsilonGreedy(_StepSizeRule):
     # For selecting the greedy action with probability 1-epsilon.
     # for pow decay formula: epsilon_n = min + (max-min)/n^beta, beta over (0.5, 1], n > 0
     # for exp decay formula: epsilon_n = min + (max-min) * exp(-beta * n), beta > 0, n > 0
@@ -42,36 +57,50 @@ class EpsilonGreedy(_ExplorationRule):
 
     def get_epsilon(self, itr):
 
+        if itr <= 0:
+            return self._max
+
         if self._formula == 'pow':
             return self._min + (self._max - self._min) * pow(itr, -self._beta)
         elif self._formula == 'exp':
             return self._min + (self._max - self._min) * exp(-self._beta * itr)
         else:
-            raise ValueError('Invalid formula. Choose between "power" and "exponential".')
+            raise ValueError('Invalid formula. Choose between "pow" and "exp".')
 
     @staticmethod
     def plot(formula, betas, maxes, mins, n_itrs):
 
         x = range(1, n_itrs + 1)
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(nrows=1, ncols=2)
 
         for max in maxes:
             for min in mins:
                 for beta in betas:
                     rule = EpsilonGreedy(formula=formula, beta=beta, max=max, min=min)
                     y = [rule.get_epsilon(i) for i in x]
-                    ax.plot(x, y, label=str(rule))
-        ax.axhline(y=0, color='black', linestyle='--')
-        ax.set_xlabel('Iteration')
-        ax.set_ylabel('Epsilon')
-        ax.set_title('Epsilon-Greedy Exploration Rule')
-        ax.legend()
+                    ax[0].plot(x, y, label=str(rule))
+                    y = [rule.get_learning_rate(i) for i in x]
+                    ax[1].plot(x, y, label=str(rule))
+
+        ax[0].axhline(y=0, color='black', linestyle='--')
+        ax[1].axhline(y=1, color='black', linestyle='--')
+
+        ax[0].set_xlabel('Iteration')
+        ax[1].set_xlabel('Iteration')
+
+        ax[0].set_ylabel('Exploration Rate')
+        ax[1].set_ylabel('Learning Rate')
+
+        # ax.set_title('Epsilon-Greedy Exploration Rule')
+        ax[0].legend()
+        ax[1].legend()
+        fig.tight_layout()
         fig.show()
 
 
-class Harmonic(_LearningRule):
-    # step_n = b / (b + n), for n >= 0 and b >= 1
+class Harmonic(_StepSizeRule):
+    # step_n = b / (b + n - 1), for n > 0 and b >= 1
     # (i is the iteration of the optimization algorithm)
 
     def __init__(self, b):
@@ -80,7 +109,9 @@ class Harmonic(_LearningRule):
     def __str__(self):
         return 'b{}'.format(self._b)
 
-    def get_step_size(self, itr):
+    def get_epsilon(self, itr):
+        if itr <= 0:
+            return 1
         return self._b / (self._b + itr - 1)
 
     @staticmethod
@@ -91,7 +122,7 @@ class Harmonic(_LearningRule):
         fig, ax = plt.subplots()
         for b in bs:
             rule = Harmonic(b)
-            y = [rule.get_forgetting_factor(i) for i in x]
+            y = [rule.get_learning_rate(i) for i in x]
             ax.plot(x, y, label=str(rule))
         ax.plot(x, y)
         ax.axhline(y=1, color='black', linestyle='--')
@@ -104,7 +135,7 @@ class Harmonic(_LearningRule):
 
 if __name__ == '__main__':
 
-    EpsilonGreedy.plot(formula='exp', maxes=[1], mins=[0.05], betas=[0.01, 0.02, .03], n_itrs=1000)
-    EpsilonGreedy.plot(formula='pow', maxes=[1], mins=[0.05], betas=[0.5, 0.7, 0.9], n_itrs=1000)
+    EpsilonGreedy.plot(formula='exp', maxes=[0.5], mins=[0.05], betas=[0.01, 0.02, .03], n_itrs=1000)
+    # EpsilonGreedy.plot(formula='pow', maxes=[0.5], mins=[0.025], betas=[0.5, 0.7, 0.9], n_itrs=1000)
 
-    Harmonic.plot(bs=[1, 10, 20], n_itrs=1000)
+    # Harmonic.plot(bs=[1, 10, 20], n_itrs=1000)
