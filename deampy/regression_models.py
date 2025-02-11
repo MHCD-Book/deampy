@@ -327,7 +327,7 @@ class RecursiveLinearReg(LinearRegression):
 
         self.itr += 1
 
-        if self.itr < len(x):
+        if self.itr < 2*len(x):
             if self._X is None:
                 self._X = np.array(x)
             else:
@@ -342,7 +342,7 @@ class RecursiveLinearReg(LinearRegression):
                 self._w *= forgetting_factor
                 self._w = np.append(self._w, 1.0)
 
-        elif self.itr == len(x):
+        elif self.itr == 2*len(x):
             self._X = np.vstack((self._X, x))
             self._y = np.vstack((self._y, y))
             self._w *= forgetting_factor
