@@ -86,6 +86,7 @@ def write_csv(rows, file_name='csvfile.csv', delimiter=',', directory='', delete
 
         file.close()
 
+
 def write_columns_to_csv(cols, file_name='csvfile.csv', delimiter=',', directory='', delete_existing_files=False):
     """ write a list of columns to a csv file
         :param cols: list of columns to be imported to the csv file

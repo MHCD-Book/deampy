@@ -2,20 +2,7 @@ from math import pow, exp
 
 import matplotlib.pyplot as plt
 
-
-# class _ExplorationRule:
-#
-#     def get_epsilon(self, itr):
-#         pass
-#
-#     def get_learning_rate(self, itr):
-#         # goes to 1 as itr goes to infinity
-#         # return 1/(1+self.get_step_size(itr))
-#
-#         s_n_minus1 = self.get_epsilon(itr-1)
-#         s_n = self.get_epsilon(itr)
-#
-#         return 1-s_n # s_n_minus1 * (1-s_n)/s_n
+from deampy.plots.plot_support import output_figure
 
 
 class _StepSizeRule:
@@ -26,33 +13,39 @@ class _StepSizeRule:
 
     def get_learning_rate(self, itr):
         # goes to 1 as itr goes to infinity
-        # return 1- self.get_step_size(itr)
 
-        # s_n_minus1 = self.get_epsilon(itr-1)
-        s_n = self.get_epsilon(itr)
-        # return s_n_minus1 * (1 - s_n)/s_n
-
-        return 1-s_n
+        return 1 - self.get_epsilon(itr)
 
 
 class EpsilonGreedy(_StepSizeRule):
-    # For selecting the greedy action with probability 1-epsilon.
-    # for pow decay formula: epsilon_n = min + (max-min)/n^beta, beta over (0.5, 1], n > 0
-    # for exp decay formula: epsilon_n = min + (max-min) * exp(-beta * n), beta > 0, n > 0
 
     def __init__(self, formula, beta, min=0, max=1):
         """
+            For selecting the greedy action with probability 1-epsilon.
+            for pow decay formula: epsilon_n = min + (max-min)/n^beta, beta over (0.5, 1], n > 0
+            for exp decay formula: epsilon_n = min + (max-min) * exp(-beta * n), beta > 0, n > 0
         :param formula: (str) 'pow' or 'exp'
         :param beta: (float) the decay rate
         :param min: (float) the minimum epsilon
         :param max: (float) the maximum epsilon
         """
+
+        if formula not in ['pow', 'exp']:
+            raise ValueError('Invalid formula. Choose between "pow" and "exp".')
+        if beta <= 0:
+            raise ValueError('Beta should be greater than 0.')
+        if min < 0 or max > 1:
+            raise ValueError('Epsilon should be between 0 and 1.')
+
         self._formula = formula
         self._beta = beta
         self._min = min
         self._max = max
 
     def __str__(self):
+        """
+        :return: (str) the formula and the parameters
+        """
         return '{}-beta{}-max{}-min{}'.format(self._formula, self._beta, self._max, self._min)
 
     def get_epsilon(self, itr):
@@ -68,13 +61,23 @@ class EpsilonGreedy(_StepSizeRule):
             raise ValueError('Invalid formula. Choose between "pow" and "exp".')
 
     @staticmethod
-    def plot(formula, betas, maxes, mins, n_itrs):
+    def plot(formula, betas, maxs, mins, n_itrs, fig_size=None, fig_filename=None):
+        """
+        plots the exploration and learning rates
+        :param formula: (str) 'pow' or 'exp'
+        :param betas: (list) of decay rates
+        :param maxs: (list) of maximum epsilon values
+        :param mins: (list) of minimum epsilon values
+        :param n_itrs: (int) number of iterations
+        :param fig_size: (tuple) the size of the figure
+        :param fig_filename: (str) the filename to save the figure
+        """
 
         x = range(1, n_itrs + 1)
 
-        fig, ax = plt.subplots(nrows=1, ncols=2)
+        fig, ax = plt.subplots(nrows=1, ncols=2, figsize=fig_size)
 
-        for max in maxes:
+        for max in maxs:
             for min in mins:
                 for beta in betas:
                     rule = EpsilonGreedy(formula=formula, beta=beta, max=max, min=min)
@@ -96,7 +99,10 @@ class EpsilonGreedy(_StepSizeRule):
         ax[0].legend()
         ax[1].legend()
         fig.tight_layout()
-        fig.show()
+        if fig_filename:
+            output_figure(fig, fig_filename)
+        else:
+            fig.show()
 
 
 class Harmonic(_StepSizeRule):
@@ -135,7 +141,9 @@ class Harmonic(_StepSizeRule):
 
 if __name__ == '__main__':
 
-    EpsilonGreedy.plot(formula='exp', maxes=[0.5], mins=[0.05], betas=[0.01, 0.02, .03], n_itrs=1000)
-    # EpsilonGreedy.plot(formula='pow', maxes=[0.5], mins=[0.025], betas=[0.5, 0.7, 0.9], n_itrs=1000)
+    EpsilonGreedy.plot(
+        formula='exp', maxs=[0.5], mins=[0.025], betas=[0.01, 0.02, .03], n_itrs=1000)
+    EpsilonGreedy.plot(
+        formula='pow', maxs=[0.5], mins=[0.025], betas=[0.5, 0.7, 0.9], n_itrs=1000)
 
     # Harmonic.plot(bs=[1, 10, 20], n_itrs=1000)
