@@ -99,17 +99,24 @@ def format_axis_tick_labels(ax, axis='x', format_deci=None):
 #     ax.set_xlim([min_x-buffer, max_x+buffer])
 
 
-def add_labels_to_panels(axarr, x_coord=-0.2, y_coord=1.1, font_size=8):
+def add_labels_to_panels(axarr, add_to_title=True, x_coord=-0.2, y_coord=1.1, font_size=8):
     """
     adds A), B), etc. labels to panels
     :param axarr: (array) of panels
+    :param add_to_title: (bool) add the label to the title (left aligned)
     :param x_coord: (float) increase to move labels right
     :param y_coord: (float) increase to move labels up
     :param font_size: (float) font size of labels
     """
     axs = axarr.flat
     for n, ax in enumerate(axs):
-        ax.text(x_coord, y_coord,
+        if add_to_title:
+            ax.set_title(
+                string.ascii_uppercase[n] + ') ',
+                loc='left',
+                weight='bold')
+        else:
+            ax.text(x_coord, y_coord,
                 string.ascii_uppercase[n] + ')',
                 transform=ax.transAxes,
                 size=font_size,
