@@ -9,8 +9,13 @@ class _Markov:
 
     def __init__(self, matrix, state_descriptions=None):
         """
-        :param state_descriptions: (list) description of the states in the format of Enum
+        :param state_descriptions: (Enum) description of the states in the format of Enum
         """
+
+        if len(matrix) == 0:
+            raise ValueError('An empty probability or rate matrix is provided.')
+        else:
+            self._n_states = len(matrix)
 
         if state_descriptions is not None:
             assert type(state_descriptions) is enum.EnumType, 'State description should be an enumeration.'
@@ -27,12 +32,29 @@ class _Markov:
         if self._ifStateDescriptionProvided:
             self._states = list(state_descriptions)
 
+    def _error_check(self, current_state_index=None, current_state=None):
+
+        if current_state_index is None and current_state is None:
+            raise ValueError('Either current_state_index or current_state should be provided.')
+
+        if current_state_index is not None:
+            if not (0 <= current_state_index < self._n_states):
+                raise ValueError('The value of the current state index should be greater '
+                                 'than 0 and smaller than the number of states. '
+                                 'Value provided for current state index is {}.'.format(current_state_index))
+        elif current_state is not None:
+            assert current_state in self._states, \
+                'The current state is invalid and not in the state description enumeration.'
+            current_state_index = current_state.value
+
+        return current_state_index
+
 class MarkovJumpProcess(_Markov):
 
     def __init__(self, transition_prob_matrix, state_descriptions=None):
         """
         :param transition_prob_matrix: (list) transition probability matrix of a discrete-time Markov model
-        :param state_description: (list) description of the states in the format of Enum
+        :param state_descriptions: (Enum) description of the states in the format of Enum
         """
 
         assert type(transition_prob_matrix) is list, \
@@ -60,22 +82,11 @@ class MarkovJumpProcess(_Markov):
         :param current_state_index: (int) index of the current state
         :param current_state: (an element of an enumeration) current state
         :param rng: random number generator object
-        :return: the index of the next state
+        :return: the index of the next state or the state description of the next state
         """
 
-        if current_state_index is None and current_state is None:
-            raise ValueError('Either current_state_index or current_state should be provided.')
-
-        if current_state_index is not None:
-            if not (0 <= current_state_index < self._n_states):
-                raise ValueError('The value of the current state index should be greater '
-                                 'than 0 and smaller than the number of states. '
-                                 'Value provided for current state index is {}.'.format(current_state_index))
-
-        if current_state is not None:
-            assert current_state in self._states, \
-                'The current state is invalid and not in the state description enumeration.'
-            current_state_index = current_state.value
+        # get current state index
+        current_state_index = self._error_check(current_state_index=current_state_index, current_state=current_state)
 
         # find the next state index by drawing a sample from
         # the empirical distribution associated with this state
@@ -89,17 +100,19 @@ class MarkovJumpProcess(_Markov):
             return next_state_index
 
 
-class Gillespie:
-    def __init__(self, transition_rate_matrix):
+class Gillespie(_Markov):
+
+    def __init__(self, transition_rate_matrix, state_descriptions=None):
         """
         :param transition_rate_matrix: transition rate matrix of the continuous-time Markov model
+        :param state_descriptions: (Enum) description of the states in the format of Enum
         """
 
         assert isinstance(transition_rate_matrix, list), \
             'transition_rate_matrix should be an array, {} was provided'.format(type(transition_rate_matrix))
 
-        if len(transition_rate_matrix) == 0:
-            raise ValueError('An empty transition_rate_matrix is provided.')
+        _Markov.__init__(self, matrix=transition_rate_matrix, state_descriptions=state_descriptions)
+
 
         self._rateMatrix = transition_rate_matrix
         self._expDists = []
@@ -137,17 +150,18 @@ class Gillespie:
                 self._expDists.append(None)
                 self._empiricalDists.append(None)
 
-    def get_next_state(self, current_state_index, rng):
+    def get_next_state(self, current_state_index=None, current_state=None, rng=None):
         """
         :param current_state_index: index of the current state
+        :param current_state: (an element of an enumeration) current state
         :param rng: random number generator object
         :return: (dt, i) where dt is the time until next event, and i is the index of the next state
-         it returns None for dt if the process is in an absorbing state
+                or the state description of the next state.
+               It returns None for dt if the process is in an absorbing state
         """
 
-        if not (0 <= current_state_index < len(self._rateMatrix)):
-            raise ValueError('The value of the current state index should be greater '
-                             'than 0 and smaller than the number of states.')
+        # get current state index
+        current_state_index = self._error_check(current_state_index=current_state_index, current_state=current_state)
 
         # if this is an absorbing state (i.e. sum of rates out of this state is 0)
         if self._expDists[current_state_index] is None:
@@ -159,6 +173,8 @@ class Gillespie:
             dt = self._expDists[current_state_index].sample(rng=rng)
             # find the next state
             i = self._empiricalDists[current_state_index].sample(rng=rng)
+
+        i = self._states[i] if self._ifStateDescriptionProvided else i
 
         return dt, i
 
