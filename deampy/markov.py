@@ -1,3 +1,5 @@
+import enum
+
 import numpy as np
 
 from deampy.random_variates import Empirical, Exponential
@@ -5,15 +7,29 @@ from deampy.random_variates import Empirical, Exponential
 
 class MarkovJumpProcess:
 
-    def __init__(self, transition_prob_matrix):
+    def __init__(self, transition_prob_matrix, state_description=None):
         """
         :param transition_prob_matrix: (list) transition probability matrix of a discrete-time Markov model
+        :param state_description: (list) description of the states in the format of Enum
         """
 
         assert type(transition_prob_matrix) is list, \
             'Transition probability matrix should be a list'
 
+        if state_description is not None:
+            assert type(state_description) is enum.EnumType, 'State description should be an enumeration.'
+            assert len(state_description) == len(transition_prob_matrix), \
+                'The number of states in the transition probability matrix and the state description should be equal.'
+
+            for i, element in enumerate(state_description):
+                assert i == element.value, \
+                    'The elements in the state description should be indexed 0, 1, 2, ...' \
+                    'The state {} is indexed {} but should be indexed {}.'.format(str(element), element.value, i)
+
         self._empiricalDists = []
+        self._ifStateDescriptionProvided = False if state_description is None else True
+        if self._ifStateDescriptionProvided:
+            self._states = list(state_description)
 
         for i, probs in enumerate(transition_prob_matrix):
 
@@ -28,21 +44,38 @@ class MarkovJumpProcess:
 
         self._n_states = len(self._empiricalDists)
 
-    def get_next_state(self, current_state_index, rng):
+    def get_next_state(self, current_state_index=None, current_state=None, rng=None):
         """
-        :param current_state_index: index of the current state
+        :param current_state_index: (int) index of the current state
+        :param current_state: (an element of an enumeration) current state
         :param rng: random number generator object
         :return: the index of the next state
         """
 
-        if not (0 <= current_state_index < self._n_states):
-            raise ValueError('The value of the current state index should be greater '
-                             'than 0 and smaller than the number of states. '
-                             'Value provided for current state index is {}.'.format(current_state_index))
+        if current_state_index is None and current_state is None:
+            raise ValueError('Either current_state_index or current_state should be provided.')
+
+        if current_state_index is not None:
+            if not (0 <= current_state_index < self._n_states):
+                raise ValueError('The value of the current state index should be greater '
+                                 'than 0 and smaller than the number of states. '
+                                 'Value provided for current state index is {}.'.format(current_state_index))
+
+        if current_state is not None:
+            assert current_state in self._states, \
+                'The current state is invalid and not in the state description enumeration.'
+            current_state_index = current_state.value
 
         # find the next state index by drawing a sample from
         # the empirical distribution associated with this state
-        return self._empiricalDists[current_state_index].sample(rng=rng)
+        next_state_index = self._empiricalDists[current_state_index].sample(rng=rng)
+
+        if self._ifStateDescriptionProvided:
+            # if the state description is provided, return the state description
+            return self._states[next_state_index]
+        else:
+            # return the index of the next state
+            return next_state_index
 
 
 class Gillespie:
