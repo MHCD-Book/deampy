@@ -5,9 +5,31 @@ import numpy as np
 from deampy.random_variates import Empirical, Exponential
 
 
-class MarkovJumpProcess:
+class _Markov:
 
-    def __init__(self, transition_prob_matrix, state_description=None):
+    def __init__(self, matrix, state_descriptions=None):
+        """
+        :param state_descriptions: (list) description of the states in the format of Enum
+        """
+
+        if state_descriptions is not None:
+            assert type(state_descriptions) is enum.EnumType, 'State description should be an enumeration.'
+            assert len(state_descriptions) == len(matrix), \
+                ('The number of states in the transition probability/rate matrix '
+                 'and the state description should be equal.')
+
+            for i, element in enumerate(state_descriptions):
+                assert i == element.value, \
+                    'The elements in the state description should be indexed 0, 1, 2, ...' \
+                    'The state {} is indexed {} but should be indexed {}.'.format(str(element), element.value, i)
+
+        self._ifStateDescriptionProvided = False if state_descriptions is None else True
+        if self._ifStateDescriptionProvided:
+            self._states = list(state_descriptions)
+
+class MarkovJumpProcess(_Markov):
+
+    def __init__(self, transition_prob_matrix, state_descriptions=None):
         """
         :param transition_prob_matrix: (list) transition probability matrix of a discrete-time Markov model
         :param state_description: (list) description of the states in the format of Enum
@@ -16,20 +38,9 @@ class MarkovJumpProcess:
         assert type(transition_prob_matrix) is list, \
             'Transition probability matrix should be a list'
 
-        if state_description is not None:
-            assert type(state_description) is enum.EnumType, 'State description should be an enumeration.'
-            assert len(state_description) == len(transition_prob_matrix), \
-                'The number of states in the transition probability matrix and the state description should be equal.'
-
-            for i, element in enumerate(state_description):
-                assert i == element.value, \
-                    'The elements in the state description should be indexed 0, 1, 2, ...' \
-                    'The state {} is indexed {} but should be indexed {}.'.format(str(element), element.value, i)
+        _Markov.__init__(self,matrix=transition_prob_matrix, state_descriptions=state_descriptions)
 
         self._empiricalDists = []
-        self._ifStateDescriptionProvided = False if state_description is None else True
-        if self._ifStateDescriptionProvided:
-            self._states = list(state_description)
 
         for i, probs in enumerate(transition_prob_matrix):
 
