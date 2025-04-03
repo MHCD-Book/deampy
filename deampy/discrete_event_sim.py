@@ -50,13 +50,13 @@ class SimulationCalendar:
         self.time, priority, next_event = heapq.heappop(self._q)
         return next_event
 
-    # def clear_calendar(self):
-    #     """ clear the simulation calendar (deletes all scheduled events) """
-    #
-    #     self._q.clear()
+    def clear_calendar(self):
+        """ deletes all scheduled events but keeps the current time """
+
+        self._q.clear()
 
     def reset(self):
-        """ clear the simulation calendar (deletes all scheduled events) """
+        """ deletes all scheduled events and resets the current time to zero """
 
         self.time = 0
         self._q.clear()
