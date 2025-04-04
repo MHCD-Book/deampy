@@ -1,8 +1,9 @@
 import enum
 
 import numpy as np
+from numpy.random import RandomState
 
-from deampy.random_variates import Empirical, Exponential
+from deampy.random_variates import Empirical, Exponential, Multinomial
 
 
 class _Markov:
@@ -193,9 +194,11 @@ class CohortMarkovProcess:
         self._transition_prob_matrix = transition_prob_matrix
         self._state_descriptions = state_descriptions
 
-        self._indicesNonZeroProb = [] # list of indices of non-zero probabilities
+        self._nonZeroProbs = [] # list of non-zero probabilities
+        self._indicesNonZeroProbs = [] # list of indices of non-zero probabilities
         self._numInStates = [] # list of state sizes
-        self._numToStates = [] # list of number of transitions to each state
+        self._numInStatesOverTime = [] # list of number of patients in each state over time
+        self._numToStatesOverTime = [] # list of number of transitions to each state over time
 
         for i, probs in enumerate(transition_prob_matrix):
 
@@ -213,9 +216,93 @@ class CohortMarkovProcess:
                     non_zero_probs.append(p)
                     non_zero_probs_indices.append(j)
 
-            self._indicesNonZeroProb.append(non_zero_probs)
+            self._nonZeroProbs.append(non_zero_probs)
+            self._indicesNonZeroProbs.append(non_zero_probs_indices)
 
         self._n_states = len(self._transition_prob_matrix)
+        self._n_time_steps = 0
+
+    def simulate(self, initial_condition, n_time_steps, rng=None):
+
+        if rng is None:
+            rng = RandomState(seed=0)
+
+        self._n_time_steps = n_time_steps
+        self._numInStates = initial_condition
+        self._numInStatesOverTime = [[] for i in range(self._n_states)]
+        self._numToStatesOverTime = [[] for i in range(self._n_states)]
+
+        for k in range(n_time_steps):
+
+            # store the size of each state
+            for i in range(self._n_states):
+                self._numInStatesOverTime[i].append(self._numInStates[i])
+
+            # initialize the number of transitions to each state
+            num_to_states = [0] * self._n_states
+
+            for s in range(self._n_states):
+                if self._numInStates[s] > 0:
+                    # find the number of transitions to each state
+                    binomial = Multinomial(N=self._numInStates[s],
+                                           pvals=self._nonZeroProbs[s])
+                    outs = binomial.sample(rng)
+                    # update the number of transitions to each state
+                    for i in range(len(outs)):
+                        if i != s:
+                            num_to_states[self._indicesNonZeroProbs[s][i]] += outs[i]
+                    # update the number of patients in this state
+                    self._numInStates[s] -= sum(outs)
+                    # update the number of patients in states
+                    for i in range(len(outs)):
+                        self._numInStates[self._indicesNonZeroProbs[s][i]] += outs[i]
+
+            # store the number of transitions to each state
+            for i in range(self._n_states):
+                self._numToStatesOverTime[i].append(num_to_states[i])
+
+        # store the size of each state
+        for i in range(self._n_states):
+            self._numInStatesOverTime[i].append(self._numInStates[i])
+
+
+    def get_state_sizes_over_time(self):
+        """
+        :return: list of state sizes
+        """
+
+        return self._numInStatesOverTime
+
+    def get_transition_to_states_over_time(self):
+        """
+        :return: list of number of transitions to each state
+        """
+
+        return self._numToStatesOverTime
+
+    def get_sum_size_multiple_states(self, state_indices):
+        """
+        :param state_indices: list of indices of states
+        :return: sum of the sizes of the states in the list
+        """
+
+        sum_size = 0
+        for i in state_indices:
+            sum_size += self._numInStates[i]
+
+        return sum_size
+
+    def get_sum_size_multiple_states_over_time(self, state_indices):
+        """
+        :param state_indices: list of indices of states
+        :return: sum of the sizes of the states in the list
+        """
+
+        sum_size = np.zeros(self._n_time_steps+1)
+        for i in state_indices:
+            sum_size += np.array(self._numInStatesOverTime[i])
+
+        return sum_size
 
 
 def continuous_to_discrete(trans_rate_matrix, delta_t):
