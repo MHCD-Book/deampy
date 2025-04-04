@@ -179,6 +179,45 @@ class Gillespie(_Markov):
         return dt, i
 
 
+class CohortMarkovProcess:
+
+    def __init__(self, transition_prob_matrix, state_descriptions=None):
+        """
+        :param transition_prob_matrix: (list of lists) transition probability matrix
+        :param state_descriptions: (Enum) description of the states in the format of Enum
+        """
+
+        assert type(transition_prob_matrix) is list, \
+            'Transition probability matrix should be a list'
+
+        self._transition_prob_matrix = transition_prob_matrix
+        self._state_descriptions = state_descriptions
+
+        self._indicesNonZeroProb = [] # list of indices of non-zero probabilities
+        self._numInStates = [] # list of state sizes
+        self._numToStates = [] # list of number of transitions to each state
+
+        for i, probs in enumerate(transition_prob_matrix):
+
+            # check if the sum of probabilities in this row is 1.
+            s = sum(probs)
+            if s < 0.99999 or s > 1.00001:
+                raise ValueError('Sum of each row in a probability matrix should be 1. '
+                                 'Sum of row {0} is {1}.'.format(i, s))
+
+            # find the indices of non-zero probabilities
+            non_zero_probs = []
+            non_zero_probs_indices = []
+            for j, p in enumerate(probs):
+                if p > 0:
+                    non_zero_probs.append(p)
+                    non_zero_probs_indices.append(j)
+
+            self._indicesNonZeroProb.append(non_zero_probs)
+
+        self._n_states = len(self._transition_prob_matrix)
+
+
 def continuous_to_discrete(trans_rate_matrix, delta_t):
     """
     :param trans_rate_matrix: (list of lists) transition rate matrix (assumes None or 0 for diagonal elements)
