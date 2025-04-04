@@ -93,6 +93,19 @@ class PrevalenceSamplePath(_SamplePath):
 
         self.record_increment(time=time, increment=value-self.currentSize)
 
+    def populate(self, times, values):
+        """
+        populates the sample path with the given times and values
+        :param times: (list) times at which the sample path are recorded
+        :param values: (list) values of the sample path at the given times
+        """
+
+        if len(times) != len(values):
+            raise ValueError(self.name + ' | The list of times should be the same size as the list of values.')
+
+        for i in range(len(times)):
+            self.record_value(time=times[i], value=values[i])
+
     def close(self, time):
         self.record_increment(time=time, increment=0)
 
@@ -155,6 +168,19 @@ class IncidenceSamplePath(_SamplePath):
         """
 
         self.record_increment(time=time, increment=value)
+
+    def populate(self, times, values):
+        """
+        populates the sample path with the given times and values
+        :param times: (list) times at which the sample path are recorded
+        :param values: (list) values of the sample path at the given times
+        """
+
+        if len(times) != len(values):
+            raise ValueError(self.name + ' | The list of times should be the same size as the list of values.')
+
+        for i in range(len(times)):
+            self.record_value(time=times[i], value=values[i])
 
     def close(self, time):
         self.__fill_unrecorded_periods(time=time)

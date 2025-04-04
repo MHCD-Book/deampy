@@ -266,12 +266,12 @@ class CohortMarkovProcess:
             self._numInStatesOverTime[i].append(self._numInStates[i])
 
 
-    def get_state_sizes_over_time(self):
+    def get_state_size_over_time(self, state_index):
         """
         :return: list of state sizes
         """
 
-        return self._numInStatesOverTime
+        return self._numInStatesOverTime[state_index]
 
     def get_transition_to_states_over_time(self):
         """
