@@ -350,19 +350,20 @@ class _CohortMarkov:
 
 class CohortMarkov(_CohortMarkov):
 
-    def __init__(self, transition_prob_matrix):
-        """
-        :param transition_prob_matrix: (list of lists) transition probability matrix
-        """
+    def __init__(self):
+
+        _CohortMarkov.__init__(self)
+
+        self._nonZeroProbs = [] # list of non-zero probabilities
+        self._indicesNonZeroProbs = [] # list of indices of non-zero probabilities
+
+
+    def _initialize(self, transition_prob_matrix):
 
         assert type(transition_prob_matrix) is list, \
             'Transition probability matrix should be a list'
 
-        _CohortMarkov.__init__(self)
-
         self._transition_prob_matrix = transition_prob_matrix
-        self._nonZeroProbs = [] # list of non-zero probabilities
-        self._indicesNonZeroProbs = [] # list of indices of non-zero probabilities
 
         for i, probs in enumerate(transition_prob_matrix):
 
@@ -385,8 +386,15 @@ class CohortMarkov(_CohortMarkov):
 
         self._n_states = len(self._transition_prob_matrix)
 
+    def simulate(self, transition_prob_matrix, initial_condition, n_time_steps, rng=None):
+        """
+        :param transition_prob_matrix: (list of lists) transition probability matrix
+        :param initial_condition: initial condition
+        :param n_time_steps: (int) number of time steps to simulate the cohort
+        :param rng: random number generator object
+        """
 
-    def simulate(self, initial_condition, n_time_steps, rng=None):
+        self._initialize(transition_prob_matrix=transition_prob_matrix)
 
         if rng is None:
             rng = RandomState(seed=0)
@@ -432,30 +440,27 @@ class CohortMarkov(_CohortMarkov):
 
 class ContinuousTimeCohortMarkov(_CohortMarkov):
 
-    def __init__(self, transition_rate_matrix, delta_t):
+    def __init__(self, ):
+        _CohortMarkov.__init__(self)
+
+    def simulate(self, transition_rate_matrix, initial_condition, delta_t, n_time_steps, rng=None):
         """
         :param transition_rate_matrix: (list of lists) transition rate matrix
+        :param initial_condition: (list) initial size of each state
         :param delta_t: (float) cycle length
+        :param n_time_steps: (int) number of time steps to simulate the cohort
+        :param rng: random number generator object
         """
 
         assert isinstance(transition_rate_matrix, list), \
             'transition_rate_matrix should be an array, {} was provided'.format(type(transition_rate_matrix))
 
-        _CohortMarkov.__init__(self)
+        markov = CohortMarkov()
 
-        self._markov = CohortMarkov(
-            transition_prob_matrix = continuous_to_discrete(
+        markov.simulate(
+            transition_prob_matrix=continuous_to_discrete(
                 trans_rate_matrix=transition_rate_matrix,
-                delta_t= delta_t))
-
-    def simulate(self, initial_condition, n_time_steps, rng=None):
-        """
-        :param initial_condition: (list) initial size of each state
-        :param n_time_steps: (int) number of time steps to simulate the cohort
-        :param rng: random number generator object
-        """
-
-        self._markov.simulate(
+                delta_t=delta_t),
             initial_condition=initial_condition,
             n_time_steps=n_time_steps,
             rng=rng)
