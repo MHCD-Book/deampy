@@ -99,7 +99,7 @@ def discrete_to_continuous(trans_prob_matrix, delta_t):
             lambda_ij = -ln(p_ii) * p_ij / ((1-p_ii)*Delta_t)
     """
 
-    assert type(trans_prob_matrix) == list, \
+    assert isinstance(trans_prob_matrix, (list, np.ndarray)), \
         "prob_matrix is a matrix that should be represented as a list of lists: " \
         "For example: [ [0.1, 0.9], [0.8, 0.2] ]."
 
@@ -300,67 +300,23 @@ class Gillespie(_Markov):
         return dt, i
 
 
-class _CohortMarkov:
+class CohortMarkov:
 
     def __init__(self):
 
-        self._numInStates = [] # list of state sizes
-        self._numInStatesOverTime = [] # list of number of patients in each state over time
-        self._numToStatesOverTime = [] # list of number of transitions to each state over time
-        self._n_time_steps = 0
-
-    def get_state_size_over_time(self, state_index):
-        """
-        :return: list of state sizes
-        """
-
-        return self._numInStatesOverTime[state_index]
-
-    def get_transition_to_states_over_time(self):
-        """
-        :return: list of number of transitions to each state
-        """
-
-        return self._numToStatesOverTime
-
-    def get_sum_size_multiple_states(self, state_indices):
-        """
-        :param state_indices: list of indices of states
-        :return: sum of the sizes of the states in the list
-        """
-
-        sum_size = 0
-        for i in state_indices:
-            sum_size += self._numInStates[i]
-
-        return sum_size
-
-    def get_sum_size_multiple_states_over_time(self, state_indices):
-        """
-        :param state_indices: list of indices of states
-        :return: sum of the sizes of the states in the list
-        """
-
-        sum_size = np.zeros(self._n_time_steps+1)
-        for i in state_indices:
-            sum_size += np.array(self._numInStatesOverTime[i])
-
-        return sum_size
-
-
-class CohortMarkov(_CohortMarkov):
-
-    def __init__(self):
-
-        _CohortMarkov.__init__(self)
+        self._numInStates = []  # list of state sizes
+        self._numInStatesOverTime = []  # list of number of patients in each state over time
+        self._numToStatesOverTime = []  # list of number of transitions to each state over time
+        self._nTimeSteps = 0
 
         self._nonZeroProbs = [] # list of non-zero probabilities
         self._indicesNonZeroProbs = [] # list of indices of non-zero probabilities
 
     def _initialize(self, transition_prob_matrix):
 
-        assert type(transition_prob_matrix) is list, \
-            'Transition probability matrix should be a list'
+        assert isinstance(transition_prob_matrix, (list, np.ndarray)), \
+            ('Transition probability matrix should be a list or numpy array, '
+             '{} was provided').format(type(transition_prob_matrix))
 
         self._transition_prob_matrix = transition_prob_matrix
 
@@ -393,12 +349,15 @@ class CohortMarkov(_CohortMarkov):
         :param rng: random number generator object
         """
 
+        assert len(initial_condition) == len(transition_prob_matrix), \
+            'The length of the initial condition should be equal to the number of states in the transition matrix.'
+
         self._initialize(transition_prob_matrix=transition_prob_matrix)
 
         if rng is None:
             rng = RandomState(seed=0)
 
-        self._n_time_steps = n_time_steps
+        self._nTimeSteps = n_time_steps
         self._numInStates = initial_condition
         self._numInStatesOverTime = [[] for i in range(self._n_states)]
         self._numToStatesOverTime = [[] for i in range(self._n_states)]
@@ -436,13 +395,56 @@ class CohortMarkov(_CohortMarkov):
         for i in range(self._n_states):
             self._numInStatesOverTime[i].append(self._numInStates[i])
 
+    def get_times(self):
+        """
+        :return: list of time steps where the size of each state is stored
+        """
+        return range(self._nTimeSteps + 1)
 
-class ContinuousTimeCohortMarkov(_CohortMarkov):
+    def get_state_size_over_time(self, state_index):
+        """
+        :return: list of state sizes
+        """
+
+        return self._numInStatesOverTime[state_index]
+
+    def get_transition_to_states_over_time(self):
+        """
+        :return: list of number of transitions to each state
+        """
+
+        return self._numToStatesOverTime
+
+    def get_sum_size_multiple_states(self, state_indices):
+        """
+        :param state_indices: list of indices of states
+        :return: sum of the sizes of the states in the list
+        """
+
+        sum_size = 0
+        for i in state_indices:
+            sum_size += self._numInStates[i]
+
+        return sum_size
+
+    def get_sum_size_multiple_states_over_time(self, state_indices):
+        """
+        :param state_indices: list of indices of states
+        :return: sum of the sizes of the states in the list
+        """
+
+        sum_size = np.zeros(self._nTimeSteps + 1)
+        for i in state_indices:
+            sum_size += np.array(self._numInStatesOverTime[i])
+
+        return sum_size
+
+class ContinuousTimeCohortMarkov():
 
     def __init__(self, ):
-        _CohortMarkov.__init__(self)
 
         self.dtMarkov = CohortMarkov()
+        self.deltaT = None
 
     def simulate(self, transition_rate_matrix, initial_condition, delta_t, n_time_steps, rng=None):
         """
@@ -456,10 +458,46 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
         assert isinstance(transition_rate_matrix, list), \
             'transition_rate_matrix should be an array, {} was provided'.format(type(transition_rate_matrix))
 
+        self.deltaT = delta_t
+
+        transition_prob_matrix, max_p = continuous_to_discrete(
+            trans_rate_matrix=transition_rate_matrix,
+            delta_t=delta_t)
+
         self.dtMarkov.simulate(
-            transition_prob_matrix=continuous_to_discrete(
-                trans_rate_matrix=transition_rate_matrix,
-                delta_t=delta_t),
+            transition_prob_matrix=transition_prob_matrix,
             initial_condition=initial_condition,
             n_time_steps=n_time_steps,
             rng=rng)
+
+    def get_times(self):
+        """
+        :return: list of time points where the size of each state is stored
+        """
+        return [i*self.deltaT for i in self.dtMarkov.get_times()]
+
+    def get_state_size_over_time(self, state_index):
+        """
+        :return: list of state sizes
+        """
+        return self.dtMarkov.get_state_size_over_time(state_index)
+
+    def get_transition_to_states_over_time(self):
+        """
+        :return: list of number of transitions to each state
+        """
+        return self.dtMarkov.get_transition_to_states_over_time()
+
+    def get_sum_size_multiple_states(self, state_indices):
+        """
+        :param state_indices: list of indices of states
+        :return: sum of the sizes of the states in the list
+        """
+        return self.dtMarkov.get_sum_size_multiple_states(state_indices)
+
+    def get_sum_size_multiple_states_over_time(self, state_indices):
+        """
+        :param state_indices: list of indices of states
+        :return: sum of the sizes of the states in the list
+        """
+        return self.dtMarkov.get_sum_size_multiple_states_over_time(state_indices)
