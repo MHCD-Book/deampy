@@ -357,7 +357,6 @@ class CohortMarkov(_CohortMarkov):
         self._nonZeroProbs = [] # list of non-zero probabilities
         self._indicesNonZeroProbs = [] # list of indices of non-zero probabilities
 
-
     def _initialize(self, transition_prob_matrix):
 
         assert type(transition_prob_matrix) is list, \
@@ -443,6 +442,8 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
     def __init__(self, ):
         _CohortMarkov.__init__(self)
 
+        self.dtMarkov = CohortMarkov()
+
     def simulate(self, transition_rate_matrix, initial_condition, delta_t, n_time_steps, rng=None):
         """
         :param transition_rate_matrix: (list of lists) transition rate matrix
@@ -455,9 +456,7 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
         assert isinstance(transition_rate_matrix, list), \
             'transition_rate_matrix should be an array, {} was provided'.format(type(transition_rate_matrix))
 
-        markov = CohortMarkov()
-
-        markov.simulate(
+        self.dtMarkov.simulate(
             transition_prob_matrix=continuous_to_discrete(
                 trans_rate_matrix=transition_rate_matrix,
                 delta_t=delta_t),
