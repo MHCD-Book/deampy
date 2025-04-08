@@ -183,9 +183,12 @@ def add_sample_path_to_ax(sample_path, ax, legend=None, color=None, transparency
         ax.plot(x_values, y_values, color=color,
                 linewidth=0.75, label=legend, alpha=transparency)
 
-    ax.set_title(title)
-    ax.set_xlabel(x_label)
-    ax.set_ylabel(y_label)
+    if title is not None:
+        ax.set_title(title)
+    if x_label is not None:
+        ax.set_xlabel(x_label)
+    if y_label is not None:
+        ax.set_ylabel(y_label)
     ax.set_xlim(x_range)
     ax.set_ylim(y_range)
 
@@ -218,9 +221,12 @@ def add_sample_paths_to_ax(sample_paths, ax, color_codes=None, common_color_code
                               transparency=transparency,
                               connect=connect)
 
-    ax.set_title(title)
-    ax.set_xlabel(x_label)
-    ax.set_ylabel(y_label)
+    if title is not None:
+        ax.set_title(title)
+    if x_label is not None:
+        ax.set_xlabel(x_label)
+    if y_label is not None:
+        ax.set_ylabel(y_label)
     ax.set_xlim(x_range)
     ax.set_ylim(y_range)
 
@@ -248,8 +254,11 @@ def add_sets_of_sample_paths_to_ax(
                                   transparency=transparency,
                                   connect=connect)
 
-    ax.set_title(title)
-    ax.set_xlabel(x_label)
-    ax.set_ylabel(y_label)
+    if title is not None:
+        ax.set_title(title)
+    if x_label is not None:
+        ax.set_xlabel(x_label)
+    if y_label is not None:
+        ax.set_ylabel(y_label)
     ax.set_xlim(x_range)
     ax.set_ylim(y_range)
