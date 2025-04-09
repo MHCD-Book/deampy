@@ -6,6 +6,70 @@ from numpy.random import RandomState
 from deampy.random_variates import Empirical, Exponential, Multinomial
 
 
+def _out_rate(rates, idx):
+    """
+    :param rates: list of rates leaving this state
+    :param inx: index of this state
+    :returns the rate of leaving this state (the sum of rates)
+    """
+
+    sum_rates = 0
+    for i, v in enumerate(rates):
+        if i != idx and v is not None:
+            sum_rates += v
+    return sum_rates
+
+
+def _assert_prob_matrix(prob_matrix):
+    """
+    :param prob_matrix: (list of lists or np.ndarray) transition probability matrix
+    :return: None if the matrix is valid, otherwise raise an error
+    """
+
+    if len(prob_matrix) == 0:
+        raise ValueError('An empty probability matrix is provided.')
+
+    assert isinstance(prob_matrix, (list, np.ndarray)), \
+        "prob_matrix is a matrix that should be represented as a list of lists or numpy array."
+
+    for i, row in enumerate(prob_matrix):
+        assert isinstance(row, (list, np.ndarray)), \
+            'prob_matrix should be a list of lists or numpy array. ' \
+            'Row {} is not a list or numpy array.'.format(i)
+
+    for i, probs in enumerate(prob_matrix):
+
+        # check if the sum of probabilities in this row is 1.
+        s = sum(probs)
+        if s < 0.99999 or s > 1.00001:
+            raise ValueError('Sum of each row in a probability matrix should be 1. '
+                             'Sum of row {} is {}.'.format(i, s))
+
+def _assert_rate_matrix(rate_matrix):
+    """
+    :param rate_matrix: (list of lists or np.ndarray) transition rate matrix
+    :return: None if the matrix is valid, otherwise raise an error
+    """
+
+    if len(rate_matrix) == 0:
+        raise ValueError('An empty rate matrix is provided.')
+
+    assert isinstance(rate_matrix, (list, np.ndarray)), \
+        "rate_matrix is a matrix that should be represented as a list of lists or numpy array."
+
+    for i, row in enumerate(rate_matrix):
+        assert isinstance(row, (list, np.ndarray)), \
+            'rate_matrix should be a list of lists or numpy array. ' \
+            'Row {} is not a list or numpy array.'.format(i)
+
+    for i, row in enumerate(rate_matrix):
+        # make sure all rates are non-negative
+        for r in row:
+            if r is not None and r < 0:
+                raise ValueError('All rates in a transition rate matrix should be non-negative. '
+                                 'Negative rate ({}) found in row index {}.'.format(r, i))
+
+
 def continuous_to_discrete(trans_rate_matrix, delta_t):
     """
     :param trans_rate_matrix: (list of lists) transition rate matrix (assumes None or 0 for diagonal elements)
@@ -19,10 +83,13 @@ def continuous_to_discrete(trans_rate_matrix, delta_t):
 
     """
 
+    # error checking
+    _assert_rate_matrix(trans_rate_matrix)
+
     # list of rates out of each row
     rates_out = []
     for i, row in enumerate(trans_rate_matrix):
-        rates_out.append(out_rate(row, i))
+        rates_out.append(_out_rate(row, i))
 
     prob_matrix = []
     for i in range(len(trans_rate_matrix)):
@@ -75,20 +142,6 @@ def continuous_to_discrete(trans_rate_matrix, delta_t):
     return prob_matrix, max(prob_out_out)
 
 
-def out_rate(rates, idx):
-    """
-    :param rates: list of rates leaving this state
-    :param inx: index of this state
-    :returns the rate of leaving this state (the sum of rates)
-    """
-
-    sum_rates = 0
-    for i, v in enumerate(rates):
-        if i != idx and v is not None:
-            sum_rates += v
-    return sum_rates
-
-
 def discrete_to_continuous(trans_prob_matrix, delta_t):
     """
     :param trans_prob_matrix: (list of lists) transition probability matrix
@@ -99,9 +152,8 @@ def discrete_to_continuous(trans_prob_matrix, delta_t):
             lambda_ij = -ln(p_ii) * p_ij / ((1-p_ii)*Delta_t)
     """
 
-    assert isinstance(trans_prob_matrix, (list, np.ndarray)), \
-        "prob_matrix is a matrix that should be represented as a list of lists: " \
-        "For example: [ [0.1, 0.9], [0.8, 0.2] ]."
+    # error checking
+    _assert_prob_matrix(trans_prob_matrix)
 
     rate_matrix = []
     for i, row in enumerate(trans_prob_matrix):
@@ -132,10 +184,7 @@ class _Markov:
         :param state_descriptions: (Enum) description of the states in the format of Enum
         """
 
-        if len(matrix) == 0:
-            raise ValueError('An empty probability or rate matrix is provided.')
-        else:
-            self._n_states = len(matrix)
+        self._n_states = len(matrix)
 
         if state_descriptions is not None:
             assert type(state_descriptions) is enum.EnumType, 'State description should be an enumeration.'
@@ -178,21 +227,14 @@ class MarkovJumpProcess(_Markov):
         :param state_descriptions: (Enum) description of the states in the format of Enum
         """
 
-        assert type(transition_prob_matrix) is list, \
-            'Transition probability matrix should be a list'
+        # error checking
+        _assert_prob_matrix(transition_prob_matrix)
 
         _Markov.__init__(self,matrix=transition_prob_matrix, state_descriptions=state_descriptions)
 
+        # make empirical distributions for each state
         self._empiricalDists = []
-
         for i, probs in enumerate(transition_prob_matrix):
-
-            # check if the sum of probabilities in this row is 1.
-            s = sum(probs)
-            if s < 0.99999 or s > 1.00001:
-                raise ValueError('Sum of each row in a probability matrix should be 1. '
-                                 'Sum of row {0} is {1}.'.format(i, s))
-
             # create an empirical distribution over the future states from this state
             self._empiricalDists.append(Empirical(probabilities=probs))
 
@@ -229,11 +271,10 @@ class Gillespie(_Markov):
         :param state_descriptions: (Enum) description of the states in the format of Enum
         """
 
-        assert isinstance(transition_rate_matrix, list), \
-            'transition_rate_matrix should be an array, {} was provided'.format(type(transition_rate_matrix))
+        # error checking
+        _assert_rate_matrix(transition_rate_matrix)
 
         _Markov.__init__(self, matrix=transition_rate_matrix, state_descriptions=state_descriptions)
-
 
         self._rateMatrix = transition_rate_matrix
         self._expDists = []
@@ -241,14 +282,8 @@ class Gillespie(_Markov):
 
         for i, row in enumerate(transition_rate_matrix):
 
-            # make sure all rates are non-negative
-            for r in row:
-                if r is not None and r < 0:
-                    raise ValueError('All rates in a transition rate matrix should be non-negative. '
-                                     'Negative rate ({}) found in row index {}.'.format(r, i))
-
             # find sum of rates out of this state
-            rate_out = out_rate(row, i)
+            rate_out = _out_rate(row, i)
             # if the rate is 0, put None as the exponential and empirical distributions
             if rate_out > 0:
                 # create an exponential distribution with rate equal to sum of rates out of this state
@@ -314,20 +349,9 @@ class CohortMarkov:
 
     def _initialize(self, transition_prob_matrix):
 
-        assert isinstance(transition_prob_matrix, (list, np.ndarray)), \
-            ('Transition probability matrix should be a list or numpy array, '
-             '{} was provided').format(type(transition_prob_matrix))
-
         self._transition_prob_matrix = transition_prob_matrix
 
         for i, probs in enumerate(transition_prob_matrix):
-
-            # check if the sum of probabilities in this row is 1.
-            s = sum(probs)
-            if s < 0.99999 or s > 1.00001:
-                raise ValueError('Sum of each row in a probability matrix should be 1. '
-                                 'Sum of row {0} is {1}.'.format(i, s))
-
             # find the indices of non-zero probabilities
             non_zero_probs = []
             non_zero_probs_indices = []
@@ -348,6 +372,9 @@ class CohortMarkov:
         :param n_time_steps: (int) number of time steps to simulate the cohort
         :param rng: random number generator object
         """
+
+        # error checking
+        _assert_prob_matrix(transition_prob_matrix)
 
         assert len(initial_condition) == len(transition_prob_matrix), \
             'The length of the initial condition should be equal to the number of states in the transition matrix.'
@@ -439,7 +466,8 @@ class CohortMarkov:
 
         return sum_size
 
-class ContinuousTimeCohortMarkov():
+
+class ContinuousTimeCohortMarkov:
 
     def __init__(self, ):
 
@@ -455,8 +483,8 @@ class ContinuousTimeCohortMarkov():
         :param rng: random number generator object
         """
 
-        assert isinstance(transition_rate_matrix, list), \
-            'transition_rate_matrix should be an array, {} was provided'.format(type(transition_rate_matrix))
+        # error checking
+        _assert_rate_matrix(transition_rate_matrix)
 
         self.deltaT = delta_t
 
