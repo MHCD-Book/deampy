@@ -518,14 +518,14 @@ class ContinuousTimeCohortMarkov:
 
     def get_sum_size_multiple_states(self, state_indices):
         """
-        :param state_indices: list of indices of states
-        :return: sum of the sizes of the states in the list
+        :param state_indices: list of state indices
+        :return: sum of people in the specified states
         """
         return self.dtMarkov.get_sum_size_multiple_states(state_indices)
 
     def get_sum_size_multiple_states_over_time(self, state_indices):
         """
-        :param state_indices: list of indices of states
-        :return: sum of the sizes of the states in the list
+        :param state_indices: list of state indices
+        :return: sum of people in the specified states
         """
         return self.dtMarkov.get_sum_size_multiple_states_over_time(state_indices)
