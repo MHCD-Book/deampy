@@ -230,7 +230,7 @@ class MarkovJumpProcess(_Markov):
         # error checking
         _assert_prob_matrix(transition_prob_matrix)
 
-        _Markov.__init__(self,matrix=transition_prob_matrix, state_descriptions=state_descriptions)
+        _Markov.__init__(self, matrix=transition_prob_matrix, state_descriptions=state_descriptions)
 
         # make empirical distributions for each state
         self._empiricalDists = []
