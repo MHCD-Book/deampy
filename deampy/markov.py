@@ -20,6 +20,32 @@ def _out_rate(rates, idx):
             sum_rates += v
     return sum_rates
 
+
+# @jit(nopython=True)
+def condense_prob_matrix(transition_prob_matrix):
+    """
+    Creates a condensed transition probability matrix where transitions with zero probabilities are removed.
+    :param transition_prob_matrix: (list of lists) transition probability matrix
+    :return: (tuple) (matrix of nonzero transition probability, matrix of indices with nonzero transition probabilities)
+    """
+
+    non_zero_probs = []
+    indices_non_zero_probs = []
+    for i, probs in enumerate(transition_prob_matrix):
+        # find the indices of non-zero probabilities
+        row_non_zero_probs = []
+        row_non_zero_probs_indices = []
+        for j, p in enumerate(probs):
+            if p > 0:
+                row_non_zero_probs.append(p)
+                row_non_zero_probs_indices.append(j)
+
+        non_zero_probs.append(row_non_zero_probs)
+        indices_non_zero_probs.append(row_non_zero_probs_indices)
+
+    return non_zero_probs, indices_non_zero_probs
+
+
 def _assert_prob_matrix(prob_matrix):
     """
     :param prob_matrix: (list of lists or np.ndarray) transition probability matrix
@@ -44,6 +70,7 @@ def _assert_prob_matrix(prob_matrix):
         if s < 0.99999 or s > 1.00001:
             raise ValueError('Sum of each row in a probability matrix should be 1. '
                              'Sum of row {} is {}.'.format(i, s))
+
 
 def _assert_rate_matrix(rate_matrix):
     """
@@ -71,6 +98,7 @@ def _assert_rate_matrix(rate_matrix):
                 raise ValueError('All rates in a transition rate matrix should be non-negative. '
                                  'Negative rate ({}) found in row index {}.'.format(r, i))
 
+
 def _assert_dynamic_matrix(rate_matrix):
 
     # check if rate_matrix has function get_matrix()
@@ -78,30 +106,7 @@ def _assert_dynamic_matrix(rate_matrix):
         raise ValueError("The rate_matrix should have a function 'get_matrix' to get the matrix values.")
 
 
-# @jit(nopython=True)
-def _continuous_to_discrete_main(trans_rate_matrix, delta_t):
-
-    # list of rates out of each row
-    rates_out = []
-    for i, row in enumerate(trans_rate_matrix):
-        rates_out.append(_out_rate(row, i))
-
-    prob_matrix = []
-    for i in range(len(trans_rate_matrix)):
-        prob_row = []  # list of probabilities
-        # calculate probabilities
-        for j in range(len(trans_rate_matrix[i])):
-            prob = 0
-            if i == j:
-                prob = np.exp(-rates_out[i] * delta_t)
-            else:
-                if rates_out[i] > 0:
-                    prob = (1 - np.exp(-rates_out[i] * delta_t)) * trans_rate_matrix[i][j] / rates_out[i]
-            # append this probability
-            prob_row.append(prob)
-
-        # append this row of probabilities
-        prob_matrix.append(prob_row)
+def get_prob_2_transitions(rates_out, trans_rate_matrix, delta_t):
 
     # probability that transition occurs within delta_t for each state
     probs_out = []
@@ -133,8 +138,41 @@ def _continuous_to_discrete_main(trans_rate_matrix, delta_t):
         # store the probability of leaving state i to a new state and leaving the new state withing delta_t
         prob_out_out.append(prob_out_i * prob_out_again)
 
+    # return the maximum probability of two transitions within delta_t
+    return max(prob_out_out)
+
+
+@jit(nopython=True)
+def _continuous_to_discrete_main(trans_rate_matrix, delta_t):
+
+    # list of rates out of each row
+    rates_out = []
+    for i, row in enumerate(trans_rate_matrix):
+        rates_out.append(_out_rate(row, i))
+
+    prob_matrix = []
+    for i in range(len(trans_rate_matrix)):
+        prob_row = []  # list of probabilities
+        # calculate probabilities
+        for j in range(len(trans_rate_matrix[i])):
+            prob = 0
+            if i == j:
+                prob = np.exp(-rates_out[i] * delta_t)
+            else:
+                if rates_out[i] > 0:
+                    prob = (1 - np.exp(-rates_out[i] * delta_t)) * trans_rate_matrix[i][j] / rates_out[i]
+            # append this probability
+            prob_row.append(prob)
+
+        # append this row of probabilities
+        prob_matrix.append(prob_row)
+
+    # # calculate the maximum probability of two transitions within delta_t
+    # max_prob_2_transitions = get_prob_2_transitions(
+    #     rates_out=rates_out, trans_rate_matrix=trans_rate_matrix, delta_t=delta_t)
+
     # return the probability matrix and the upper bound for the probability of two transitions with delta_t
-    return prob_matrix, max(prob_out_out)
+    return prob_matrix
 
 
 def continuous_to_discrete(trans_rate_matrix, delta_t):
@@ -327,7 +365,7 @@ class Gillespie(_Markov):
 
     def get_next_state(self, current_state_index=None, current_state=None, rng=None):
         """
-        :param current_state_index: index of the current state
+        :param current_state_index: index of the current state.
         :param current_state: (an element of an enumeration) current state
         :param rng: random number generator object
         :return: (dt, i) where dt is the time until next event, and i is the index of the next state
@@ -335,7 +373,7 @@ class Gillespie(_Markov):
                It returns None for dt if the process is in an absorbing state
         """
 
-        # get current state index
+        # get the current state index
         current_state_index = self._error_check(current_state_index=current_state_index, current_state=current_state)
 
         # if this is an absorbing state (i.e. sum of rates out of this state is 0)
@@ -378,29 +416,22 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
         self._nonZeroProbs = [] # list of non-zero probabilities
         self._indicesNonZeroProbs = [] # list of state indices with non-zero probabilities
 
-    def condense_prob_matrix(self, transition_prob_matrix):
-        """
-        Creates a condensed transition probability matrix where transitions with zero probabilities are removed.
-        :param transition_prob_matrix: (list of lists) transition probability matrix
-        """
-
-        for i, probs in enumerate(transition_prob_matrix):
-            # find the indices of non-zero probabilities
-            non_zero_probs = []
-            non_zero_probs_indices = []
-            for j, p in enumerate(probs):
-                if p > 0:
-                    non_zero_probs.append(p)
-                    non_zero_probs_indices.append(j)
-
-            self._nonZeroProbs.append(non_zero_probs)
-            self._indicesNonZeroProbs.append(non_zero_probs_indices)
-
     def initialize(self, initial_condition):
 
         self._numInStates = initial_condition
         self._numInStatesOverTime = [[] for i in range(len(self._numInStates))]
         self._numToStatesOverTime = [[] for i in range(len(self._numInStates))]
+
+
+    def condense_prob_matrix(self, transition_prob_matrix):
+        """
+        Condense the transition probability matrix to include only non-zero probabilities.
+        """
+
+        # condense the transition probability matrix to include only non-zero probabilities
+        self._nonZeroProbs, self._indicesNonZeroProbs = condense_prob_matrix(
+            transition_prob_matrix=transition_prob_matrix)
+
 
     def simulate_one_time_step(self, rng=None):
 
@@ -409,6 +440,7 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
 
         # initialize the number of transitions to each state
         num_to_states = [0] * len(self._numInStates)
+        temp_num_in_states = self._numInStates.copy()
 
         for s in range(len(self._numInStates)):
             if self._numInStates[s] > 0:
@@ -421,10 +453,13 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
                     if i != s:
                         num_to_states[self._indicesNonZeroProbs[s][i]] += outs[i]
                 # update the number of patients in this state
-                self._numInStates[s] -= sum(outs)
+                temp_num_in_states[s] -= sum(outs)
                 # update the number of patients in states
                 for i in range(len(outs)):
-                    self._numInStates[self._indicesNonZeroProbs[s][i]] += outs[i]
+                    temp_num_in_states[self._indicesNonZeroProbs[s][i]] += outs[i]
+
+        # update the number of patients in each state
+        self._numInStates = temp_num_in_states.copy()
 
         # store the number of transitions to each state
         for i in range(len(self._numInStates)):
@@ -455,7 +490,8 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
             'The length of the initial condition should be equal to the number of states in the transition matrix.'
 
         # condense the transition probability matrix to include only non-zero probabilities
-        self.condense_prob_matrix(transition_prob_matrix=transition_prob_matrix)
+        self._nonZeroProbs, self._indicesNonZeroProbs = condense_prob_matrix(
+            transition_prob_matrix=transition_prob_matrix)
 
         # initialize the number of patients in each state
         self.initialize(initial_condition=initial_condition)
@@ -568,7 +604,7 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
                 rate_matrix = self.dynamicTransRateMatrix.get_matrix(
                     num_in_states=self.dtMarkov.get_num_in_states(), time=k*delta_t)
 
-                transition_prob_matrix, max_p = continuous_to_discrete(
+                transition_prob_matrix = continuous_to_discrete(
                     trans_rate_matrix=rate_matrix,
                     delta_t=delta_t)
 
