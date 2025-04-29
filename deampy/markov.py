@@ -534,7 +534,6 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
         self.transRateMatrix = transition_rate_matrix
         self.dynamicTransRateMatrix = dynamic_transition_rate_matrix
 
-        self.dynamicTransRateMatrix = dynamic_transition_rate_matrix
         self.dtMarkov = DiscreteTimeCohortMarkov()  # discrete-time Markov to evaluate the continuous-time Markov process
         self.deltaT = None
 
