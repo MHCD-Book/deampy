@@ -1,12 +1,11 @@
 import enum
 
 import numpy as np
-from numba import jit
 
 from deampy.random_variates import Empirical, Exponential, Multinomial
 
 
-@jit(nopython=True)  # nopython=True makes it faster (forces full compilation)
+# @jit(nopython=True)  # nopython=True makes it faster (forces full compilation)
 def _out_rate(rates, idx):
     """
     :param rates: list of rates leaving this state
@@ -71,6 +70,11 @@ def _assert_prob_matrix(prob_matrix):
             raise ValueError('Sum of each row in a probability matrix should be 1. '
                              'Sum of row {} is {}.'.format(i, s))
 
+    if isinstance(prob_matrix, list):
+        prob_matrix = np.array(prob_matrix)
+
+    return prob_matrix
+
 
 def _assert_rate_matrix(rate_matrix):
     """
@@ -93,10 +97,15 @@ def _assert_rate_matrix(rate_matrix):
         # make sure all rates are non-negative
         for r in row:
             if r is None:
-                row[i] = np.nan
+                row[i] = 0
             if r is not None and r < 0:
                 raise ValueError('All rates in a transition rate matrix should be non-negative. '
                                  'Negative rate ({}) found in row index {}.'.format(r, i))
+
+    if isinstance(rate_matrix, list):
+        rate_matrix = np.array(rate_matrix)
+
+    return rate_matrix
 
 
 def _assert_dynamic_matrix(rate_matrix):
@@ -142,7 +151,7 @@ def get_prob_2_transitions(rates_out, trans_rate_matrix, delta_t):
     return max(prob_out_out)
 
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def _continuous_to_discrete_main(trans_rate_matrix, delta_t):
 
     # list of rates out of each row
@@ -188,7 +197,7 @@ def continuous_to_discrete(trans_rate_matrix, delta_t):
     """
 
     # error checking
-    _assert_rate_matrix(trans_rate_matrix)
+    trans_rate_matrix = _assert_rate_matrix(trans_rate_matrix)
 
     return _continuous_to_discrete_main(trans_rate_matrix=trans_rate_matrix, delta_t=delta_t)
 
@@ -230,7 +239,7 @@ def discrete_to_continuous(trans_prob_matrix, delta_t):
     """
 
     # error checking
-    _assert_prob_matrix(trans_prob_matrix)
+    trans_prob_matrix = _assert_prob_matrix(trans_prob_matrix)
     return _discrete_to_continuous_main(trans_prob_matrix, delta_t)
 
 
@@ -285,7 +294,7 @@ class MarkovJumpProcess(_Markov):
         """
 
         # error checking
-        _assert_prob_matrix(transition_prob_matrix)
+        transition_prob_matrix = _assert_prob_matrix(transition_prob_matrix)
 
         _Markov.__init__(self, matrix=transition_prob_matrix, state_descriptions=state_descriptions)
 
@@ -329,7 +338,7 @@ class Gillespie(_Markov):
         """
 
         # error checking
-        _assert_rate_matrix(transition_rate_matrix)
+        transition_rate_matrix = _assert_rate_matrix(transition_rate_matrix)
 
         _Markov.__init__(self, matrix=transition_rate_matrix, state_descriptions=state_descriptions)
 
@@ -480,7 +489,7 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
         """
 
         # error checking
-        _assert_prob_matrix(transition_prob_matrix)
+        transition_prob_matrix = _assert_prob_matrix(transition_prob_matrix)
 
         assert len(initial_condition) == len(transition_prob_matrix), \
             'The length of the initial condition should be equal to the number of states in the transition matrix.'
@@ -565,7 +574,7 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
 
         # error checking
         if transition_rate_matrix is not None:
-            _assert_rate_matrix(transition_rate_matrix)
+            transition_rate_matrix = _assert_rate_matrix(transition_rate_matrix)
         if dynamic_transition_rate_matrix is not None:
             _assert_dynamic_matrix(dynamic_transition_rate_matrix)
 
