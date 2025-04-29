@@ -422,7 +422,6 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
         self._numInStatesOverTime = [[] for i in range(len(self._numInStates))]
         self._numToStatesOverTime = [[] for i in range(len(self._numInStates))]
 
-
     def condense_prob_matrix(self, transition_prob_matrix):
         """
         Condense the transition probability matrix to include only non-zero probabilities.
@@ -431,7 +430,6 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
         # condense the transition probability matrix to include only non-zero probabilities
         self._nonZeroProbs, self._indicesNonZeroProbs = condense_prob_matrix(
             transition_prob_matrix=transition_prob_matrix)
-
 
     def simulate_one_time_step(self, rng=None):
 
@@ -450,7 +448,7 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
                 outs = binomial.sample(rng)
                 # update the number of transitions to each state
                 for i in range(len(outs)):
-                    if i != s:
+                    if self._indicesNonZeroProbs[s][i] != s:
                         num_to_states[self._indicesNonZeroProbs[s][i]] += outs[i]
                 # update the number of patients in this state
                 temp_num_in_states[s] -= sum(outs)
@@ -467,13 +465,11 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
 
         self._currentTimeStep += 1
 
-
     def record_number_in_states(self):
 
         # store the size of each state at the end of simulation
         for i in range(len(self._numInStates)):
             self._numInStatesOverTime[i].append(self._numInStates[i])
-
 
     def simulate(self, transition_prob_matrix, initial_condition, n_time_steps, rng=None):
         """
@@ -508,18 +504,24 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
         """
         return range(self._currentTimeStep + 1)
 
+    def get_periods(self):
+        """
+        :return: list of time periods where the numbers entering each state is stored
+        """
+        return range(1, self._currentTimeStep+1)
+
     def get_state_size_over_time(self, state_index):
         """
         :return: list of state sizes
         """
         return self._numInStatesOverTime[state_index]
 
-    def get_transition_to_states_over_time(self):
+    def get_transition_to_states_over_time(self, state_index):
         """
         :return: list of number of transitions to each state
         """
 
-        return self._numToStatesOverTime
+        return self._numToStatesOverTime[state_index]
 
     def get_sum_size_multiple_states(self, state_indices):
         """
@@ -624,17 +626,23 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
         """
         return [i*self.deltaT for i in self.dtMarkov.get_times()]
 
+    def get_periods(self):
+        """
+        :return: list of time periods where the numbers entering each state is stored
+        """
+        return self.dtMarkov.get_periods()
+
     def get_state_size_over_time(self, state_index):
         """
         :return: list of state sizes
         """
         return self.dtMarkov.get_state_size_over_time(state_index)
 
-    def get_transition_to_states_over_time(self):
+    def get_transition_to_states_over_time(self, state_index):
         """
         :return: list of number of transitions to each state
         """
-        return self.dtMarkov.get_transition_to_states_over_time()
+        return self.dtMarkov.get_transition_to_states_over_time(state_index)
 
     def get_sum_size_multiple_states(self, state_indices):
         """
