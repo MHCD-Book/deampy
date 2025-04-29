@@ -587,7 +587,7 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
 
         # check if a fixed or a dynamic transition rate matrix is provided
         if self.transRateMatrix is not None:
-            transition_prob_matrix, max_p = continuous_to_discrete(
+            transition_prob_matrix = continuous_to_discrete(
                 trans_rate_matrix=self.transRateMatrix,
                 delta_t=delta_t)
 

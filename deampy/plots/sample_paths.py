@@ -227,8 +227,10 @@ def add_sample_paths_to_ax(sample_paths, ax, color_codes=None, common_color_code
         ax.set_xlabel(x_label)
     if y_label is not None:
         ax.set_ylabel(y_label)
-    ax.set_xlim(x_range)
-    ax.set_ylim(y_range)
+    if x_range is not None:
+        ax.set_xlim(x_range)
+    if y_range is not None:
+        ax.set_ylim(y_range)
 
 
 def add_sets_of_sample_paths_to_ax(
