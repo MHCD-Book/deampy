@@ -160,22 +160,15 @@ def _continuous_to_discrete_main(trans_rate_matrix, delta_t):
     for i, row in enumerate(trans_rate_matrix):
         rates_out.append(_out_rate(row, i))
 
-    prob_matrix = []
+    prob_matrix = np.zeros((len(trans_rate_matrix), len(trans_rate_matrix)))
     for i in range(len(trans_rate_matrix)):
-        prob_row = []  # list of probabilities
         # calculate probabilities
         for j in range(len(trans_rate_matrix[i])):
-            prob = 0
             if i == j:
-                prob = np.exp(-rates_out[i] * delta_t)
+                prob_matrix[i][j] = np.exp(-rates_out[i] * delta_t)
             else:
                 if rates_out[i] > 0:
-                    prob = (1 - np.exp(-rates_out[i] * delta_t)) * trans_rate_matrix[i][j] / rates_out[i]
-            # append this probability
-            prob_row.append(prob)
-
-        # append this row of probabilities
-        prob_matrix.append(prob_row)
+                    prob_matrix[i][j] = (1 - np.exp(-rates_out[i] * delta_t)) * trans_rate_matrix[i][j] / rates_out[i]
 
     # # calculate the maximum probability of two transitions within delta_t
     # max_prob_2_transitions = get_prob_2_transitions(
