@@ -1,11 +1,12 @@
 import enum
 
 import numpy as np
+from numba import jit
 
 from deampy.random_variates import Empirical, Exponential, Multinomial
 
 
-# @jit(nopython=True)  # nopython=True makes it faster (forces full compilation)
+@jit(nopython=True)  # nopython=True makes it faster (forces full compilation)
 def _out_rate(rates, idx):
     """
     :param rates: list of rates leaving this state
@@ -20,7 +21,7 @@ def _out_rate(rates, idx):
     return sum_rates
 
 
-# @jit(nopython=True)
+@jit(nopython=True)
 def condense_prob_matrix(transition_prob_matrix):
     """
     Creates a condensed transition probability matrix where transitions with zero probabilities are removed.
@@ -97,7 +98,7 @@ def _assert_rate_matrix(rate_matrix):
         # make sure all rates are non-negative
         for r in row:
             if r is None:
-                row[i] = 0
+                row[i] = 0.0
             if r is not None and r < 0:
                 raise ValueError('All rates in a transition rate matrix should be non-negative. '
                                  'Negative rate ({}) found in row index {}.'.format(r, i))
@@ -151,7 +152,7 @@ def get_prob_2_transitions(rates_out, trans_rate_matrix, delta_t):
     return max(prob_out_out)
 
 
-# @jit(nopython=True)
+@jit(nopython=True)
 def _continuous_to_discrete_main(trans_rate_matrix, delta_t):
 
     # list of rates out of each row
