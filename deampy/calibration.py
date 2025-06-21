@@ -70,11 +70,15 @@ class MCMC:
                 return -np.inf  # Outside prior range, log-prior is -inf
         return log_prior
 
-    def plot_trace(self, n_rows=1, n_cols=1, figsize=(7, 5), fig_name=None, share_x=False, share_y=True):
+    def plot_trace(self, n_rows=1, n_cols=1, figsize=(7, 5),
+                   fig_name=None, share_x=False, share_y=True, parameter_names=None):
         """Plot the trace of the MCMC samples."""
 
         # plot each panel
         f, axarr = plt.subplots(n_rows, n_cols, sharex=share_x, sharey=share_y, figsize=figsize)
+
+        if parameter_names is None:
+            parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
 
         for i in range(n_rows):
             for j in range(n_cols):
@@ -88,24 +92,16 @@ class MCMC:
                 if i * n_cols + j >= len(self.samples):
                     ax.axis('off')
                 else:
-                    plot_info = list_plot_info[i * n_cols + j]
-                    self.add_to_ax(ax=ax, plot_info=plot_info,
-                                   calibration_info=plot_info.calibrationInfo,
-                                   line_info=plot_info.lineInfo,
-                                   trajs_ids_to_display=trajs_ids_to_display)
+                    plot_info = parameter_names[i * n_cols + j]
+                    ax.plot(self.samples[i * n_cols + j], label=f'Parameter {i + 1}')
+                    ax.set_title(f'Trace of Parameter {i + 1}')
+                    ax.set_xlabel('Step')
+                    ax.set_ylabel('Sample Value')
 
+                # remove unnecessary labels for shared axis
+                if share_x and i < n_rows - 1:
+                    ax.set(xlabel='')
+                if share_y and j > 0:
+                    ax.set(ylabel='')
 
         output_figure(plt=f, file_name=fig_name)
-
-
-        for i, sample in enumerate(self.samples):
-            plt.figure(figsize=(10, 5))
-            plt.plot(sample, label=f'Parameter {i+1}')
-            plt.title(f'Trace of Parameter {i+1}')
-            plt.xlabel('Sample Index')
-            plt.ylabel('Parameter Value')
-            plt.axhline(y=self.priorRanges[i][0], color='r', linestyle='--', label='Prior Range Start')
-            plt.axhline(y=self.priorRanges[i][1], color='g', linestyle='--', label='Prior Range End')
-            plt.legend()
-            plt.grid()
-            plt.show()
