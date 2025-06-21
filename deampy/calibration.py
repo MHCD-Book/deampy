@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy import iinfo, int32
 
+from deampy.plots.histogram import add_histogram_to_ax
 from deampy.plots.plot_support import output_figure, get_moving_average
 
 
@@ -25,7 +26,6 @@ class MCMC:
         sig = inspect.signature(log_likelihood_func)
         if len(sig.parameters) != 2 or 'thetas' not in sig.parameters or 'seed' not in sig.parameters:
             raise ValueError("log_likelihood_func must accept two parameters: thetas and seed.")
-
 
         if rng is None:
             rng = np.random.RandomState(1)
@@ -70,6 +70,16 @@ class MCMC:
                 return -np.inf  # Outside prior range, log-prior is -inf
         return log_prior
 
+    @staticmethod
+    def add_trace_to_ax(ax, samples, par_name, moving_ave_window, y_range=None):
+
+        ax.plot(samples, label=par_name)
+        if moving_ave_window is not None:
+            ax.plot(get_moving_average(samples, window=moving_ave_window),
+                    label=f'Moving Average ({moving_ave_window})', color='k', linestyle='--')
+        ax.set_title(par_name)
+        ax.set_ylim(y_range)
+
     def plot_trace(self, n_rows=1, n_cols=1, figsize=(7, 5),
                    file_name=None, share_x=False, share_y=False,
                    parameter_names=None, moving_ave_window=None):
@@ -93,13 +103,14 @@ class MCMC:
                 if i * n_cols + j >= len(self.samples):
                     ax.axis('off')
                 else:
-                    par_name = parameter_names[i * n_cols + j]
-                    ax.plot(self.samples[i * n_cols + j], label=par_name)
-                    if moving_ave_window is not None:
-                        ax.plot(get_moving_average(self.samples[i * n_cols + j], window=moving_ave_window),
-                            label=f'Moving Average ({moving_ave_window})', color='k', linestyle='--')
-                    ax.set_title(par_name)
-                    ax.set_ylim(self.priorRanges[i * n_cols + j])
+                    self.add_trace_to_ax(
+                        ax=ax,
+                        samples=self.samples[i * n_cols + j],
+                        par_name=parameter_names[i * n_cols + j],
+                        moving_ave_window=moving_ave_window,
+                        y_range=self.priorRanges[i * n_cols + j]
+                    )
+
                     ax.set_xlabel('Step')
                     ax.set_ylabel('Sample Value')
 
@@ -108,5 +119,41 @@ class MCMC:
                     ax.set(xlabel='')
                 if share_y and j > 0:
                     ax.set(ylabel='')
+
+        output_figure(plt=f, file_name=file_name)
+
+    def plot_posterior(self, n_warmup, n_rows=1, n_cols=1, figsize=(7, 5),
+                       file_name=None, parameter_names=None):
+        """Plot the posterior distribution of the MCMC samples."""
+
+        # plot each panel
+        f, axarr = plt.subplots(n_rows, n_cols, figsize=figsize)
+
+        if parameter_names is None:
+            parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
+
+        for i in range(n_rows):
+            for j in range(n_cols):
+                # get current axis
+                if n_rows == 1 or n_cols == 1:
+                    ax = axarr[i * n_cols + j]
+                else:
+                    ax = axarr[i, j]
+
+                # plot subplot, or hide extra subplots
+                if i * n_cols + j >= len(self.samples):
+                    ax.axis('off')
+                else:
+                    add_histogram_to_ax(
+                        ax=ax,
+                        data=self.samples[i * n_cols + j][n_warmup:],  # Skip warmup samples
+                        # color='blue',
+                        title=parameter_names[i * n_cols + j],
+                        x_label='Sampled Values',
+                        # y_label=None,
+                        x_range=self.priorRanges[i * n_cols + j],
+                        y_range=None,
+                        transparency=0.7,
+                    )
 
         output_figure(plt=f, file_name=file_name)
