@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy import iinfo, int32
 
-from deampy.plots.plot_support import output_figure
+from deampy.plots.plot_support import output_figure, get_moving_average
 
 
 class MCMC:
@@ -36,7 +36,7 @@ class MCMC:
         thetas = np.array(
             [rng.uniform(low=prior_range[0], high=prior_range[1]) for prior_range in self.priorRanges])
 
-        log_prior_value = self.log_prior(thetas=thetas)
+        log_prior_value = self._log_prior(thetas=thetas)
 
         log_post = log_prior_value + log_likelihood_func(thetas=thetas, seed=seed)
 
@@ -46,7 +46,7 @@ class MCMC:
 
             thetas_prop = rng.normal(thetas, self.stdFactors)
             log_post_prop = (
-                    self.log_prior(thetas=thetas_prop)
+                    self._log_prior(thetas=thetas_prop)
                     + log_likelihood_func(thetas=thetas_prop, seed=seed))
 
             accept_prob = min(1, np.exp(log_post_prop - log_post))
@@ -71,7 +71,8 @@ class MCMC:
         return log_prior
 
     def plot_trace(self, n_rows=1, n_cols=1, figsize=(7, 5),
-                   fig_name=None, share_x=False, share_y=True, parameter_names=None):
+                   file_name=None, share_x=False, share_y=False,
+                   parameter_names=None, moving_ave_window=None):
         """Plot the trace of the MCMC samples."""
 
         # plot each panel
@@ -92,9 +93,13 @@ class MCMC:
                 if i * n_cols + j >= len(self.samples):
                     ax.axis('off')
                 else:
-                    plot_info = parameter_names[i * n_cols + j]
-                    ax.plot(self.samples[i * n_cols + j], label=f'Parameter {i + 1}')
-                    ax.set_title(f'Trace of Parameter {i + 1}')
+                    par_name = parameter_names[i * n_cols + j]
+                    ax.plot(self.samples[i * n_cols + j], label=par_name)
+                    if moving_ave_window is not None:
+                        ax.plot(get_moving_average(self.samples[i * n_cols + j], window=moving_ave_window),
+                            label=f'Moving Average ({moving_ave_window})', color='k', linestyle='--')
+                    ax.set_title(par_name)
+                    ax.set_ylim(self.priorRanges[i * n_cols + j])
                     ax.set_xlabel('Step')
                     ax.set_ylabel('Sample Value')
 
@@ -104,4 +109,4 @@ class MCMC:
                 if share_y and j > 0:
                     ax.set(ylabel='')
 
-        output_figure(plt=f, file_name=fig_name)
+        output_figure(plt=f, file_name=file_name)
