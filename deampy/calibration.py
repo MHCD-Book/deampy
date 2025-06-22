@@ -25,6 +25,36 @@ class _Calibration:
         """Run the calibration method."""
         raise NotImplementedError("Subclasses should implement this method.")
 
+    def save_samples(self, file_name, parameter_names=None):
+
+        if parameter_names is None:
+            parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
+
+        # first row
+        first_row = ['Seed', 'Log-Likelihood', 'Probabilities']
+        first_row.extend(parameter_names)
+
+        # produce the list to report the results
+        csv_rows = [first_row]
+
+        for i in range(len(self.seeds)):
+
+            if isinstance(self, CalibrationRandomSampling):
+                row = [self.seeds[i], self.logLikelihoods[i], self.probs[i]]
+            elif isinstance(self, CalibrationMCMCSampling):
+                row = [self.seeds[i], self.logLikelihoods[i]]
+            else:
+                raise ValueError("Unknown calibration method")
+
+            row.extend([self.samples[j][i] for j in range(len(self.priorRanges))])
+
+            csv_rows.append(row)
+
+        # write the calibration result into a csv file
+        IO.write_csv(
+            file_name=file_name,
+            rows=csv_rows)
+
     @staticmethod
     def _get_probs(likelihoods):
         """Normalize the weights to sum to 1."""
@@ -184,29 +214,7 @@ class CalibrationRandomSampling(_Calibration):
 
         self.probs = self._get_probs(likelihoods=self.logLikelihoods)
 
-    def save(self, file_name, parameter_names=None):
 
-        if parameter_names is None:
-            parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
-
-        # first row
-        first_row = ['Seed', 'Log-Likelihood', 'Probabilities']
-        first_row.extend(parameter_names)
-
-        # produce the list to report the results
-        csv_rows = [first_row]
-
-        for i in range(len(self.seeds)):
-
-            row = [self.seeds[i], self.logLikelihoods[i], self.probs [i]]
-            row.extend([self.samples[j][i] for j in range(len(self.priorRanges))])
-
-            csv_rows.append(row)
-
-        # write the calibration result into a csv file
-        IO.write_csv(
-            file_name=file_name,
-            rows=csv_rows)
 
     def _resample(self, n_resample=1000):
 
@@ -298,6 +306,7 @@ class CalibrationMCMCSampling(_Calibration):
                 log_post = log_post_prop
 
             self.seeds.append(seed)
+            self.logLikelihoods.append(log_post)
             for i in range(len(self.priorRanges)):
                 self.samples[i].append(thetas[i])
 
@@ -326,3 +335,8 @@ class CalibrationMCMCSampling(_Calibration):
             parameter_names=parameter_names
         )
 
+    def save_posterior(self, file_name, n_warmup, alpha=0.05, parameter_names=None):
+
+        samples = [self.samples[i][n_warmup:] for i in range(len(self.samples))]
+
+        self._save_posterior(samples=samples, file_name=file_name, alpha=alpha, parameter_names=parameter_names)

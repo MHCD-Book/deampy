@@ -40,8 +40,8 @@ if __name__ == "__main__":
     # Run random sampling calibration with the specified prior ranges and log-likelihood function
     random_sampling = CalibrationRandomSampling(prior_ranges=PRIOR_RANGES)
     random_sampling.run(log_likelihood_func=log_likelihood, num_samples=5000)
-    random_sampling.save(file_name="random_sampling.csv")
-    random_sampling.save_posterior(file_name="random_sampling_posterior.csv", n_resample=1000)
+    random_sampling.save_samples(file_name="output/random_sampling.csv")
+    random_sampling.save_posterior(file_name="output/random_sampling_posterior.csv", n_resample=1000)
 
     random_sampling.plot_posterior(
         n_resample=1000, n_cols=2, n_rows=1, figsize=(10, 5),
@@ -50,11 +50,14 @@ if __name__ == "__main__":
     # Run MCMC calibration with the specified prior ranges and log-likelihood function
     mcmc = CalibrationMCMCSampling(prior_ranges=PRIOR_RANGES, std_factor=0.05)
     mcmc.run(log_likelihood_func=log_likelihood, num_samples=5000)
+    mcmc.save_samples(file_name="output/mcmc.csv")
+    mcmc.save_posterior(file_name="output/mcmc_posterior.csv", n_warmup=2000)
 
     # Save the MCMC results
     mcmc.plot_trace(n_cols=2, n_rows=1, figsize=(10, 5), share_x=True,
                     file_name='figs/mcmc_trace_plot.png', moving_ave_window=1000)
 
-    mcmc.plot_posterior(n_warmup=2000, n_cols=2, n_rows=1, figsize=(10, 5),
-                        file_name='figs/mcmc_posterior_plot.png')
+    mcmc.plot_posterior(
+        n_warmup=2000, n_cols=2, n_rows=1, figsize=(10, 5),
+        file_name='figs/mcmc_posterior_plot.png')
 
