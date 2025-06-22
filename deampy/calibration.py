@@ -5,8 +5,10 @@ import numpy as np
 from numpy import iinfo, int32
 
 import deampy.in_out_functions as IO
+from deampy.format_functions import format_number, format_interval
 from deampy.plots.histogram import add_histogram_to_ax
 from deampy.plots.plot_support import output_figure, get_moving_average
+from deampy.statistics import SummaryStat
 
 
 class _Calibration:
@@ -107,7 +109,7 @@ class _Calibration:
                     ax = axarr[i, j]
 
                 # plot subplot, or hide extra subplots
-                if i * n_cols + j >= len(self.samples):
+                if i * n_cols + j >= len(samples):
                     ax.axis('off')
                 else:
                     add_histogram_to_ax(
@@ -124,6 +126,29 @@ class _Calibration:
 
         output_figure(plt=f, file_name=file_name)
 
+
+    def _save_posterior(self, samples, file_name, alpha=0.05, parameter_names=None, significant_digits=None):
+
+        if parameter_names is None:
+            parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
+
+        # first row
+        first_row = ['Parameter', 'Mean', 'Credible Interval', 'Confidence Interval']
+        rows = [first_row]
+
+        for i in range(len(self.priorRanges)):
+            stat = SummaryStat(samples[i])
+            mean = format_number(stat.get_mean(), sig_digits=significant_digits)
+            credible_interval = format_interval(stat.get_PI(alpha=alpha), sig_digits=significant_digits)
+            confidence_interval = format_interval(stat.get_t_CI(alpha=alpha), sig_digits=significant_digits)
+
+            rows.append([
+                parameter_names[i],
+                mean,
+                credible_interval,
+                 confidence_interval])
+
+        IO.write_csv(file_name=file_name, rows=rows)
 
 class CalibrationRandomSampling(_Calibration):
 
@@ -183,10 +208,13 @@ class CalibrationRandomSampling(_Calibration):
             file_name=file_name,
             rows=csv_rows)
 
-    def plot_posterior(self, n_resample=1000, n_rows=1, n_cols=1, figsize=(7, 5),
-                       file_name=None, parameter_names=None):
+    def _resample(self, n_resample=1000):
 
         rng = np.random.RandomState(1)
+
+        # clear the resamples
+        for row in self.resamples:
+            row.clear()
 
         sampled_row_indices = rng.choice(
             a=range(0, len(self.probs)),
@@ -199,6 +227,12 @@ class CalibrationRandomSampling(_Calibration):
             for j in range(len(self.priorRanges)):
                 self.resamples[j].append(self.samples[j][i])
 
+
+    def plot_posterior(self, n_resample=1000, n_rows=1, n_cols=1, figsize=(7, 5),
+                       file_name=None, parameter_names=None):
+
+        self._resample(n_resample=n_resample)
+
         self._plot_posterior(
             samples=self.resamples,
             n_rows=n_rows,
@@ -207,6 +241,12 @@ class CalibrationRandomSampling(_Calibration):
             file_name=file_name,
             parameter_names=parameter_names
         )
+
+    def save_posterior(self, file_name, n_resample=1000, alpha=0.05, parameter_names=None):
+
+        self._resample(n_resample=n_resample)
+
+        self._save_posterior(samples=self.resamples, file_name=file_name, alpha=alpha, parameter_names=parameter_names)
 
 
 class CalibrationMCMCSampling(_Calibration):

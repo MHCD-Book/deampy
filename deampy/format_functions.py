@@ -85,7 +85,8 @@ def format_interval(interval, deci=None, sig_digits=None, format=None):
             return '({low:.{prec}g}%, {up:.{prec}g}%)' \
                 .format(low=interval[0]*100, up=interval[1]*100, prec=sig_digits)
     else:
-        return str(interval)
+        inside = ', '.join(str(f) for f in interval)
+        return '[' + inside + ']'
 
 
 def format_estimate_interval(estimate, interval, deci=None, sig_digits=None, format=None):

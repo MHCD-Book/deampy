@@ -41,6 +41,7 @@ if __name__ == "__main__":
     random_sampling = CalibrationRandomSampling(prior_ranges=PRIOR_RANGES)
     random_sampling.run(log_likelihood_func=log_likelihood, num_samples=5000)
     random_sampling.save(file_name="random_sampling.csv")
+    random_sampling.save_posterior(file_name="random_sampling_posterior.csv", n_resample=1000)
 
     random_sampling.plot_posterior(
         n_resample=1000, n_cols=2, n_rows=1, figsize=(10, 5),
