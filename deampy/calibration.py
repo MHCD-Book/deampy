@@ -31,7 +31,12 @@ class _Calibration:
             parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
 
         # first row
-        first_row = ['Seed', 'Log-Likelihood', 'Probabilities']
+        if isinstance(self, CalibrationRandomSampling):
+            first_row = ['Seed', 'Log-Likelihood', 'Probabilities']
+        elif isinstance(self, CalibrationMCMCSampling):
+            first_row = ['Seed', 'Log-Likelihood']
+        else:
+            raise ValueError("Unknown calibration method")
         first_row.extend(parameter_names)
 
         # produce the list to report the results
@@ -201,7 +206,7 @@ class CalibrationRandomSampling(_Calibration):
 
         for i in range(num_samples):
 
-            seed = rng.randint(0, iinfo(int32).max)
+            seed = i # rng.randint(0, iinfo(int32).max)
 
             thetas = [param_samples[j][i] for j in range(len(self.priorRanges))]
 
@@ -213,8 +218,6 @@ class CalibrationRandomSampling(_Calibration):
                 self.samples[i].append(thetas[i])
 
         self.probs = self._get_probs(likelihoods=self.logLikelihoods)
-
-
 
     def _resample(self, n_resample=1000):
 
@@ -290,20 +293,20 @@ class CalibrationMCMCSampling(_Calibration):
 
         log_post = log_prior_value + log_likelihood_func(thetas=thetas, seed=seed)
 
-        for _ in range(num_samples):
+        for i in range(num_samples):
 
-            seed = rng.randint(0, iinfo(int32).max)
+            seed = i # rng.randint(0, iinfo(int32).max)
 
-            thetas_prop = rng.normal(thetas, self.stdFactors)
-            log_post_prop = (
-                    self._log_prior(thetas=thetas_prop)
-                    + log_likelihood_func(thetas=thetas_prop, seed=seed))
+            thetas_new = rng.normal(thetas, self.stdFactors)
+            log_post_new = (
+                    self._log_prior(thetas=thetas_new)
+                    + log_likelihood_func(thetas=thetas_new, seed=seed))
 
-            accept_prob = min(1, np.exp(log_post_prop - log_post))
+            accept_prob = min(1, np.exp(log_post_new - log_post))
 
             if rng.random() < accept_prob:
-                thetas = thetas_prop
-                log_post = log_post_prop
+                thetas = thetas_new
+                log_post = log_post_new
 
             self.seeds.append(seed)
             self.logLikelihoods.append(log_post)
