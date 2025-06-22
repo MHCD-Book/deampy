@@ -195,13 +195,12 @@ class CalibrationRandomSampling(_Calibration):
             p=self.probs)
 
         # use the sampled indices to populate the list of cohort IDs and mortality probabilities
-        resampled_ids = []
         for i in sampled_row_indices:
-            resampled_ids.append(self.cohortIDs[i])
-            self.resampledMortalityProb.append(self.mortalityProbs[i])
+            for j in range(len(self.priorRanges)):
+                self.resamples[j].append(self.samples[j][i])
 
         self._plot_posterior(
-            n_warmup=0,
+            samples=self.resamples,
             n_rows=n_rows,
             n_cols=n_cols,
             figsize=figsize,
@@ -276,8 +275,7 @@ class CalibrationMCMCSampling(_Calibration):
     def plot_posterior(self, n_warmup, n_rows=1, n_cols=1, figsize=(7, 5),
                        file_name=None, parameter_names=None):
 
-        # TODO: fix this.
-        samples = [self.samples[i * n_cols + j][n_warmup:] for ]
+        samples = [self.samples[i][n_warmup:] for i in range(len(self.samples))]
 
         self._plot_posterior(
             samples=samples,
