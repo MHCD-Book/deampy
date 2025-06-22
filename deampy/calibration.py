@@ -4,17 +4,220 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy import iinfo, int32
 
+import deampy.in_out_functions as IO
 from deampy.plots.histogram import add_histogram_to_ax
 from deampy.plots.plot_support import output_figure, get_moving_average
 
 
-class MCMC:
+class _Calibration:
 
-    def __init__(self, prior_ranges, std_factor=0.1):
+    def __init__(self, prior_ranges):
+        """Base class for calibration methods."""
         self.priorRanges = prior_ranges
-        self.stdFactors = [(r[1]-r[0])*std_factor for r in prior_ranges]
         self.samples = [[] for i in range(len(prior_ranges))]  # Initialize samples for each parameter
         self.seeds = []
+        self.logLikelihoods = []
+        self.probs = []  # Normalized probabilities for each sample
+
+    def run(self, *args, **kwargs):
+        """Run the calibration method."""
+        raise NotImplementedError("Subclasses should implement this method.")
+
+    @staticmethod
+    def _get_probs(likelihoods):
+        """Normalize the weights to sum to 1."""
+
+        l_max = np.max(likelihoods)
+        likelihoods = likelihoods - l_max
+        weights = np.exp(likelihoods)
+        weights_sum = np.sum(weights)
+        if weights_sum == 0:
+            raise ValueError("All likelihoods are zero, cannot normalize probabilities.")
+        normalized_probs = weights / weights_sum
+        return normalized_probs
+
+    @staticmethod
+    def add_trace_to_ax(ax, samples, par_name, moving_ave_window, y_range=None):
+
+        ax.plot(samples, label=par_name)
+        if moving_ave_window is not None:
+            ax.plot(get_moving_average(samples, window=moving_ave_window),
+                    label=f'Moving Average ({moving_ave_window})', color='k', linestyle='--')
+        ax.set_title(par_name)
+        ax.set_ylim(y_range)
+
+    def plot_trace(self, n_rows=1, n_cols=1, figsize=(7, 5),
+                   file_name=None, share_x=False, share_y=False,
+                   parameter_names=None, moving_ave_window=None):
+        """Plot the trace of the MCMC samples."""
+
+        # plot each panel
+        f, axarr = plt.subplots(n_rows, n_cols, sharex=share_x, sharey=share_y, figsize=figsize)
+
+        if parameter_names is None:
+            parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
+
+        for i in range(n_rows):
+            for j in range(n_cols):
+                # get current axis
+                if n_rows == 1 or n_cols == 1:
+                    ax = axarr[i * n_cols + j]
+                else:
+                    ax = axarr[i, j]
+
+                # plot subplot, or hide extra subplots
+                if i * n_cols + j >= len(self.samples):
+                    ax.axis('off')
+                else:
+                    self.add_trace_to_ax(
+                        ax=ax,
+                        samples=self.samples[i * n_cols + j],
+                        par_name=parameter_names[i * n_cols + j],
+                        moving_ave_window=moving_ave_window,
+                        y_range=self.priorRanges[i * n_cols + j]
+                    )
+
+                    ax.set_xlabel('Step')
+                    ax.set_ylabel('Sample Value')
+
+                # remove unnecessary labels for shared axis
+                if share_x and i < n_rows - 1:
+                    ax.set(xlabel='')
+                if share_y and j > 0:
+                    ax.set(ylabel='')
+
+        output_figure(plt=f, file_name=file_name)
+
+    def _plot_posterior(self, samples, n_rows=1, n_cols=1, figsize=(7, 5),
+                       file_name=None, parameter_names=None):
+        """Plot the posterior distribution of the MCMC samples."""
+
+        # plot each panel
+        f, axarr = plt.subplots(n_rows, n_cols, figsize=figsize)
+
+        if parameter_names is None:
+            parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
+
+        for i in range(n_rows):
+            for j in range(n_cols):
+                # get current axis
+                if n_rows == 1 or n_cols == 1:
+                    ax = axarr[i * n_cols + j]
+                else:
+                    ax = axarr[i, j]
+
+                # plot subplot, or hide extra subplots
+                if i * n_cols + j >= len(self.samples):
+                    ax.axis('off')
+                else:
+                    add_histogram_to_ax(
+                        ax=ax,
+                        data=samples[i*n_cols+j],  # Skip warmup samples
+                        # color='blue',
+                        title=parameter_names[i * n_cols + j],
+                        x_label='Sampled Values',
+                        # y_label=None,
+                        x_range=self.priorRanges[i * n_cols + j],
+                        y_range=None,
+                        transparency=0.7,
+                    )
+
+        output_figure(plt=f, file_name=file_name)
+
+
+class CalibrationRandomSampling(_Calibration):
+
+    def __init__(self, prior_ranges):
+
+        _Calibration.__init__(self, prior_ranges=prior_ranges)
+        self.resamples = [[] for _ in range(len(prior_ranges))]  # Initialize samples for each parameter
+
+    def run(self, log_likelihood_func, num_samples=1000, rng=None):
+
+        if rng is None:
+            rng = np.random.RandomState(1)
+
+        param_samples = []
+        for prior in self.priorRanges:
+            # Generate samples uniformly within the prior range
+            param_samples.append(
+                rng.uniform(low=prior[0], high=prior[1], size=num_samples)
+            )
+
+        for i in range(num_samples):
+
+            seed = rng.randint(0, iinfo(int32).max)
+
+            thetas = [param_samples[j][i] for j in range(len(self.priorRanges))]
+
+            ll = log_likelihood_func(thetas=thetas, seed=seed)
+
+            self.seeds.append(seed)
+            self.logLikelihoods.append(ll)
+            for i in range(len(self.priorRanges)):
+                self.samples[i].append(thetas[i])
+
+        self.probs = self._get_probs(likelihoods=self.logLikelihoods)
+
+    def save(self, file_name, parameter_names=None):
+
+        if parameter_names is None:
+            parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
+
+        # first row
+        first_row = ['Seed', 'Log-Likelihood', 'Probabilities']
+        first_row.extend(parameter_names)
+
+        # produce the list to report the results
+        csv_rows = [first_row]
+
+        for i in range(len(self.seeds)):
+
+            row = [self.seeds[i], self.logLikelihoods[i], self.probs [i]]
+            row.extend([self.samples[j][i] for j in range(len(self.priorRanges))])
+
+            csv_rows.append(row)
+
+        # write the calibration result into a csv file
+        IO.write_csv(
+            file_name=file_name,
+            rows=csv_rows)
+
+    def plot_posterior(self, n_resample=1000, n_rows=1, n_cols=1, figsize=(7, 5),
+                       file_name=None, parameter_names=None):
+
+        rng = np.random.RandomState(1)
+
+        sampled_row_indices = rng.choice(
+            a=range(0, len(self.probs)),
+            size=n_resample,
+            replace=True,
+            p=self.probs)
+
+        # use the sampled indices to populate the list of cohort IDs and mortality probabilities
+        resampled_ids = []
+        for i in sampled_row_indices:
+            resampled_ids.append(self.cohortIDs[i])
+            self.resampledMortalityProb.append(self.mortalityProbs[i])
+
+        self._plot_posterior(
+            n_warmup=0,
+            n_rows=n_rows,
+            n_cols=n_cols,
+            figsize=figsize,
+            file_name=file_name,
+            parameter_names=parameter_names
+        )
+
+
+class CalibrationMCMCSampling(_Calibration):
+
+    def __init__(self, prior_ranges, std_factor=0.1):
+
+        _Calibration.__init__(self, prior_ranges=prior_ranges)
+
+        self.stdFactors = [(r[1]-r[0])*std_factor for r in prior_ranges]
+
 
     def run(self, log_likelihood_func, num_samples=1000, rng=None):
         """Run a simple Metropolis-Hastings MCMC algorithm."""
@@ -70,90 +273,18 @@ class MCMC:
                 return -np.inf  # Outside prior range, log-prior is -inf
         return log_prior
 
-    @staticmethod
-    def add_trace_to_ax(ax, samples, par_name, moving_ave_window, y_range=None):
-
-        ax.plot(samples, label=par_name)
-        if moving_ave_window is not None:
-            ax.plot(get_moving_average(samples, window=moving_ave_window),
-                    label=f'Moving Average ({moving_ave_window})', color='k', linestyle='--')
-        ax.set_title(par_name)
-        ax.set_ylim(y_range)
-
-    def plot_trace(self, n_rows=1, n_cols=1, figsize=(7, 5),
-                   file_name=None, share_x=False, share_y=False,
-                   parameter_names=None, moving_ave_window=None):
-        """Plot the trace of the MCMC samples."""
-
-        # plot each panel
-        f, axarr = plt.subplots(n_rows, n_cols, sharex=share_x, sharey=share_y, figsize=figsize)
-
-        if parameter_names is None:
-            parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
-
-        for i in range(n_rows):
-            for j in range(n_cols):
-                # get current axis
-                if n_rows == 1 or n_cols == 1:
-                    ax = axarr[i * n_cols + j]
-                else:
-                    ax = axarr[i, j]
-
-                # plot subplot, or hide extra subplots
-                if i * n_cols + j >= len(self.samples):
-                    ax.axis('off')
-                else:
-                    self.add_trace_to_ax(
-                        ax=ax,
-                        samples=self.samples[i * n_cols + j],
-                        par_name=parameter_names[i * n_cols + j],
-                        moving_ave_window=moving_ave_window,
-                        y_range=self.priorRanges[i * n_cols + j]
-                    )
-
-                    ax.set_xlabel('Step')
-                    ax.set_ylabel('Sample Value')
-
-                # remove unnecessary labels for shared axis
-                if share_x and i < n_rows - 1:
-                    ax.set(xlabel='')
-                if share_y and j > 0:
-                    ax.set(ylabel='')
-
-        output_figure(plt=f, file_name=file_name)
-
     def plot_posterior(self, n_warmup, n_rows=1, n_cols=1, figsize=(7, 5),
                        file_name=None, parameter_names=None):
-        """Plot the posterior distribution of the MCMC samples."""
 
-        # plot each panel
-        f, axarr = plt.subplots(n_rows, n_cols, figsize=figsize)
+        # TODO: fix this.
+        samples = [self.samples[i * n_cols + j][n_warmup:] for ]
 
-        if parameter_names is None:
-            parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
+        self._plot_posterior(
+            samples=samples,
+            n_rows=n_rows,
+            n_cols=n_cols,
+            figsize=figsize,
+            file_name=file_name,
+            parameter_names=parameter_names
+        )
 
-        for i in range(n_rows):
-            for j in range(n_cols):
-                # get current axis
-                if n_rows == 1 or n_cols == 1:
-                    ax = axarr[i * n_cols + j]
-                else:
-                    ax = axarr[i, j]
-
-                # plot subplot, or hide extra subplots
-                if i * n_cols + j >= len(self.samples):
-                    ax.axis('off')
-                else:
-                    add_histogram_to_ax(
-                        ax=ax,
-                        data=self.samples[i * n_cols + j][n_warmup:],  # Skip warmup samples
-                        # color='blue',
-                        title=parameter_names[i * n_cols + j],
-                        x_label='Sampled Values',
-                        # y_label=None,
-                        x_range=self.priorRanges[i * n_cols + j],
-                        y_range=None,
-                        transparency=0.7,
-                    )
-
-        output_figure(plt=f, file_name=file_name)
