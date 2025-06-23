@@ -300,7 +300,7 @@ class SummaryStat(_Statistics):
         :param q: percentile to compute (q in range [0, 100])
         :returns: qth percentile """
 
-        return np.percentile(self._data, q)
+        return float(np.percentile(self._data, q))
 
     def get_bootstrap_CI(self, alpha, num_samples=None):
         """ calculates the empirical bootstrap confidence interval

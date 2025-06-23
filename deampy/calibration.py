@@ -138,7 +138,9 @@ class _Calibration:
         for i in range(n_rows):
             for j in range(n_cols):
                 # get current axis
-                if n_rows == 1 or n_cols == 1:
+                if n_rows == 1 and n_cols == 1:
+                    ax = axarr
+                elif n_rows == 1 or n_cols == 1:
                     ax = axarr[i * n_cols + j]
                 else:
                     ax = axarr[i, j]
@@ -189,7 +191,14 @@ class CalibrationRandomSampling(_Calibration):
 
     def __init__(self, prior_ranges):
 
+        assert isinstance(prior_ranges, list) and len(prior_ranges) > 0, \
+            "prior_ranges must be a non-empty list of tuples (min, max) for each parameter."
+        # if prior_ranges is a list of two numbers, convert it to a list of one tuple
+        if len(prior_ranges) == 2 and isinstance(prior_ranges[0], (int, float)) and isinstance(prior_ranges[1], (int, float)):
+            prior_ranges = [prior_ranges]
+
         _Calibration.__init__(self, prior_ranges=prior_ranges)
+        self.resampledSeeds = []
         self.resamples = [[] for _ in range(len(prior_ranges))]  # Initialize samples for each parameter
 
     def run(self, log_likelihood_func, num_samples=1000, rng=None):
@@ -219,11 +228,27 @@ class CalibrationRandomSampling(_Calibration):
 
         self.probs = self._get_probs(likelihoods=self.logLikelihoods)
 
-    def _resample(self, n_resample=1000):
+    def read_samples(self, file_name):
+        """Read samples from a CSV file."""
+        cols = IO.read_csv_cols(file_name=file_name, if_ignore_first_row=True, if_convert_float=True)
+
+        # first column is seeds
+        self.seeds = cols[0].astype(int).tolist()
+        # second column is log-likelihoods
+        self.logLikelihoods = cols[1].tolist()
+        # third column is probabilities
+        self.probs = cols[2].tolist()
+
+        # remaining columns are parameter samples
+        for i in range(len(self.priorRanges)):
+            self.samples[i].extend(cols[i + 3].tolist())
+
+    def resample(self, n_resample=1000):
 
         rng = np.random.RandomState(1)
 
         # clear the resamples
+        self.resampledSeeds.clear()
         for row in self.resamples:
             row.clear()
 
@@ -235,14 +260,14 @@ class CalibrationRandomSampling(_Calibration):
 
         # use the sampled indices to populate the list of cohort IDs and mortality probabilities
         for i in sampled_row_indices:
+            self.resampledSeeds.append(self.seeds[i])
             for j in range(len(self.priorRanges)):
                 self.resamples[j].append(self.samples[j][i])
-
 
     def plot_posterior(self, n_resample=1000, n_rows=1, n_cols=1, figsize=(7, 5),
                        file_name=None, parameter_names=None):
 
-        self._resample(n_resample=n_resample)
+        self.resample(n_resample=n_resample)
 
         self._plot_posterior(
             samples=self.resamples,
@@ -253,11 +278,13 @@ class CalibrationRandomSampling(_Calibration):
             parameter_names=parameter_names
         )
 
-    def save_posterior(self, file_name, n_resample=1000, alpha=0.05, parameter_names=None):
+    def save_posterior(self, file_name, n_resample=1000, alpha=0.05, parameter_names=None, significant_digits=None):
 
-        self._resample(n_resample=n_resample)
+        self.resample(n_resample=n_resample)
 
-        self._save_posterior(samples=self.resamples, file_name=file_name, alpha=alpha, parameter_names=parameter_names)
+        self._save_posterior(
+            samples=self.resamples, file_name=file_name, alpha=alpha, parameter_names=parameter_names,
+            significant_digits=significant_digits)
 
 
 class CalibrationMCMCSampling(_Calibration):
