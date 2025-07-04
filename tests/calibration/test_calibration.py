@@ -48,8 +48,8 @@ if __name__ == "__main__":
         file_name='figs/random_sampling_posterior_plot.png')
 
     # Run MCMC calibration with the specified prior ranges and log-likelihood function
-    mcmc = CalibrationMCMCSampling(prior_ranges=PRIOR_RANGES, std_factor=0.05)
-    mcmc.run(log_likelihood_func=log_likelihood, num_samples=5000)
+    mcmc = CalibrationMCMCSampling(prior_ranges=PRIOR_RANGES)
+    mcmc.run(log_likelihood_func=log_likelihood, std_factor=0.05, num_samples=5000)
     mcmc.save_samples(file_name="output/mcmc.csv")
     mcmc.save_posterior(file_name="output/mcmc_posterior.csv", n_warmup=2000)
 

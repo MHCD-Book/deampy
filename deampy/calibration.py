@@ -2,7 +2,6 @@ import inspect
 
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy import iinfo, int32
 
 import deampy.in_out_functions as IO
 from deampy.format_functions import format_number, format_interval
@@ -15,6 +14,13 @@ class _Calibration:
 
     def __init__(self, prior_ranges):
         """Base class for calibration methods."""
+
+        assert isinstance(prior_ranges, (list, tuple)) and len(prior_ranges) > 0, \
+            "prior_ranges must be a non-empty list of tuples (min, max) for each parameter."
+        # if prior_ranges is a list of two numbers, convert it to a list of one tuple
+        if len(prior_ranges) == 2 and isinstance(prior_ranges[0], (int, float)) and isinstance(prior_ranges[1], (int, float)):
+            prior_ranges = [prior_ranges]
+
         self.priorRanges = prior_ranges
         self.samples = [[] for i in range(len(prior_ranges))]  # Initialize samples for each parameter
         self.seeds = []
@@ -59,6 +65,24 @@ class _Calibration:
         IO.write_csv(
             file_name=file_name,
             rows=csv_rows)
+
+    def read_samples(self, file_name):
+        """Read samples from a CSV file."""
+        cols = IO.read_csv_cols(file_name=file_name, if_ignore_first_row=True, if_convert_float=True)
+
+        # first column is seeds
+        self.seeds = cols[0].astype(int).tolist()
+        # second column is log-likelihoods
+        self.logLikelihoods = cols[1].tolist()
+        k = 2  # start from the third column
+        if isinstance(self, CalibrationRandomSampling):
+            # third column is probabilities
+            self.probs = cols[k].tolist()
+            k += 1  # move to the next column
+
+        # remaining columns are parameter samples
+        for i in range(len(self.priorRanges)):
+            self.samples[i].extend(cols[i + k].tolist())
 
     @staticmethod
     def _get_probs(likelihoods):
@@ -187,15 +211,10 @@ class _Calibration:
 
         IO.write_csv(file_name=file_name, rows=rows)
 
+
 class CalibrationRandomSampling(_Calibration):
 
     def __init__(self, prior_ranges):
-
-        assert isinstance(prior_ranges, list) and len(prior_ranges) > 0, \
-            "prior_ranges must be a non-empty list of tuples (min, max) for each parameter."
-        # if prior_ranges is a list of two numbers, convert it to a list of one tuple
-        if len(prior_ranges) == 2 and isinstance(prior_ranges[0], (int, float)) and isinstance(prior_ranges[1], (int, float)):
-            prior_ranges = [prior_ranges]
 
         _Calibration.__init__(self, prior_ranges=prior_ranges)
         self.resampledSeeds = []
@@ -227,21 +246,6 @@ class CalibrationRandomSampling(_Calibration):
                 self.samples[i].append(thetas[i])
 
         self.probs = self._get_probs(likelihoods=self.logLikelihoods)
-
-    def read_samples(self, file_name):
-        """Read samples from a CSV file."""
-        cols = IO.read_csv_cols(file_name=file_name, if_ignore_first_row=True, if_convert_float=True)
-
-        # first column is seeds
-        self.seeds = cols[0].astype(int).tolist()
-        # second column is log-likelihoods
-        self.logLikelihoods = cols[1].tolist()
-        # third column is probabilities
-        self.probs = cols[2].tolist()
-
-        # remaining columns are parameter samples
-        for i in range(len(self.priorRanges)):
-            self.samples[i].extend(cols[i + 3].tolist())
 
     def resample(self, n_resample=1000):
 
@@ -289,14 +293,11 @@ class CalibrationRandomSampling(_Calibration):
 
 class CalibrationMCMCSampling(_Calibration):
 
-    def __init__(self, prior_ranges, std_factor=0.1):
+    def __init__(self, prior_ranges):
 
         _Calibration.__init__(self, prior_ranges=prior_ranges)
 
-        self.stdFactors = [(r[1]-r[0])*std_factor for r in prior_ranges]
-
-
-    def run(self, log_likelihood_func, num_samples=1000, rng=None):
+    def run(self, log_likelihood_func, std_factor=0.1, num_samples=1000, rng=None):
         """Run a simple Metropolis-Hastings MCMC algorithm."""
 
         # assert that log_likelihood_func is callable
@@ -307,10 +308,12 @@ class CalibrationMCMCSampling(_Calibration):
         if len(sig.parameters) != 2 or 'thetas' not in sig.parameters or 'seed' not in sig.parameters:
             raise ValueError("log_likelihood_func must accept two parameters: thetas and seed.")
 
+        std_factors = [(r[1] - r[0]) * std_factor for r in self.priorRanges]
+
         if rng is None:
             rng = np.random.RandomState(1)
 
-        seed = rng.randint(0, iinfo(int32).max)
+        seed = 0 # rng.randint(0, iinfo(int32).max)
 
         # Start from a uniform prior
         thetas = np.array(
@@ -324,7 +327,7 @@ class CalibrationMCMCSampling(_Calibration):
 
             seed = i # rng.randint(0, iinfo(int32).max)
 
-            thetas_new = rng.normal(thetas, self.stdFactors)
+            thetas_new = rng.normal(thetas, std_factors)
             log_post_new = (
                     self._log_prior(thetas=thetas_new)
                     + log_likelihood_func(thetas=thetas_new, seed=seed))
