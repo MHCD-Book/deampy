@@ -21,11 +21,15 @@ class _Calibration:
         if len(prior_ranges) == 2 and isinstance(prior_ranges[0], (int, float)) and isinstance(prior_ranges[1], (int, float)):
             prior_ranges = [prior_ranges]
 
-        self.priorRanges = prior_ranges
-        self.samples = [[] for i in range(len(prior_ranges))]  # Initialize samples for each parameter
+        self.priorRanges = prior_ranges  # List of tuples (min, max) for each parameter
+        self._reset()
+
+    def _reset(self):
+        """Reset the calibration object."""
+        self.samples = [[] for i in range(len(self.priorRanges))] # Initialize samples for each parameter
         self.seeds = []
         self.logLikelihoods = []
-        self.probs = []  # Normalized probabilities for each sample
+        self.probs = [] # Normalized probabilities for each sample
 
     def run(self, *args, **kwargs):
         """Run the calibration method."""
@@ -68,6 +72,9 @@ class _Calibration:
 
     def read_samples(self, file_name):
         """Read samples from a CSV file."""
+
+        self._reset()
+
         cols = IO.read_csv_cols(file_name=file_name, if_ignore_first_row=True, if_convert_float=True)
 
         # first column is seeds
@@ -121,7 +128,9 @@ class _Calibration:
         for i in range(n_rows):
             for j in range(n_cols):
                 # get current axis
-                if n_rows == 1 or n_cols == 1:
+                if n_rows == 1 and n_cols == 1:
+                    ax = axarr
+                elif n_rows == 1 or n_cols == 1:
                     ax = axarr[i * n_cols + j]
                 else:
                     ax = axarr[i, j]
@@ -222,6 +231,8 @@ class CalibrationRandomSampling(_Calibration):
 
     def run(self, log_likelihood_func, num_samples=1000, rng=None):
 
+        self._reset()
+
         if rng is None:
             rng = np.random.RandomState(1)
 
@@ -300,6 +311,8 @@ class CalibrationMCMCSampling(_Calibration):
     def run(self, log_likelihood_func, std_factor=0.1, num_samples=1000, rng=None):
         """Run a simple Metropolis-Hastings MCMC algorithm."""
 
+        self._reset()
+
         # assert that log_likelihood_func is callable
         if not callable(log_likelihood_func):
             raise ValueError("log_likelihood_func must be a callable function.")
@@ -368,8 +381,10 @@ class CalibrationMCMCSampling(_Calibration):
             parameter_names=parameter_names
         )
 
-    def save_posterior(self, file_name, n_warmup, alpha=0.05, parameter_names=None):
+    def save_posterior(self, file_name, n_warmup, alpha=0.05, parameter_names=None, significant_digits=None):
 
         samples = [self.samples[i][n_warmup:] for i in range(len(self.samples))]
 
-        self._save_posterior(samples=samples, file_name=file_name, alpha=alpha, parameter_names=parameter_names)
+        self._save_posterior(
+            samples=samples, file_name=file_name, alpha=alpha, parameter_names=parameter_names,
+            significant_digits=significant_digits)
