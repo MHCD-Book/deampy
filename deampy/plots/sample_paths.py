@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 from deampy.plots.plot_support import output_figure
 from deampy.sample_path import *
@@ -264,3 +265,9 @@ def add_sets_of_sample_paths_to_ax(
         ax.set_ylabel(y_label)
     ax.set_xlim(x_range)
     ax.set_ylim(y_range)
+
+    # this is to make sure that the legend transparency is set to 1
+    legend_lines = [
+        Line2D([0], [0], color=color_codes[i], alpha=1, label=legends[i]) for i in range(len(legends))
+    ]
+    ax.legend(handles=legend_lines, fontsize=8)
