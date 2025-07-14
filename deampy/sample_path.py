@@ -30,8 +30,18 @@ class _SamplePath:
     def close(self, time):
         raise NotImplemented()
 
-    def get_values(self):
-        return self._values
+    def get_values(self, delete_initial_zeroes=False):
+        if delete_initial_zeroes:
+            # delete initial zeroes
+            if len(self._values) > 0 and self._values[0] == 0:
+                i = 0
+                while i < len(self._values) and self._values[i] == 0:
+                    i += 1
+                return self._values[i:]
+            else:
+                return self._values
+        else:
+            return self._values
 
     def get_current_value(self):
         return self._values[-1]

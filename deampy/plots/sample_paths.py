@@ -61,8 +61,9 @@ def plot_sample_paths(sample_paths,
                       x_range=None, y_range=None,
                       figure_size=None, file_name=None,
                       legends=None, legend_fontsize=8, transparency=1,
-                      color_codes=None,
-                      common_color_code=None, connect='step'):
+                      color_codes=None, delete_initial_zeroes=False,
+                      common_color_code=None, connect='step',
+                      obs_info=None):
     """ graphs multiple sample paths
     :param sample_paths: a list of sample paths
     :param title: (string) title of the figure
@@ -79,6 +80,7 @@ def plot_sample_paths(sample_paths,
     :param common_color_code: (string) color code if all sample paths should have the same color
         'b'	blue 'g' green 'r' red 'c' cyan 'm' magenta 'y' yellow 'k' black
     :param connect: (string) set to 'step' to produce an step graph and to 'line' to produce a line graph
+    :param obs_info: (dict) with keys 'ts' and 'obss' for observed values
     """
 
     if len(sample_paths) == 1:
@@ -99,7 +101,16 @@ def plot_sample_paths(sample_paths,
                            color_codes=color_codes,
                            common_color_code=common_color_code,
                            transparency=transparency,
-                           connect=connect)
+                           connect=connect,
+                           delete_initial_zeroes=delete_initial_zeroes)
+
+    if obs_info is not None:
+        add_obs_to_ax(
+            ax=ax,
+            ts=obs_info['observed_times'],
+            obss=obs_info['observed_values'],
+            color=obs_info['observed_color_code'],
+            label=obs_info['observed_label'])
 
     # add legend if provided
     if legends is not None:
@@ -107,6 +118,16 @@ def plot_sample_paths(sample_paths,
             ax.legend(legends, fontsize=legend_fontsize)
         else:
             ax.legend([legends], fontsize=legend_fontsize)
+
+        # this is to make sure that the legend transparency is set to 1
+        if obs_info is not None:
+            legend_lines = [
+                Line2D([0], [0], color=common_color_code, alpha=1),
+                Line2D([0], [0],
+                       color=obs_info['observed_color_code'],
+                       linestyle='-', marker='.', markersize=10, alpha=1)
+            ]
+            ax.legend(handles=legend_lines, labels=legends, fontsize=8)
 
     # set the minimum of y-axis to zero
     if y_range is None:
@@ -165,7 +186,8 @@ def plot_sets_of_sample_paths(sets_of_sample_paths,
 
 def add_sample_path_to_ax(sample_path, ax, legend=None, color=None, transparency=1.0, connect='step',
                           title=None, x_label=None, y_label=None,
-                          x_range=None, y_range=None, legend_fontsize=8
+                          x_range=None, y_range=None, legend_fontsize=8,
+                          delete_initial_zeroes = False
                           ):
 
     # x and y values
@@ -174,15 +196,17 @@ def add_sample_path_to_ax(sample_path, ax, legend=None, color=None, transparency
     elif isinstance(sample_path, IncidenceSamplePath):
         x_values = sample_path.get_period_numbers()
 
-    y_values = sample_path.get_values()
+    y_values = sample_path.get_values(delete_initial_zeroes=delete_initial_zeroes)
+    x_values = x_values[:len(y_values)]  # make sure that x and y values have the same length
 
     # plot the sample path
-    if connect == 'step':
-        ax.step(x=x_values, y=y_values, where='post', color=color,
-                linewidth=0.75, label=legend, alpha=transparency)
-    else:
-        ax.plot(x_values, y_values, color=color,
-                linewidth=0.75, label=legend, alpha=transparency)
+    if len(y_values) > 0:
+        if connect == 'step':
+            ax.step(x=x_values, y=y_values, where='post', color=color,
+                    linewidth=0.75, label=legend, alpha=transparency)
+        else:
+            ax.plot(x_values, y_values, color=color,
+                    linewidth=0.75, label=legend, alpha=transparency)
 
     if title is not None:
         ax.set_title(title)
@@ -201,7 +225,7 @@ def add_sample_path_to_ax(sample_path, ax, legend=None, color=None, transparency
 def add_sample_paths_to_ax(sample_paths, ax, color_codes=None, common_color_code=None, transparency=0.5,
                            connect='step', legends=None, legend_fontsize=8,
                            title=None, x_label=None, y_label=None,
-                           x_range=None, y_range=None):
+                           x_range=None, y_range=None, delete_initial_zeroes=False):
 
     # add every path
     for i, path in enumerate(sample_paths):
@@ -220,7 +244,8 @@ def add_sample_paths_to_ax(sample_paths, ax, color_codes=None, common_color_code
                               legend=legend,
                               legend_fontsize=legend_fontsize,
                               transparency=transparency,
-                              connect=connect)
+                              connect=connect,
+                              delete_initial_zeroes=delete_initial_zeroes)
 
     if title is not None:
         ax.set_title(title)
@@ -271,3 +296,17 @@ def add_sets_of_sample_paths_to_ax(
         Line2D([0], [0], color=color_codes[i], alpha=1, label=legends[i]) for i in range(len(legends))
     ]
     ax.legend(handles=legend_lines, fontsize=8)
+
+
+def add_obs_to_ax(ax, ts, obss, color='black', label='Observed', marker_size=25, linewidth=1, alpha=1):
+    """ add observations to the ax
+    :param ax: the axis to add the observations to
+    :param obss: a list of observations
+    """
+    ax.scatter(
+        x=ts, y=obss, color=color,
+        label=label, alpha=alpha, s=marker_size)
+    ax.plot(
+        ts, obss, color=color, linestyle='-', marker='.',
+        alpha=alpha, linewidth=linewidth, label=label
+    )
