@@ -15,11 +15,8 @@ class _Calibration:
     def __init__(self, prior_ranges):
         """Base class for calibration methods."""
 
-        assert isinstance(prior_ranges, (dict, list, tuple)) and len(prior_ranges) > 0, \
-            "prior_ranges must be a non-empty dictionary or list of tuples (min, max) for each parameter."
-        # if prior_ranges is a list of two numbers, convert it to a list of one tuple
-        if len(prior_ranges) == 2 and isinstance(prior_ranges[0], (int, float)) and isinstance(prior_ranges[1], (int, float)):
-            prior_ranges = [prior_ranges]
+        assert isinstance(prior_ranges, dict) and len(prior_ranges) > 0, \
+            "prior_ranges must be a non-empty dictionary of tuples (min, max) for each parameter."
 
         self.priorRanges = prior_ranges  # List of tuples (min, max) for each parameter
         self._reset()
@@ -38,7 +35,7 @@ class _Calibration:
     def save_samples(self, file_name, parameter_names=None):
 
         if parameter_names is None:
-            parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
+            parameter_names = list(self.priorRanges.keys())
 
         # first row
         if isinstance(self, CalibrationRandomSampling):
@@ -123,38 +120,46 @@ class _Calibration:
         f, axarr = plt.subplots(n_rows, n_cols, sharex=share_x, sharey=share_y, figsize=figsize)
 
         if parameter_names is None:
-            parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
+            parameter_names = list(self.priorRanges.keys())
 
-        for i in range(n_rows):
-            for j in range(n_cols):
-                # get current axis
-                if n_rows == 1 and n_cols == 1:
-                    ax = axarr
-                elif n_rows == 1 or n_cols == 1:
-                    ax = axarr[i * n_cols + j]
-                else:
-                    ax = axarr[i, j]
+        i = 0
+        j = 0
+        for key, range in self.priorRanges.items():
 
-                # plot subplot, or hide extra subplots
-                if i * n_cols + j >= len(self.samples):
-                    ax.axis('off')
-                else:
-                    self.add_trace_to_ax(
-                        ax=ax,
-                        samples=self.samples[i * n_cols + j],
-                        par_name=parameter_names[i * n_cols + j],
-                        moving_ave_window=moving_ave_window,
-                        y_range=self.priorRanges[i * n_cols + j]
-                    )
+            # get current axis
+            if n_rows == 1 and n_cols == 1:
+                ax = axarr
+            elif n_rows == 1 or n_cols == 1:
+                ax = axarr[i * n_cols + j]
+            else:
+                ax = axarr[i, j]
 
-                    ax.set_xlabel('Step')
-                    ax.set_ylabel('Sample Value')
+            # plot subplot, or hide extra subplots
+            if i * n_cols + j >= len(self.samples):
+                ax.axis('off')
+            else:
+                self.add_trace_to_ax(
+                    ax=ax,
+                    samples=self.samples[i * n_cols + j],
+                    par_name=parameter_names[i * n_cols + j],
+                    moving_ave_window=moving_ave_window,
+                    y_range=range
+                )
 
-                # remove unnecessary labels for shared axis
-                if share_x and i < n_rows - 1:
-                    ax.set(xlabel='')
-                if share_y and j > 0:
-                    ax.set(ylabel='')
+                ax.set_xlabel('Step')
+                ax.set_ylabel('Sample Value')
+
+            # remove unnecessary labels for shared axis
+            if share_x and i < n_rows - 1:
+                ax.set(xlabel='')
+            if share_y and j > 0:
+                ax.set(ylabel='')
+
+            if j == n_cols - 1:
+                i += 1
+                j = 0
+            else:
+                j += 1
 
         output_figure(plt=f, file_name=file_name)
 
@@ -166,33 +171,41 @@ class _Calibration:
         f, axarr = plt.subplots(n_rows, n_cols, figsize=figsize)
 
         if parameter_names is None:
-            parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
+            parameter_names = list(self.priorRanges.keys())
 
-        for i in range(n_rows):
-            for j in range(n_cols):
-                # get current axis
-                if n_rows == 1 and n_cols == 1:
-                    ax = axarr
-                elif n_rows == 1 or n_cols == 1:
-                    ax = axarr[i * n_cols + j]
-                else:
-                    ax = axarr[i, j]
+        i = 0
+        j = 0
+        for key, range in self.priorRanges.items():
 
-                # plot subplot, or hide extra subplots
-                if i * n_cols + j >= len(samples):
-                    ax.axis('off')
-                else:
-                    add_histogram_to_ax(
-                        ax=ax,
-                        data=samples[i*n_cols+j],  # Skip warmup samples
-                        # color='blue',
-                        title=parameter_names[i * n_cols + j],
-                        x_label='Sampled Values',
-                        # y_label=None,
-                        x_range=self.priorRanges[i * n_cols + j],
-                        y_range=None,
-                        transparency=0.7,
-                    )
+            # get current axis
+            if n_rows == 1 and n_cols == 1:
+                ax = axarr
+            elif n_rows == 1 or n_cols == 1:
+                ax = axarr[i * n_cols + j]
+            else:
+                ax = axarr[i, j]
+
+            # plot subplot, or hide extra subplots
+            if i * n_cols + j >= len(samples):
+                ax.axis('off')
+            else:
+                add_histogram_to_ax(
+                    ax=ax,
+                    data=samples[i * n_cols + j],  # Skip warmup samples
+                    # color='blue',
+                    title=parameter_names[i * n_cols + j],
+                    x_label='Sampled Values',
+                    # y_label=None,
+                    x_range=range,
+                    y_range=None,
+                    transparency=0.7,
+                )
+
+            if j == n_cols - 1:
+                i += 1
+                j = 0
+            else:
+                j += 1
 
         output_figure(plt=f, file_name=file_name)
 
@@ -200,7 +213,7 @@ class _Calibration:
     def _save_posterior(self, samples, file_name, alpha=0.05, parameter_names=None, significant_digits=None):
 
         if parameter_names is None:
-            parameter_names = [f'Parameter {i+1}' for i in range(len(self.priorRanges))]
+            parameter_names = list(self.priorRanges.keys())
 
         # first row
         first_row = ['Parameter', 'Mean', 'Credible Interval', 'Confidence Interval']
@@ -237,7 +250,7 @@ class CalibrationRandomSampling(_Calibration):
             rng = np.random.RandomState(1)
 
         param_samples = []
-        for prior in self.priorRanges:
+        for key, prior in self.priorRanges.items():
             # Generate samples uniformly within the prior range
             param_samples.append(
                 rng.uniform(low=prior[0], high=prior[1], size=num_samples)
@@ -298,7 +311,8 @@ class CalibrationRandomSampling(_Calibration):
         self.resample(n_resample=n_resample)
 
         self._save_posterior(
-            samples=self.resamples, file_name=file_name, alpha=alpha, parameter_names=parameter_names,
+            samples=self.resamples, file_name=file_name, alpha=alpha,
+            parameter_names=parameter_names,
             significant_digits=significant_digits)
 
 
@@ -321,7 +335,7 @@ class CalibrationMCMCSampling(_Calibration):
         if len(sig.parameters) != 2 or 'thetas' not in sig.parameters or 'seed' not in sig.parameters:
             raise ValueError("log_likelihood_func must accept two parameters: thetas and seed.")
 
-        std_factors = [(r[1] - r[0]) * std_factor for r in self.priorRanges]
+        std_factors = [(r[1] - r[0]) * std_factor for k, r in self.priorRanges.items()]
 
         if rng is None:
             rng = np.random.RandomState(1)
@@ -330,7 +344,7 @@ class CalibrationMCMCSampling(_Calibration):
 
         # Start from a uniform prior
         thetas = np.array(
-            [rng.uniform(low=prior_range[0], high=prior_range[1]) for prior_range in self.priorRanges])
+            [rng.uniform(low=prior_range[0], high=prior_range[1]) for key, prior_range in self.priorRanges.items()])
 
         log_prior_value = self._log_prior(thetas=thetas)
 
@@ -360,11 +374,17 @@ class CalibrationMCMCSampling(_Calibration):
         """Compute the log-prior of theta."""
 
         log_prior = 0
-        for i, theta in enumerate(thetas):
-            if self.priorRanges[i][0] <= theta <= self.priorRanges[i][1]:
-                log_prior += np.log(1 / (self.priorRanges[i][1] - self.priorRanges[i][0]))
+        for range, value in zip(self.priorRanges.values(), thetas):
+            if range[0] <= value <= range[1]:
+                log_prior += np.log(1 / (range[1] - range[0]))
             else:
-                return -np.inf  # Outside prior range, log-prior is -inf
+                return -np.inf # Outside prior range, log-prior is -inf
+
+        # for i, theta in enumerate(thetas):
+        #     if self.priorRanges[i][0] <= theta <= self.priorRanges[i][1]:
+        #         log_prior += np.log(1 / (self.priorRanges[i][1] - self.priorRanges[i][0]))
+        #     else:
+        #         return -np.inf  # Outside prior range, log-prior is -inf
         return log_prior
 
     def plot_posterior(self, n_warmup, n_rows=1, n_cols=1, figsize=(7, 5),

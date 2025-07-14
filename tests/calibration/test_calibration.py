@@ -4,10 +4,10 @@ import scipy.stats as stats
 from deampy.calibration import CalibrationMCMCSampling, CalibrationRandomSampling
 
 SIM_OBSS = (9.0, -3.0)  # Observed data point
-PRIOR_RANGES = (
-    (0.0, 20.0),  # Uniform prior range for theta[0]
-    (-5.0, 5.0)   # Uniform prior range for theta[1]
-)
+PRIOR_RANGES = {
+    'Par 1': (0.0, 20.0),  # Uniform prior range for theta[0]
+    'Par 2': (-5.0, 5.0)   # Uniform prior range for theta[1]
+}
 
 
 def simulate(thetas, seed):
