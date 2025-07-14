@@ -15,8 +15,8 @@ class _Calibration:
     def __init__(self, prior_ranges):
         """Base class for calibration methods."""
 
-        assert isinstance(prior_ranges, (list, tuple)) and len(prior_ranges) > 0, \
-            "prior_ranges must be a non-empty list of tuples (min, max) for each parameter."
+        assert isinstance(prior_ranges, (dict, list, tuple)) and len(prior_ranges) > 0, \
+            "prior_ranges must be a non-empty dictionary or list of tuples (min, max) for each parameter."
         # if prior_ranges is a list of two numbers, convert it to a list of one tuple
         if len(prior_ranges) == 2 and isinstance(prior_ranges[0], (int, float)) and isinstance(prior_ranges[1], (int, float)):
             prior_ranges = [prior_ranges]
