@@ -337,7 +337,7 @@ class CalibrationMCMCSampling(_Calibration):
 
         for i in range(num_samples):
 
-            seed = i # rng.randint(0, iinfo(int32).max)
+            # seed = i # rng.randint(0, iinfo(int32).max)
 
             thetas_new = rng.normal(thetas, std_factors)
             log_prior = self._log_prior(thetas=thetas_new)
@@ -347,11 +347,12 @@ class CalibrationMCMCSampling(_Calibration):
 
             log_post_new = (
                     log_prior
-                    + log_likelihood_func(thetas=thetas_new, seed=seed))
+                    + log_likelihood_func(thetas=thetas_new, seed=i))
 
             accept_prob = min(1, np.exp(log_post_new - log_post))
 
             if rng.random() < accept_prob:
+                seed = i
                 thetas = thetas_new
                 log_post = log_post_new
 
