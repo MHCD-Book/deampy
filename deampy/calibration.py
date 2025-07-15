@@ -337,8 +337,6 @@ class CalibrationMCMCSampling(_Calibration):
 
         for i in range(num_samples):
 
-            # seed = i # rng.randint(0, iinfo(int32).max)
-
             thetas_new = rng.normal(thetas, std_factors)
             log_prior = self._log_prior(thetas=thetas_new)
             if log_prior == -np.inf:
@@ -356,10 +354,11 @@ class CalibrationMCMCSampling(_Calibration):
                 thetas = thetas_new
                 log_post = log_post_new
 
-            self.seeds.append(seed)
-            self.logLikelihoods.append(log_post)
-            for i in range(len(self.priorRanges)):
-                self.samples[i].append(thetas[i])
+            if log_post_new != -np.inf:
+                self.seeds.append(seed)
+                self.logLikelihoods.append(log_post)
+                for i in range(len(self.priorRanges)):
+                    self.samples[i].append(thetas[i])
 
     def _log_prior(self, thetas):
         """Compute the log-prior of theta."""
