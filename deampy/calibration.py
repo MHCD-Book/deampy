@@ -340,8 +340,13 @@ class CalibrationMCMCSampling(_Calibration):
             seed = i # rng.randint(0, iinfo(int32).max)
 
             thetas_new = rng.normal(thetas, std_factors)
+            log_prior = self._log_prior(thetas=thetas_new)
+            if log_prior == -np.inf:
+                # If the new sample is outside the prior range, skip it
+                continue
+
             log_post_new = (
-                    self._log_prior(thetas=thetas_new)
+                    log_prior
                     + log_likelihood_func(thetas=thetas_new, seed=seed))
 
             accept_prob = min(1, np.exp(log_post_new - log_post))
