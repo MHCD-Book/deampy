@@ -18,6 +18,10 @@ class _Calibration:
         assert isinstance(prior_ranges, dict) and len(prior_ranges) > 0, \
             "prior_ranges must be a non-empty dictionary of tuples (min, max) for each parameter."
 
+        self.samples = None
+        self.seeds = None
+        self.logLikelihoods = None
+
         self.priorRanges = prior_ranges  # List of tuples (min, max) for each parameter
         self._reset()
 
@@ -26,7 +30,6 @@ class _Calibration:
         self.samples = [[] for i in range(len(self.priorRanges))] # Initialize samples for each parameter
         self.seeds = []
         self.logLikelihoods = []
-        self.probs = [] # Normalized probabilities for each sample
 
     def run(self, *args, **kwargs):
         """Run the calibration method."""
@@ -38,26 +41,15 @@ class _Calibration:
             parameter_names = list(self.priorRanges.keys())
 
         # first row
-        if isinstance(self, CalibrationRandomSampling):
-            first_row = ['Seed', 'Log-Likelihood', 'Probabilities']
-        elif isinstance(self, CalibrationMCMCSampling):
-            first_row = ['Seed', 'Log-Likelihood']
-        else:
-            raise ValueError("Unknown calibration method")
+        first_row = ['Seed', 'Log-Likelihood']
         first_row.extend(parameter_names)
 
         # produce the list to report the results
         csv_rows = [first_row]
 
         for i in range(len(self.seeds)):
-
-            if isinstance(self, CalibrationRandomSampling):
-                row = [self.seeds[i], self.logLikelihoods[i], self.probs[i]]
-            elif isinstance(self, CalibrationMCMCSampling):
-                row = [self.seeds[i], self.logLikelihoods[i]]
-            else:
-                raise ValueError("Unknown calibration method")
-
+            # create a row with seed, log-likelihood, and parameter samples
+            row = [self.seeds[i], self.logLikelihoods[i]]
             row.extend([self.samples[j][i] for j in range(len(self.priorRanges))])
 
             csv_rows.append(row)
@@ -74,19 +66,13 @@ class _Calibration:
 
         cols = IO.read_csv_cols(file_name=file_name, if_ignore_first_row=True, if_convert_float=True)
 
-        # first column is seeds
+        # the first column is seeds
         self.seeds = cols[0].astype(int).tolist()
-        # second column is log-likelihoods
+        # the second column is log-likelihoods
         self.logLikelihoods = cols[1].tolist()
-        k = 2  # start from the third column
-        if isinstance(self, CalibrationRandomSampling):
-            # third column is probabilities
-            self.probs = cols[k].tolist()
-            k += 1  # move to the next column
-
         # remaining columns are parameter samples
         for i in range(len(self.priorRanges)):
-            self.samples[i].extend(cols[i + k].tolist())
+            self.samples[i].extend(cols[i + 2].tolist())
 
     @staticmethod
     def _get_probs(likelihoods):
@@ -209,7 +195,6 @@ class _Calibration:
 
         output_figure(plt=f, file_name=file_name)
 
-
     def _save_posterior(self, samples, file_name, alpha=0.05, parameter_names=None, significant_digits=None):
 
         if parameter_names is None:
@@ -269,9 +254,9 @@ class CalibrationRandomSampling(_Calibration):
             for i in range(len(self.priorRanges)):
                 self.samples[i].append(thetas[i])
 
-        self.probs = self._get_probs(likelihoods=self.logLikelihoods)
-
     def resample(self, n_resample=1000):
+
+        probs = self._get_probs(likelihoods=self.logLikelihoods)
 
         rng = np.random.RandomState(1)
 
@@ -281,10 +266,10 @@ class CalibrationRandomSampling(_Calibration):
             row.clear()
 
         sampled_row_indices = rng.choice(
-            a=range(0, len(self.probs)),
+            a=range(0, len(probs)),
             size=n_resample,
             replace=True,
-            p=self.probs)
+            p=probs)
 
         # use the sampled indices to populate the list of cohort IDs and mortality probabilities
         for i in sampled_row_indices:
@@ -380,11 +365,6 @@ class CalibrationMCMCSampling(_Calibration):
             else:
                 return -np.inf # Outside prior range, log-prior is -inf
 
-        # for i, theta in enumerate(thetas):
-        #     if self.priorRanges[i][0] <= theta <= self.priorRanges[i][1]:
-        #         log_prior += np.log(1 / (self.priorRanges[i][1] - self.priorRanges[i][0]))
-        #     else:
-        #         return -np.inf  # Outside prior range, log-prior is -inf
         return log_prior
 
     def plot_posterior(self, n_warmup, n_rows=1, n_cols=1, figsize=(7, 5),
