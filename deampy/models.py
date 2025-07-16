@@ -1,8 +1,8 @@
-import deampy.random_variats as RVGs
-from deampy.data_structure import DataFrameOfObjects
+import deampy.random_variates as RVGs
+from deampy.data_structure import DataFrameOfObjects, OneDimDataFrame
 
 
-class MortalityModel:
+class MortalityModelByAgeSex:
     """
     example:
         age,   sex,      mortality rate
@@ -48,3 +48,47 @@ class MortalityModel:
             raise ValueError('Current age cannot be smaller than the minimum age.')
 
         return self.df.get_obj(group).sample(rng=rng, arg=age)
+
+
+
+class MortalityModelByAge:
+    """
+    example:
+        age,   mortality rate
+        0,     0.1,
+        5,     0.2,
+        10,    0.3
+    """
+
+    def __init__(self, age_breaks, mortality_rates, age_delta):
+        """
+        :param : (list of list) the table above
+        :param age_delta:
+        """
+
+        if len(age_breaks) != len(mortality_rates):
+            raise ValueError('The number of age breaks should be equal to the number of mortality rates.')
+
+        # create the list of nonhomogenous exponential distributions
+        y_objects = []
+        for i, v in enumerate(mortality_rates):
+            if v <= 0:
+                raise ValueError('All y_values (rates of exponential distributions) should be greater than 0.')
+            y_objects.append(RVGs.NonHomogeneousExponential(
+                rates= mortality_rates[i:]
+            ))
+
+        self.ageMin = age_breaks[0]
+
+        self.df = OneDimDataFrame(
+            y_objects=y_objects,
+            x_min=self.ageMin,
+            x_max=age_breaks[-1],
+            x_delta=age_delta)
+
+    def sample_time_to_death(self, current_age, rng):
+
+        if current_age < self.ageMin:
+            raise ValueError('Current age cannot be smaller than the minimum age.')
+
+        return self.df.get_obj(current_age).sample(rng=rng)

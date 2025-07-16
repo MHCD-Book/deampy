@@ -123,7 +123,7 @@ def convert_lnl_to_prob(ln_likelihoods):
 def get_percentile_of_empirical_dist(xs, probs, q):
     """
     :param xs: (list or np.array) values that the random variable can take
-        (assumed to be sorted in the increasing order)
+        (assumed to be sorted in the increasing order).
     :param probs: (list or np.array) probability of each value
     :param q: (float) percentile value (has to be between 0 and 1)
     :return: the value of x where q*100% of cumulative probability distribution is below q
@@ -179,7 +179,7 @@ def get_prob_normal_greater_0(mean, st_dev):
 
 def get_prob_x_greater_than_y(x_mean, x_st_dev, y_mean, y_st_dev, corr=0):
     """
-    :param x_mean: (float) the mean of x, which follows a normal distribution
+    :param x_mean: (float) the mean of x, which follows a normal distribution.
     :param x_st_dev: (float) the standard deviation of x
     :param y_mean: (float)the mean of y, which follows a normal distribution
     :param y_st_dev: (float) the standard deviation of y

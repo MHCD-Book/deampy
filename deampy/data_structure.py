@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-import deampy.random_variats as RVGs
+import deampy.random_variates as RVGs
 
 
 class OneDimDataFrame:

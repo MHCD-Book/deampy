@@ -52,7 +52,7 @@ class ParameterAnalyzer:
         """
         :param csvfile_param_values: (string) csv file where the parameter values are located
             assumes that the first row of this csv file contains the parameter names and each
-            column contains the parameter values
+            column contains the parameter values.
         :param columns_to_be_deleted: (list of string) list of column names to be deleted from analysis
         """
 
@@ -74,8 +74,8 @@ class ParameterAnalyzer:
             It assumes that
                 1) the first row contains the name of all parameters
                 2) rows contains the weight and the parameter values
-                3) rows are in decreasing order of parameter weights
-        :param n: (int) number of parameter values to resamples
+                3) rows are in decreasing order of parameter weights.
+        :param n: (int) number of parameter values to resamples.
         :param weight_col: (int) index of the columns where the weights of parameter values are located.
         :param csvfile_resampled_params: (string) csvfile where the resampled parameter values will be stored.
             The first row will be the names of parameters.
