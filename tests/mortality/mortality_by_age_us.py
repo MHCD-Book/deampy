@@ -1,3 +1,5 @@
+import statistics as stats
+
 from numpy.random import RandomState
 
 from deampy.in_out_functions import read_csv_cols_to_dictionary
@@ -17,7 +19,14 @@ model = MortalityModelByAge(
 rng = RandomState(seed=0)
 
 # Sample time to death for different ages
-print(model.sample_time_to_death(current_age=0, rng=rng))
-print(model.sample_time_to_death(current_age=5, rng=rng))
-print(model.sample_time_to_death(current_age=5.1, rng=rng))
-print(model.sample_time_to_death(current_age=12, rng=rng))
+a0 = [model.sample_time_to_death(current_age=0, rng=rng) for i in range(1000)]
+a5 = [model.sample_time_to_death(current_age=5, rng=rng) for i in range(1000)]
+a35= [model.sample_time_to_death(current_age=35, rng=rng) for i in range(1000)]
+a99= [model.sample_time_to_death(current_age=99, rng=rng) for i in range(1000)]
+a100= [model.sample_time_to_death(current_age=100, rng=rng) for i in range(1000)]
+
+print('0 years old:', stats.mean(a0))
+print('5 years old:', stats.mean(a5))
+print('35 years old:', stats.mean(a35))
+print('99 years old:', stats.mean(a99))
+print('100 years old:', stats.mean(a100))
