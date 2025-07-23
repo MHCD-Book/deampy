@@ -221,7 +221,7 @@ class _Calibration:
 
 class CalibrationRandomSampling(_Calibration):
 
-    def __init__(self, prior_ranges):
+    def __init__(self, prior_ranges=None):
 
         _Calibration.__init__(self, prior_ranges=prior_ranges)
         self.resampledSeeds = []
@@ -242,34 +242,47 @@ class CalibrationRandomSampling(_Calibration):
             )
 
         for i in range(num_samples):
-
+            print('Iteration:', i + 1, '/', num_samples)
             seed = i # rng.randint(0, iinfo(int32).max)
 
             thetas = [param_samples[j][i] for j in range(len(self.priorRanges))]
 
-            ll = log_likelihood_func(thetas=thetas, seed=seed)
+            ll, accepted_seed = log_likelihood_func(thetas=thetas, initial_seed=seed)
 
-            self.seeds.append(seed)
-            self.logLikelihoods.append(ll)
-            for i in range(len(self.priorRanges)):
-                self.samples[i].append(thetas[i])
+            if ll != float('-inf'):
+                self.seeds.append(accepted_seed)
+                self.logLikelihoods.append(ll)
+                for i in range(len(self.priorRanges)):
+                    self.samples[i].append(thetas[i])
 
-    def resample(self, n_resample=1000):
+    def resample(self, n_resample=1000, weighted=False):
 
-        probs = self._get_probs(likelihoods=self.logLikelihoods)
+        if weighted:
+            probs = self._get_probs(likelihoods=self.logLikelihoods)
 
-        rng = np.random.RandomState(1)
+            rng = np.random.RandomState(1)
 
-        # clear the resamples
-        self.resampledSeeds.clear()
-        for row in self.resamples:
-            row.clear()
+            # clear the resamples
+            self.resampledSeeds.clear()
+            for row in self.resamples:
+                row.clear()
 
-        sampled_row_indices = rng.choice(
-            a=range(0, len(probs)),
-            size=n_resample,
-            replace=True,
-            p=probs)
+            sampled_row_indices = rng.choice(
+                a=range(0, len(probs)),
+                size=n_resample,
+                replace=True,
+                p=probs)
+        else:
+            # sort the indices in ascending order of log-likelihoods
+
+            # Pair each number with its original index
+            indexed_values = list(enumerate(self.logLikelihoods))
+
+            # Sort by number in decreasing order
+            sorted_indexed_values = sorted(indexed_values, key=lambda x: x[1], reverse=True)
+
+            # Extract the sorted numbers and their original indices
+            sampled_row_indices = [idx for idx, num in sorted_indexed_values]
 
         # use the sampled indices to populate the list of cohort IDs and mortality probabilities
         for i in sampled_row_indices:
@@ -277,10 +290,10 @@ class CalibrationRandomSampling(_Calibration):
             for j in range(len(self.priorRanges)):
                 self.resamples[j].append(self.samples[j][i])
 
-    def plot_posterior(self, n_resample=1000, n_rows=1, n_cols=1, figsize=(7, 5),
+    def plot_posterior(self, n_resample=1000, weighted=False, n_rows=1, n_cols=1, figsize=(7, 5),
                        file_name=None, parameter_names=None):
 
-        self.resample(n_resample=n_resample)
+        self.resample(n_resample=n_resample, weighted=weighted)
 
         self._plot_posterior(
             samples=self.resamples,
