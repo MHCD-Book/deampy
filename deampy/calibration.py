@@ -285,6 +285,8 @@ class CalibrationRandomSampling(_Calibration):
             sampled_row_indices = [idx for idx, num in sorted_indexed_values]
 
         # use the sampled indices to populate the list of cohort IDs and mortality probabilities
+        self.resampledSeeds.clear()
+        self.resamples = [[] for _ in range(len(self.priorRanges))]  # Reset resamples
         for i in sampled_row_indices:
             self.resampledSeeds.append(self.seeds[i])
             for j in range(len(self.priorRanges)):
@@ -304,9 +306,10 @@ class CalibrationRandomSampling(_Calibration):
             parameter_names=parameter_names
         )
 
-    def save_posterior(self, file_name, n_resample=1000, alpha=0.05, parameter_names=None, significant_digits=None):
+    def save_posterior(self, file_name, n_resample=1000,
+                       alpha=0.05, weighted=False, parameter_names=None, significant_digits=None):
 
-        self.resample(n_resample=n_resample)
+        self.resample(n_resample=n_resample, weighted=False)
 
         self._save_posterior(
             samples=self.resamples, file_name=file_name, alpha=alpha,
