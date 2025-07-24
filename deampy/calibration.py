@@ -149,8 +149,8 @@ class _Calibration:
 
         output_figure(plt=f, file_name=file_name)
 
-    def _plot_posterior(self, samples, n_rows=1, n_cols=1, figsize=(7, 5),
-                       file_name=None, parameter_names=None):
+    def _plot_posteriors(self, samples, n_rows=1, n_cols=1, figsize=(7, 5),
+                         file_name=None, parameter_names=None):
         """Plot the posterior distribution of the MCMC samples."""
 
         # plot each panel
@@ -177,7 +177,7 @@ class _Calibration:
             else:
                 add_histogram_to_ax(
                     ax=ax,
-                    data=samples[i * n_cols + j],  # Skip warmup samples
+                    data=samples[i * n_cols + j],
                     # color='blue',
                     title=parameter_names[i * n_cols + j],
                     x_label='Sampled Values',
@@ -195,7 +195,35 @@ class _Calibration:
 
         output_figure(plt=f, file_name=file_name)
 
-    def _save_posterior(self, samples, file_name, alpha=0.05, parameter_names=None, significant_digits=None):
+
+    def _plot_pairwise_posteriors(self, samples, n_rows=1, n_cols=1, figsize=(7, 5),
+                                    file_name=None, parameter_names=None):
+        """Plot pairwise posterior distributions."""
+
+        from deampy.plots.pairwise import plot_pairwise_histograms
+        if parameter_names is None:
+            parameter_names = list(self.priorRanges.keys())
+        # Flatten the samples into a 2D array
+        flattened_samples = np.array([s for s in samples]).T  # Transpose to get parameters as columns
+        # Create a DataFrame for easier plotting
+        import pandas as pd
+        df_samples = pd.DataFrame(flattened_samples, columns=parameter_names)
+        # Plot pairwise histograms
+        plot_pairwise_histograms(
+            df=df_samples,
+            n_rows=n_rows,
+            n_cols=n_cols,
+            figsize=figsize,
+            file_name=file_name,
+            title='Pairwise Posterior Distributions',
+            x_label='Sampled Values',
+            y_label=None,
+            transparency=0.7
+        )
+
+
+
+    def _save_posteriors(self, samples, file_name, alpha=0.05, parameter_names=None, significant_digits=None):
 
         if parameter_names is None:
             parameter_names = list(self.priorRanges.keys())
@@ -227,7 +255,15 @@ class CalibrationRandomSampling(_Calibration):
         self.resampledSeeds = []
         self.resamples = [[] for _ in range(len(prior_ranges))]  # Initialize samples for each parameter
 
-    def run(self, log_likelihood_func, num_samples=1000, rng=None):
+    def run(self, log_likelihood_func, num_samples=1000, rng=None, print_iterations=True):
+
+        # Ensure that the log_likelihood_func is callable and has the correct signature
+        if not callable(log_likelihood_func):
+            raise ValueError("log_likelihood_func must be a callable function.")
+        sig = inspect.signature(log_likelihood_func)
+        if len(sig.parameters) != 2 or 'thetas' not in sig.parameters or 'seed' not in sig.parameters:
+            raise ValueError("log_likelihood_func must accept two parameters: thetas and seed.")
+
 
         self._reset()
 
@@ -242,12 +278,20 @@ class CalibrationRandomSampling(_Calibration):
             )
 
         for i in range(num_samples):
-            print('Iteration:', i + 1, '/', num_samples)
+
             seed = i # rng.randint(0, iinfo(int32).max)
 
             thetas = [param_samples[j][i] for j in range(len(self.priorRanges))]
 
-            ll, accepted_seed = log_likelihood_func(thetas=thetas, initial_seed=seed)
+            output = log_likelihood_func(thetas=thetas, seed=seed)
+            if isinstance(output, tuple):
+                ll, accepted_seed = output
+            else:
+                ll = output
+                accepted_seed = seed
+
+            if print_iterations:
+                print('Iteration: {}/{} | Log-Likelihood: {}'.format(i + 1, num_samples, ll))
 
             if ll != float('-inf'):
                 self.seeds.append(accepted_seed)
@@ -287,17 +331,20 @@ class CalibrationRandomSampling(_Calibration):
         # use the sampled indices to populate the list of cohort IDs and mortality probabilities
         self.resampledSeeds.clear()
         self.resamples = [[] for _ in range(len(self.priorRanges))]  # Reset resamples
-        for i in sampled_row_indices:
-            self.resampledSeeds.append(self.seeds[i])
+        for i in range(n_resample):
+
+            row_index = sampled_row_indices[i]
+            self.resampledSeeds.append(self.seeds[row_index])
             for j in range(len(self.priorRanges)):
-                self.resamples[j].append(self.samples[j][i])
+                self.resamples[j].append(self.samples[j][row_index])
+
 
     def plot_posterior(self, n_resample=1000, weighted=False, n_rows=1, n_cols=1, figsize=(7, 5),
                        file_name=None, parameter_names=None):
 
         self.resample(n_resample=n_resample, weighted=weighted)
 
-        self._plot_posterior(
+        self._plot_posteriors(
             samples=self.resamples,
             n_rows=n_rows,
             n_cols=n_cols,
@@ -309,9 +356,9 @@ class CalibrationRandomSampling(_Calibration):
     def save_posterior(self, file_name, n_resample=1000,
                        alpha=0.05, weighted=False, parameter_names=None, significant_digits=None):
 
-        self.resample(n_resample=n_resample, weighted=False)
+        self.resample(n_resample=n_resample, weighted=weighted)
 
-        self._save_posterior(
+        self._save_posteriors(
             samples=self.resamples, file_name=file_name, alpha=alpha,
             parameter_names=parameter_names,
             significant_digits=significant_digits)
@@ -393,7 +440,7 @@ class CalibrationMCMCSampling(_Calibration):
 
         samples = [self.samples[i][n_warmup:] for i in range(len(self.samples))]
 
-        self._plot_posterior(
+        self._plot_posteriors(
             samples=samples,
             n_rows=n_rows,
             n_cols=n_cols,
@@ -406,6 +453,6 @@ class CalibrationMCMCSampling(_Calibration):
 
         samples = [self.samples[i][n_warmup:] for i in range(len(self.samples))]
 
-        self._save_posterior(
+        self._save_posteriors(
             samples=samples, file_name=file_name, alpha=alpha, parameter_names=parameter_names,
             significant_digits=significant_digits)
