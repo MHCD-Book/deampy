@@ -200,26 +200,7 @@ class _Calibration:
                                     file_name=None, parameter_names=None):
         """Plot pairwise posterior distributions."""
 
-        from deampy.plots.pairwise import plot_pairwise_histograms
-        if parameter_names is None:
-            parameter_names = list(self.priorRanges.keys())
-        # Flatten the samples into a 2D array
-        flattened_samples = np.array([s for s in samples]).T  # Transpose to get parameters as columns
-        # Create a DataFrame for easier plotting
-        import pandas as pd
-        df_samples = pd.DataFrame(flattened_samples, columns=parameter_names)
-        # Plot pairwise histograms
-        plot_pairwise_histograms(
-            df=df_samples,
-            n_rows=n_rows,
-            n_cols=n_cols,
-            figsize=figsize,
-            file_name=file_name,
-            title='Pairwise Posterior Distributions',
-            x_label='Sampled Values',
-            y_label=None,
-            transparency=0.7
-        )
+
 
 
 
