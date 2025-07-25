@@ -8,8 +8,11 @@ PRIOR_RANGES = {
     'Par 1': (0.0, 20.0),  # Uniform prior range for theta[0]
     'Par 2': (-5.0, 5.0)   # Uniform prior range for theta[1]
 }
+N_SAMPLES = 5000  # Number of samples for random sampling
 N_RESAMPLES = 1000
 
+WARM_UP = 2000  # Number of warm-up iterations for MCMC
+EPSILON_LL = -5
 
 def simulate(thetas, seed):
     """Simulate data from a model with parameter theta."""
@@ -26,22 +29,34 @@ def log_likelihood_func(thetas, seed):
     if not isinstance(sim_output, list):
         sim_output = [sim_output]
 
-    weight = 0
+    ll = 0
     for i, x_obs in enumerate(SIM_OBSS):
-        weight += stats.norm.logpdf(
+        ll += stats.norm.logpdf(
             x=x_obs,
             loc=sim_output[i],
             scale=1)
 
-    return weight
+    return ll
+
+
+def binary_log_likelihood_func(thetas, seed):
+    """Compute the log-likelihood of observed data given theta."""
+
+    ll = log_likelihood_func(thetas=thetas, seed=seed)
+
+    if ll > EPSILON_LL:
+        ll = 0
+    else:
+        ll = -np.inf
+    return ll
 
 
 def test_ramdom_sampling():
 
     # Run random sampling calibration with the specified prior ranges and log-likelihood function
     random_sampling = CalibrationRandomSampling(prior_ranges=PRIOR_RANGES)
-    random_sampling.run(log_likelihood_func=log_likelihood_func, num_samples=5000)
-    random_sampling.save_samples(file_name="output/random_sampling.csv")
+    random_sampling.run(log_likelihood_func=log_likelihood_func, num_samples=N_SAMPLES)
+    random_sampling.save_samples(file_name="output/rnd_sampling.csv")
 
     for weighted in [True, False]:
 
@@ -63,27 +78,35 @@ def test_ramdom_sampling():
             file_name='figs/rnd_sampling_pairwise_postrs_{}.png'.format(text))
 
 
-def test_mcmc_sampling():
+def test_mcmc_sampling(log_binary=False):
 
     # Run MCMC calibration with the specified prior ranges and log-likelihood function
     mcmc = CalibrationMCMCSampling(prior_ranges=PRIOR_RANGES)
-    mcmc.run(log_likelihood_func=log_likelihood_func, std_factor=0.05, num_samples=5000)
-    mcmc.save_samples(file_name="output/mcmc.csv")
-    mcmc.save_posterior(file_name="output/mcmc_posterior.csv", n_warmup=2000)
+    if log_binary:
+        mcmc.run(log_likelihood_func=binary_log_likelihood_func, std_factor=0.05, num_samples=N_SAMPLES)
+    else:
+        mcmc.run(log_likelihood_func=log_likelihood_func, std_factor=0.05, num_samples=N_SAMPLES)
+
+
+    text = "bin" if log_binary else "approx"
+
+    mcmc.save_samples(file_name="output/mcmc_{}.csv".format(text))
+    mcmc.save_posterior(file_name="output/mcmc_postr_{}.csv".format(text), n_warmup=WARM_UP)
 
     # Save the MCMC results
     mcmc.plot_trace(n_cols=2, n_rows=1, figsize=(10, 5), share_x=True,
-                    file_name='figs/mcmc_trace_plot.png', moving_ave_window=1000)
+                    file_name='figs/mcmc_trace_plot_{}.png'.format(text), moving_ave_window=1000)
 
     mcmc.plot_posterior(
-        n_warmup=2000, n_cols=2, n_rows=1, figsize=(10, 5),
-        file_name='figs/mcmc_posterior_plot.png')
+        n_warmup=WARM_UP, n_cols=2, n_rows=1, figsize=(10, 5),
+        file_name='figs/mcmc_postr_plot_{}.png'.format(text))
 
 
 if __name__ == "__main__":
 
-    test_ramdom_sampling()
-    # test_mcmc_sampling()
+    # test_ramdom_sampling()
+    # test_mcmc_sampling(log_binary=False)
+    test_mcmc_sampling(log_binary=True)
 
 
 

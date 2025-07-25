@@ -2,6 +2,7 @@ import inspect
 
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy import iinfo, int32
 from numpy.polynomial.polynomial import polyfit
 from scipy.stats import pearsonr
 
@@ -81,6 +82,28 @@ class _Calibration:
         # remaining columns are parameter samples
         for key in self.priorRanges:
             self.samples[key] = cols[key].tolist()
+
+    @staticmethod
+    def _error_check_log_func(log_likelihood_func):
+        """Check if the log_likelihood_func is callable and has the correct signature."""
+
+        # Ensure that the log_likelihood_func is callable and has the correct signature
+        if not callable(log_likelihood_func):
+            raise ValueError("log_likelihood_func must be a callable function.")
+        sig = inspect.signature(log_likelihood_func)
+        if len(sig.parameters) != 2 or 'thetas' not in sig.parameters or 'seed' not in sig.parameters:
+            raise ValueError("log_likelihood_func must accept two parameters: thetas and seed.")
+
+    def _record_itr(self, ll, thetas, accepted_seed):
+        """Record the iteration results if the log-likelihood is not -inf."""
+
+        if ll != -np.inf:
+            self.seeds.append(accepted_seed)
+            self.logLikelihoods.append(ll)
+            i = 0
+            for key in self.priorRanges:
+                self.samples[key].append(thetas[i])
+                i += 1
 
     @staticmethod
     def _get_probs(likelihoods):
@@ -296,14 +319,7 @@ class CalibrationRandomSampling(_Calibration):
 
     def run(self, log_likelihood_func, num_samples=1000, rng=None, print_iterations=True):
 
-        # Ensure that the log_likelihood_func is callable and has the correct signature
-        if not callable(log_likelihood_func):
-            raise ValueError("log_likelihood_func must be a callable function.")
-        sig = inspect.signature(log_likelihood_func)
-        if len(sig.parameters) != 2 or 'thetas' not in sig.parameters or 'seed' not in sig.parameters:
-            raise ValueError("log_likelihood_func must accept two parameters: thetas and seed.")
-
-
+        self._error_check_log_func(log_likelihood_func)
         self._reset()
 
         if rng is None:
@@ -332,13 +348,8 @@ class CalibrationRandomSampling(_Calibration):
             if print_iterations:
                 print('Iteration: {}/{} | Log-Likelihood: {}'.format(i + 1, num_samples, ll))
 
-            if ll != float('-inf'):
-                self.seeds.append(accepted_seed)
-                self.logLikelihoods.append(ll)
-                i = 0
-                for key in self.priorRanges:
-                    self.samples[key].append(thetas[i])
-                    i += 1
+            self._record_itr(ll=ll, thetas=thetas, accepted_seed=accepted_seed)
+
 
     def resample(self, n_resample=1000, weighted=False):
 
@@ -378,7 +389,6 @@ class CalibrationRandomSampling(_Calibration):
             self.resampledSeeds.append(self.seeds[row_index])
             for key in self.priorRanges:
                 self.resamples[key].append(self.samples[key][row_index])
-
 
     def plot_posterior(self, n_resample=1000, weighted=False, n_rows=1, n_cols=1, figsize=(7, 5),
                        file_name=None, parameter_names=None):
@@ -424,33 +434,34 @@ class CalibrationMCMCSampling(_Calibration):
 
         _Calibration.__init__(self, prior_ranges=prior_ranges)
 
-    def run(self, log_likelihood_func, std_factor=0.1, num_samples=1000, rng=None):
+    def run(self, log_likelihood_func, std_factor=0.1, num_samples=1000, rng=None, print_iterations=True):
         """Run a simple Metropolis-Hastings MCMC algorithm."""
 
+        self._error_check_log_func(log_likelihood_func)
         self._reset()
-
-        # assert that log_likelihood_func is callable
-        if not callable(log_likelihood_func):
-            raise ValueError("log_likelihood_func must be a callable function.")
-        # assert that log_likelihood_func accepts two parameters: thetas and seed
-        sig = inspect.signature(log_likelihood_func)
-        if len(sig.parameters) != 2 or 'thetas' not in sig.parameters or 'seed' not in sig.parameters:
-            raise ValueError("log_likelihood_func must accept two parameters: thetas and seed.")
-
-        std_factors = [(r[1] - r[0]) * std_factor for k, r in self.priorRanges.items()]
 
         if rng is None:
             rng = np.random.RandomState(1)
 
-        seed = 0 # rng.randint(0, iinfo(int32).max)
+        # std factors for each parameter based on the prior ranges
+        std_factors = [(r[1] - r[0]) * std_factor for k, r in self.priorRanges.items()]
 
-        # Start from a uniform prior
+        # initial parameter samples from uniform priors
         thetas = np.array(
             [rng.uniform(low=prior_range[0], high=prior_range[1]) for key, prior_range in self.priorRanges.items()])
 
-        log_prior_value = self._log_prior(thetas=thetas)
+        # generate a random seed for the first sample
+        seed = rng.randint(0, iinfo(int32).max)
 
-        log_post = log_prior_value + log_likelihood_func(thetas=thetas, seed=seed)
+        # compute the log-prior and log-posterior for the initial sample
+        log_prior_value = self._log_prior(thetas=thetas)
+        output = log_likelihood_func(thetas=thetas, seed=seed)
+        if isinstance(output, tuple):
+            ll, accepted_seed = output
+        else:
+            ll = output
+            accepted_seed = seed
+        log_post = log_prior_value + ll
 
         for i in range(num_samples):
 
@@ -460,22 +471,28 @@ class CalibrationMCMCSampling(_Calibration):
                 # If the new sample is outside the prior range, skip it
                 continue
 
-            log_post_new = (
-                    log_prior
-                    + log_likelihood_func(thetas=thetas_new, seed=i))
+            seed = rng.randint(0, iinfo(int32).max)
+
+            output = log_likelihood_func(thetas=thetas_new, seed=seed)
+            if isinstance(output, tuple):
+                ll, accepted_seed = output
+            else:
+                ll = output
+                accepted_seed = seed
+
+            log_post_new = log_prior + ll
 
             accept_prob = min(1, np.exp(log_post_new - log_post))
 
             if rng.random() < accept_prob:
-                seed = i
+                # seed = accepted_seed
                 thetas = thetas_new
                 log_post = log_post_new
 
-            if log_post_new != -np.inf:
-                self.seeds.append(seed)
-                self.logLikelihoods.append(log_post)
-                for i in range(len(self.priorRanges)):
-                    self.samples[i].append(thetas[i])
+            if print_iterations:
+                print('Iteration: {}/{} | Log-Likelihood: {}'.format(i + 1, num_samples, log_post))
+
+            self._record_itr(ll=log_post, thetas=thetas, accepted_seed=accepted_seed)
 
     def _log_prior(self, thetas):
         """Compute the log-prior of theta."""
@@ -492,7 +509,10 @@ class CalibrationMCMCSampling(_Calibration):
     def plot_posterior(self, n_warmup, n_rows=1, n_cols=1, figsize=(7, 5),
                        file_name=None, parameter_names=None):
 
-        samples = [self.samples[i][n_warmup:] for i in range(len(self.samples))]
+        if parameter_names is None:
+            parameter_names = list(self.priorRanges.keys())
+
+        samples = {key: self.samples[key][n_warmup:] for key in parameter_names}
 
         self._plot_posteriors(
             samples=samples,
@@ -505,7 +525,10 @@ class CalibrationMCMCSampling(_Calibration):
 
     def save_posterior(self, file_name, n_warmup, alpha=0.05, parameter_names=None, significant_digits=None):
 
-        samples = [self.samples[i][n_warmup:] for i in range(len(self.samples))]
+        if parameter_names is None:
+            parameter_names = list(self.priorRanges.keys())
+
+        samples = {key: self.samples[key][n_warmup:] for key in parameter_names}
 
         self._save_posteriors(
             samples=samples, file_name=file_name, alpha=alpha, parameter_names=parameter_names,
