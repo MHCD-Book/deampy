@@ -50,15 +50,15 @@ def test_ramdom_sampling():
         # save results based on weighted resampling
         random_sampling.save_posterior(
             file_name="output/rnd_sampling_postr_{}.csv".format(text),
-            n_resample=N_RESAMPLES, weighted=True)
+            n_resample=N_RESAMPLES, weighted=weighted)
 
         random_sampling.plot_posterior(
-            n_resample=N_RESAMPLES, weighted=True,
+            n_resample=N_RESAMPLES, weighted=weighted,
             n_cols=2, n_rows=1, figsize=(10, 5),
             file_name='figs/rnd_sampling_postr_{}.png'.format(text))
 
         random_sampling.plot_pairwise_posteriors(
-            n_resample=N_RESAMPLES, weighted=True,
+            n_resample=N_RESAMPLES, weighted=weighted,
             figsize=(10, 10),
             file_name='figs/rnd_sampling_pairwise_postrs_{}.png'.format(text))
 

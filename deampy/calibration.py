@@ -20,7 +20,7 @@ class _Calibration:
         assert isinstance(prior_ranges, dict) and len(prior_ranges) > 0, \
             "prior_ranges must be a non-empty dictionary of tuples (min, max) for each parameter."
 
-        self.samples = None
+        self.samples = {}
         self.seeds = None
         self.logLikelihoods = None
 
@@ -29,7 +29,7 @@ class _Calibration:
 
     def _reset(self):
         """Reset the calibration object."""
-        self.samples = [[] for i in range(len(self.priorRanges))] # Initialize samples for each parameter
+        self.samples = {key: [] for key in self.priorRanges} # Initialize samples for each parameter
         self.seeds = []
         self.logLikelihoods = []
 
@@ -37,44 +37,50 @@ class _Calibration:
         """Run the calibration method."""
         raise NotImplementedError("Subclasses should implement this method.")
 
-    def save_samples(self, file_name, parameter_names=None):
+    def save_samples(self, file_name):
 
-        if parameter_names is None:
-            parameter_names = list(self.priorRanges.keys())
-
-        # first row
-        first_row = ['Seed', 'Log-Likelihood']
-        first_row.extend(parameter_names)
-
-        # produce the list to report the results
-        csv_rows = [first_row]
-
-        for i in range(len(self.seeds)):
-            # create a row with seed, log-likelihood, and parameter samples
-            row = [self.seeds[i], self.logLikelihoods[i]]
-            row.extend([self.samples[j][i] for j in range(len(self.priorRanges))])
-
-            csv_rows.append(row)
+        cols = {
+            'Seed': self.seeds,
+            'Log-Likelihood': self.logLikelihoods
+        }
+        # add parameter samples to the columns
+        for key in self.priorRanges:
+            cols[key] = self.samples[key]
+        #
+        #
+        # # first row
+        # first_row = ['Seed', 'Log-Likelihood']
+        # first_row.extend(parameter_names)
+        #
+        # # produce the list to report the results
+        # csv_rows = [first_row]
+        #
+        # for i in range(len(self.seeds)):
+        #     # create a row with seed, log-likelihood, and parameter samples
+        #     row = [self.seeds[i], self.logLikelihoods[i]]
+        #     row.extend([self.samples[j][i] for j in range(len(self.priorRanges))])
+        #
+        #     csv_rows.append(row)
 
         # write the calibration result into a csv file
-        IO.write_csv(
-            file_name=file_name,
-            rows=csv_rows)
+        IO.write_dictionary_to_csv(
+            dictionary=cols,
+            file_name=file_name)
 
     def read_samples(self, file_name):
         """Read samples from a CSV file."""
 
         self._reset()
 
-        cols = IO.read_csv_cols(file_name=file_name, if_ignore_first_row=True, if_convert_float=True)
+        cols = IO.read_csv_cols_to_dictionary(file_name=file_name, if_convert_float=True)
 
         # the first column is seeds
-        self.seeds = cols[0].astype(int).tolist()
+        self.seeds = cols['Seed'].astype(int).tolist()
         # the second column is log-likelihoods
-        self.logLikelihoods = cols[1].tolist()
+        self.logLikelihoods = cols['Log-Likelihood'].tolist()
         # remaining columns are parameter samples
-        for i in range(len(self.priorRanges)):
-            self.samples[i].extend(cols[i + 2].tolist())
+        for key in self.priorRanges:
+            self.samples[key] = cols[key].tolist()
 
     @staticmethod
     def _get_probs(likelihoods):
@@ -112,7 +118,9 @@ class _Calibration:
 
         i = 0
         j = 0
-        for key, range in self.priorRanges.items():
+        for key in parameter_names:
+
+            range = self.priorRanges[key]
 
             # get current axis
             if n_rows == 1 and n_cols == 1:
@@ -128,8 +136,8 @@ class _Calibration:
             else:
                 self.add_trace_to_ax(
                     ax=ax,
-                    samples=self.samples[i * n_cols + j],
-                    par_name=parameter_names[i * n_cols + j],
+                    samples=self.samples[key],
+                    par_name=key,
                     moving_ave_window=moving_ave_window,
                     y_range=range
                 )
@@ -159,11 +167,13 @@ class _Calibration:
         f, axarr = plt.subplots(n_rows, n_cols, figsize=figsize)
 
         if parameter_names is None:
-            parameter_names = list(self.priorRanges.keys())
+            parameter_names = self.priorRanges.keys()
 
         i = 0
         j = 0
-        for key, range in self.priorRanges.items():
+        for key in parameter_names:
+
+            range = self.priorRanges[key]
 
             # get current axis
             if n_rows == 1 and n_cols == 1:
@@ -179,9 +189,9 @@ class _Calibration:
             else:
                 add_histogram_to_ax(
                     ax=ax,
-                    data=samples[i * n_cols + j],
+                    data=samples[key],
                     # color='blue',
-                    title=parameter_names[i * n_cols + j],
+                    title=key,
                     x_label='Sampled Values',
                     # y_label=None,
                     x_range=range,
@@ -196,7 +206,6 @@ class _Calibration:
                 j += 1
 
         output_figure(plt=f, file_name=file_name)
-
 
     def _plot_pairwise_posteriors(
             self, samples,figsize=(7, 7), file_name=None, parameter_names=None):
@@ -221,7 +230,7 @@ class _Calibration:
                     # plot histogram
                     add_histogram_to_ax(
                         ax=ax,
-                        data=samples[i],
+                        data=samples[parameter_names[i]],
                         x_range=self.priorRanges[parameter_names[i]],
                     )
                     # ax.set_yticklabels([])
@@ -229,8 +238,8 @@ class _Calibration:
 
                 else:
 
-                    x_data = np.array(samples[i])
-                    y_data = np.array(samples[j])
+                    x_data = np.array(samples[parameter_names[i]])
+                    y_data = np.array(samples[parameter_names[j]])
 
                     ax.scatter(x_data,
                                y_data,
@@ -262,14 +271,14 @@ class _Calibration:
         first_row = ['Parameter', 'Mean', 'Credible Interval', 'Confidence Interval']
         rows = [first_row]
 
-        for i in range(len(self.priorRanges)):
-            stat = SummaryStat(samples[i])
+        for key in parameter_names:
+            stat = SummaryStat(samples[key])
             mean = format_number(stat.get_mean(), sig_digits=significant_digits)
             credible_interval = format_interval(stat.get_PI(alpha=alpha), sig_digits=significant_digits)
             confidence_interval = format_interval(stat.get_t_CI(alpha=alpha), sig_digits=significant_digits)
 
             rows.append([
-                parameter_names[i],
+                key,
                 mean,
                 credible_interval,
                  confidence_interval])
@@ -283,7 +292,7 @@ class CalibrationRandomSampling(_Calibration):
 
         _Calibration.__init__(self, prior_ranges=prior_ranges)
         self.resampledSeeds = []
-        self.resamples = [[] for _ in range(len(prior_ranges))]  # Initialize samples for each parameter
+        self.resamples = {key: [] for key in prior_ranges}  # Initialize samples for each parameter
 
     def run(self, log_likelihood_func, num_samples=1000, rng=None, print_iterations=True):
 
@@ -326,8 +335,10 @@ class CalibrationRandomSampling(_Calibration):
             if ll != float('-inf'):
                 self.seeds.append(accepted_seed)
                 self.logLikelihoods.append(ll)
-                for i in range(len(self.priorRanges)):
-                    self.samples[i].append(thetas[i])
+                i = 0
+                for key in self.priorRanges:
+                    self.samples[key].append(thetas[i])
+                    i += 1
 
     def resample(self, n_resample=1000, weighted=False):
 
@@ -338,7 +349,7 @@ class CalibrationRandomSampling(_Calibration):
 
             # clear the resamples
             self.resampledSeeds.clear()
-            for row in self.resamples:
+            for key, row in self.resamples.items():
                 row.clear()
 
             sampled_row_indices = rng.choice(
@@ -360,13 +371,13 @@ class CalibrationRandomSampling(_Calibration):
 
         # use the sampled indices to populate the list of cohort IDs and mortality probabilities
         self.resampledSeeds.clear()
-        self.resamples = [[] for _ in range(len(self.priorRanges))]  # Reset resamples
+        self.resamples = {key: [] for key in self.priorRanges}  # Reset resamples
         for i in range(n_resample):
 
             row_index = sampled_row_indices[i]
             self.resampledSeeds.append(self.seeds[row_index])
-            for j in range(len(self.priorRanges)):
-                self.resamples[j].append(self.samples[j][row_index])
+            for key in self.priorRanges:
+                self.resamples[key].append(self.samples[key][row_index])
 
 
     def plot_posterior(self, n_resample=1000, weighted=False, n_rows=1, n_cols=1, figsize=(7, 5),
