@@ -43,23 +43,24 @@ def test_ramdom_sampling():
     random_sampling.run(log_likelihood_func=log_likelihood_func, num_samples=5000)
     random_sampling.save_samples(file_name="output/random_sampling.csv")
 
-    # save results based on weighted resampling
-    random_sampling.save_posterior(
-        file_name="output/random_sampling_posterior_weighted.csv", n_resample=N_RESAMPLES, weighted=True)
+    for weighted in [True, False]:
 
-    random_sampling.plot_posterior(
-        n_resample=N_RESAMPLES, weighted=True,
-        n_cols=2, n_rows=1, figsize=(10, 5),
-        file_name='figs/random_sampling_posterior_plot_weighted.png')
+        text  = "weighted" if weighted else "unweighted"
 
-    # save results based on unweighted resampling (rejection method)
-    random_sampling.save_posterior(
-        file_name="output/random_sampling_posterior_rejection.csv", n_resample=N_RESAMPLES, weighted=False)
+        # save results based on weighted resampling
+        random_sampling.save_posterior(
+            file_name="output/rnd_sampling_postr_{}.csv".format(text),
+            n_resample=N_RESAMPLES, weighted=True)
 
-    random_sampling.plot_posterior(
-        n_resample=N_RESAMPLES, weighted=False,
-        n_cols=2, n_rows=1, figsize=(10, 5),
-        file_name='figs/random_sampling_posterior_plot_rejection.png')
+        random_sampling.plot_posterior(
+            n_resample=N_RESAMPLES, weighted=True,
+            n_cols=2, n_rows=1, figsize=(10, 5),
+            file_name='figs/rnd_sampling_postr_{}.png'.format(text))
+
+        random_sampling.plot_pairwise_posteriors(
+            n_resample=N_RESAMPLES, weighted=True,
+            figsize=(10, 10),
+            file_name='figs/rnd_sampling_pairwise_postrs_{}.png'.format(text))
 
 
 def test_mcmc_sampling():

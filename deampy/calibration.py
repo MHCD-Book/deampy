@@ -2,6 +2,8 @@ import inspect
 
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.polynomial.polynomial import polyfit
+from scipy.stats import pearsonr
 
 import deampy.in_out_functions as IO
 from deampy.format_functions import format_number, format_interval
@@ -196,13 +198,60 @@ class _Calibration:
         output_figure(plt=f, file_name=file_name)
 
 
-    def _plot_pairwise_posteriors(self, samples, n_rows=1, n_cols=1, figsize=(7, 5),
-                                    file_name=None, parameter_names=None):
+    def _plot_pairwise_posteriors(
+            self, samples,figsize=(7, 7), file_name=None, parameter_names=None):
         """Plot pairwise posterior distributions."""
 
+        if parameter_names is None:
+            parameter_names = list(self.priorRanges.keys())
 
+        # plot each panel
+        n = len(parameter_names)
 
+        f, axarr = plt.subplots(nrows=n, ncols=n, figsize=figsize)
 
+        for i in range(n):
+            for j in range(n):
+
+                # get the current axis
+                ax = axarr[i, j]
+
+                # plot histogram for diagonal elements
+                if i == j:
+                    # plot histogram
+                    add_histogram_to_ax(
+                        ax=ax,
+                        data=samples[i],
+                        x_range=self.priorRanges[parameter_names[i]],
+                    )
+                    # ax.set_yticklabels([])
+                    # ax.set_yticks([])
+
+                else:
+
+                    x_data = np.array(samples[i])
+                    y_data = np.array(samples[j])
+
+                    ax.scatter(x_data,
+                               y_data,
+                               alpha=0.5, s=2)
+                    ax.set_xlim(self.priorRanges[parameter_names[i]])
+                    ax.set_ylim(self.priorRanges[parameter_names[j]])
+                    # correlation line
+                    b, m = polyfit(x_data, y_data, 1)
+                    ax.plot(x_data, b + m * x_data, '-', c='black')
+                    corr, p = pearsonr(x_data, y_data)
+                    ax.text(0.95, 0.95, '{0:.2f}'.format(corr), transform=ax.transAxes, fontsize=6,
+                            va='top', ha='right')
+
+                if j == 0:
+                    ax.set_ylabel(parameter_names[i])
+                if i == n - 1:
+                    ax.set_xlabel(parameter_names[j])
+
+        f.align_ylabels(axarr[:, 0])
+        f.tight_layout()
+        output_figure(plt=f, file_name=file_name, dpi=300)
 
     def _save_posteriors(self, samples, file_name, alpha=0.05, parameter_names=None, significant_digits=None):
 
@@ -333,6 +382,19 @@ class CalibrationRandomSampling(_Calibration):
             file_name=file_name,
             parameter_names=parameter_names
         )
+
+    def plot_pairwise_posteriors(self, n_resample=1000, weighted=False,
+                                 figsize=(7, 7), file_name=None, parameter_names=None):
+
+        self.resample(n_resample=n_resample, weighted=weighted)
+
+        self._plot_pairwise_posteriors(
+            samples=self.resamples,
+            figsize=figsize,
+            file_name=file_name,
+            parameter_names=parameter_names
+        )
+
 
     def save_posterior(self, file_name, n_resample=1000,
                        alpha=0.05, weighted=False, parameter_names=None, significant_digits=None):
