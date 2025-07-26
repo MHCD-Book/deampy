@@ -196,7 +196,7 @@ def add_sample_path_to_ax(sample_path, ax, legend=None, color=None, transparency
     elif isinstance(sample_path, IncidenceSamplePath):
         x_values = sample_path.get_period_numbers()
 
-    y_values = sample_path.get_values(delete_initial_zeroes=delete_initial_zeroes)
+    y_values = sample_path.get_values()
     x_values = x_values[:len(y_values)]  # make sure that x and y values have the same length
 
     # plot the sample path

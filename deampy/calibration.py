@@ -47,21 +47,6 @@ class _Calibration:
         # add parameter samples to the columns
         for key in self.priorRanges:
             cols[key] = self.samples[key]
-        #
-        #
-        # # first row
-        # first_row = ['Seed', 'Log-Likelihood']
-        # first_row.extend(parameter_names)
-        #
-        # # produce the list to report the results
-        # csv_rows = [first_row]
-        #
-        # for i in range(len(self.seeds)):
-        #     # create a row with seed, log-likelihood, and parameter samples
-        #     row = [self.seeds[i], self.logLikelihoods[i]]
-        #     row.extend([self.samples[j][i] for j in range(len(self.priorRanges))])
-        #
-        #     csv_rows.append(row)
 
         # write the calibration result into a csv file
         IO.write_dictionary_to_csv(
