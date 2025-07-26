@@ -97,13 +97,12 @@ class _Calibration:
     def _record_itr(self, ll, thetas, accepted_seed):
         """Record the iteration results if the log-likelihood is not -inf."""
 
-        if ll != -np.inf:
-            self.seeds.append(accepted_seed)
-            self.logLikelihoods.append(ll)
-            i = 0
-            for key in self.priorRanges:
-                self.samples[key].append(thetas[i])
-                i += 1
+        self.seeds.append(accepted_seed)
+        self.logLikelihoods.append(ll)
+        i = 0
+        for key in self.priorRanges:
+            self.samples[key].append(thetas[i])
+            i += 1
 
     @staticmethod
     def _get_probs(likelihoods):
@@ -348,7 +347,8 @@ class CalibrationRandomSampling(_Calibration):
             if print_iterations:
                 print('Iteration: {}/{} | Log-Likelihood: {}'.format(i + 1, num_samples, ll))
 
-            self._record_itr(ll=ll, thetas=thetas, accepted_seed=accepted_seed)
+            if ll != -np.inf:
+                self._record_itr(ll=ll, thetas=thetas, accepted_seed=accepted_seed)
 
 
     def resample(self, n_resample=1000, weighted=False):

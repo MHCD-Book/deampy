@@ -12,7 +12,7 @@ N_SAMPLES = 5000  # Number of samples for random sampling
 N_RESAMPLES = 1000
 
 WARM_UP = 2000  # Number of warm-up iterations for MCMC
-EPSILON_LL = -5
+EPSILON_LL = -2
 
 def simulate(thetas, seed):
     """Simulate data from a model with parameter theta."""
@@ -20,6 +20,7 @@ def simulate(thetas, seed):
     rng = np.random.RandomState(seed)
 
     return [thetas[0] + rng.normal(0, 1, size=1)[0], thetas[1] + rng.normal(0, 1, size=1)[0]]
+
 
 def log_likelihood_func(thetas, seed):
     """Compute the log-likelihood of observed data given theta."""
