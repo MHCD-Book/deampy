@@ -354,8 +354,11 @@ class CalibrationRandomSampling(_Calibration):
                 replace=True,
                 p=probs)
         else:
-            # sort the indices in ascending order of log-likelihoods
 
+            if n_resample > len(self.logLikelihoods):
+                raise ValueError("n_resample cannot be greater than the number of samples.")
+
+            # sort the indices in ascending order of log-likelihoods
             # Pair each number with its original index
             indexed_values = list(enumerate(self.logLikelihoods))
 
