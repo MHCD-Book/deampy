@@ -109,7 +109,7 @@ def test_mcmc_sampling(log_binary=False):
 if __name__ == "__main__":
     #
     # test_ramdom_sampling()
-    # test_mcmc_sampling(log_binary=False)
+    test_mcmc_sampling(log_binary=False)
     test_mcmc_sampling(log_binary=True)
 
 

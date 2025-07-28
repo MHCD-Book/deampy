@@ -455,7 +455,10 @@ class CalibrationMCMCSampling(_Calibration):
         # compute the log-prior and log-posterior for the initial sample
         log_prior_value = self._log_prior(thetas=thetas)
         output = self._get_ll(
-            log_likelihood_func=log_likelihood_func, thetas=thetas, seed=seed, epsilon_ll=epsilon_ll)
+            log_likelihood_func=log_likelihood_func,
+            thetas=thetas,
+            seed=seed,
+            epsilon_ll=epsilon_ll)
 
         if isinstance(output, tuple):
             ll, accepted_seed = output
@@ -464,38 +467,49 @@ class CalibrationMCMCSampling(_Calibration):
             accepted_seed = seed
         log_post = log_prior_value + ll
 
+        # mcmc sampling iterations
         for i in range(num_samples):
 
+            # get a new sample
             thetas_new = rng.normal(thetas, std_factors)
+            # compute the log-prior for the new sample
             log_prior = self._log_prior(thetas=thetas_new)
+
+            # if the log-prior is -inf, skip the sample
             if log_prior == -np.inf:
                 # If the new sample is outside the prior range, skip it
-                continue
+                # the new sample is not accepted, so we do not update thetas
+                ll = - np.inf
+                accepted_seed = np.nan
 
-            seed = rng.randint(0, iinfo(int32).max)
-
-            output = self._get_ll(
-                log_likelihood_func=log_likelihood_func, thetas=thetas_new, seed=seed, epsilon_ll=epsilon_ll)
-
-            if isinstance(output, tuple):
-                ll, accepted_seed = output
             else:
-                ll = output
-                accepted_seed = seed
+                # generate a new random seed for the new sample
+                seed = rng.randint(0, iinfo(int32).max)
+                # get the log-likelihood for the new sample
+                output = self._get_ll(
+                    log_likelihood_func=log_likelihood_func, thetas=thetas_new, seed=seed, epsilon_ll=epsilon_ll)
 
-            log_post_new = log_prior + ll
+                if isinstance(output, tuple):
+                    ll, accepted_seed_new = output
+                else:
+                    ll = output
+                    accepted_seed_new = seed
 
-            accept_prob = min(1, np.exp(log_post_new - log_post))
+                # update posterior
+                log_post_new = log_prior + ll
 
-            if rng.random() < accept_prob:
-                # seed = accepted_seed
-                thetas = thetas_new
-                log_post = log_post_new
+                # compute the acceptance probability
+                accept_prob = min(1, np.exp(log_post_new - log_post))
+
+                if rng.random() < accept_prob:
+                    thetas = thetas_new
+                    log_post = log_post_new
+                    accepted_seed = accepted_seed_new
 
             if print_iterations:
-                print('Iteration: {}/{} | Log-Likelihood: {}'.format(i + 1, num_samples, log_post))
+                print('Iteration: {}/{} | Log-Likelihood: {}'.format(i + 1, num_samples, ll))
 
-            self._record_itr(ll=log_post, thetas=thetas, accepted_seed=accepted_seed)
+            self._record_itr(ll=ll, thetas=thetas, accepted_seed=accepted_seed)
 
     def _log_prior(self, thetas):
         """Compute the log-prior of theta."""
