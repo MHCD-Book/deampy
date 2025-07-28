@@ -41,18 +41,6 @@ def log_likelihood_func(thetas, seed):
     return ll
 
 
-def binary_log_likelihood_func(thetas, seed, epsilon_ll):
-    """Compute the log-likelihood of observed data given theta."""
-
-    ll = log_likelihood_func(thetas=thetas, seed=seed)
-
-    if ll > epsilon_ll:
-        ll = 0
-    else:
-        ll = -np.inf
-    return ll
-
-
 def test_ramdom_sampling():
 
     # Run random sampling calibration with the specified prior ranges and log-likelihood function
@@ -85,7 +73,7 @@ def test_mcmc_sampling(log_binary=False):
     # Run MCMC calibration with the specified prior ranges and log-likelihood function
     mcmc = CalibrationMCMCSampling(prior_ranges=PRIOR_RANGES)
     if log_binary:
-        mcmc.run(log_likelihood_func=binary_log_likelihood_func,
+        mcmc.run(log_likelihood_func=log_likelihood_func,
                  std_factor=ST_FACTOR, epsilon_ll=EPSILON_LL, num_samples=N_SAMPLES)
     else:
         mcmc.run(log_likelihood_func=log_likelihood_func,
@@ -108,7 +96,7 @@ def test_mcmc_sampling(log_binary=False):
 
 if __name__ == "__main__":
     #
-    # test_ramdom_sampling()
+    test_ramdom_sampling()
     test_mcmc_sampling(log_binary=False)
     test_mcmc_sampling(log_binary=True)
 

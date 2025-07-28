@@ -26,7 +26,6 @@ class _Calibration:
         self.logLikelihoods = None
 
         self.priorRanges = prior_ranges  # List of tuples (min, max) for each parameter
-        self.ifABC = False
         self._reset()
 
     def _reset(self):
@@ -76,10 +75,8 @@ class _Calibration:
         if not callable(log_likelihood_func):
             raise ValueError("log_likelihood_func must be a callable function.")
         sig = inspect.signature(log_likelihood_func)
-        if 'thetas' not in sig.parameters or 'seed' not in sig.parameters:
+        if len(sig.parameters) != 2 or 'thetas' not in sig.parameters or 'seed' not in sig.parameters:
             raise ValueError("log_likelihood_func must accept two parameters: thetas and seed.")
-        if 'epsilon_ll' in sig.parameters:
-            self.ifABC = True
 
     def _record_itr(self, ll, thetas, accepted_seed):
         """Record the iteration results if the log-likelihood is not -inf."""
@@ -424,16 +421,30 @@ class CalibrationMCMCSampling(_Calibration):
 
         _Calibration.__init__(self, prior_ranges=prior_ranges)
 
-    def _get_ll(self, log_likelihood_func, thetas, seed, epsilon_ll=-np.inf):
+    @staticmethod
+    def _get_ll_log_post(log_likelihood_func, log_prior_value, thetas, seed, epsilon_ll):
 
-        if not self.ifABC:
-            output = log_likelihood_func(thetas=thetas, seed=seed)
+        output = log_likelihood_func(thetas=thetas, seed=seed)
+
+        if isinstance(output, tuple):
+            ll, accepted_seed = output
         else:
-            output = log_likelihood_func(thetas=thetas, seed=seed, epsilon_ll=epsilon_ll)
+            ll = output
+            accepted_seed = seed
 
-        return output
+        if epsilon_ll is not None:
+            if ll > epsilon_ll:
+                bin_ll = 0
+            else:
+                bin_ll = -np.inf
+            log_post = log_prior_value + bin_ll
+        else:
+            log_post = log_prior_value + ll
 
-    def run(self, log_likelihood_func, std_factor=0.1, epsilon_ll=-np.inf, num_samples=1000, rng=None, print_iterations=True):
+        return ll, log_post, accepted_seed
+
+
+    def run(self, log_likelihood_func, std_factor=0.1, epsilon_ll=None, num_samples=1000, rng=None, print_iterations=True):
         """Run a simple Metropolis-Hastings MCMC algorithm."""
 
         self._error_check_log_func(log_likelihood_func)
@@ -454,18 +465,14 @@ class CalibrationMCMCSampling(_Calibration):
 
         # compute the log-prior and log-posterior for the initial sample
         log_prior_value = self._log_prior(thetas=thetas)
-        output = self._get_ll(
+
+        ll, log_post, accepted_seed = self._get_ll_log_post(
             log_likelihood_func=log_likelihood_func,
+            log_prior_value=log_prior_value,
             thetas=thetas,
             seed=seed,
-            epsilon_ll=epsilon_ll)
-
-        if isinstance(output, tuple):
-            ll, accepted_seed = output
-        else:
-            ll = output
-            accepted_seed = seed
-        log_post = log_prior_value + ll
+            epsilon_ll=epsilon_ll
+        )
 
         # mcmc sampling iterations
         for i in range(num_samples):
@@ -486,17 +493,13 @@ class CalibrationMCMCSampling(_Calibration):
                 # generate a new random seed for the new sample
                 seed = rng.randint(0, iinfo(int32).max)
                 # get the log-likelihood for the new sample
-                output = self._get_ll(
-                    log_likelihood_func=log_likelihood_func, thetas=thetas_new, seed=seed, epsilon_ll=epsilon_ll)
-
-                if isinstance(output, tuple):
-                    ll, accepted_seed_new = output
-                else:
-                    ll = output
-                    accepted_seed_new = seed
-
-                # update posterior
-                log_post_new = log_prior + ll
+                ll, log_post_new, accepted_seed_new = self._get_ll_log_post(
+                    log_likelihood_func=log_likelihood_func,
+                    log_prior_value=log_prior_value,
+                    thetas=thetas_new,
+                    seed=seed,
+                    epsilon_ll=epsilon_ll
+                )
 
                 # compute the acceptance probability
                 accept_prob = min(1, np.exp(log_post_new - log_post))
