@@ -214,7 +214,8 @@ class _Calibration:
         output_figure(plt=f, file_name=file_name)
 
     def _plot_pairwise_posteriors(
-            self, samples,figsize=(7, 7), file_name=None, parameter_names=None):
+            self, samples,figsize=(7, 7), file_name=None,
+            parameter_names=None, correct_text_size=None):
         """Plot pairwise posterior distributions."""
 
         if parameter_names is None:
@@ -256,8 +257,11 @@ class _Calibration:
                     b, m = polyfit(x_data, y_data, 1)
                     ax.plot(x_data, b + m * x_data, '-', c='black')
                     corr, p = pearsonr(x_data, y_data)
-                    ax.text(0.95, 0.95, '{0:.2f}'.format(corr), transform=ax.transAxes, fontsize=6,
-                            va='top', ha='right')
+                    if correct_text_size is not None:
+                        ax.text(0.95, 0.95, r'$\rho={0:.2f}$'.format(corr),
+                                transform=ax.transAxes, fontsize=correct_text_size,
+                                va='top', ha='right')
+
 
                 if j == 0:
                     ax.set_ylabel(parameter_names[i])
@@ -391,8 +395,10 @@ class CalibrationRandomSampling(_Calibration):
             parameter_names=parameter_names
         )
 
-    def plot_pairwise_posteriors(self, n_resample=1000, weighted=False,
-                                 figsize=(7, 7), file_name=None, parameter_names=None):
+    def plot_pairwise_posteriors(
+            self, n_resample=1000, weighted=False,
+            figsize=(7, 7), correct_text_size=None,
+            file_name=None, parameter_names=None):
 
         self.resample(n_resample=n_resample, weighted=weighted)
 
@@ -400,7 +406,8 @@ class CalibrationRandomSampling(_Calibration):
             samples=self.resamples,
             figsize=figsize,
             file_name=file_name,
-            parameter_names=parameter_names
+            parameter_names=parameter_names,
+            correct_text_size=correct_text_size
         )
 
 
