@@ -26,6 +26,7 @@ class _Calibration:
         self.logLikelihoods = None
 
         self.priorRanges = prior_ranges  # List of tuples (min, max) for each parameter
+        self.ifABC = False
         self._reset()
 
     def _reset(self):
@@ -68,16 +69,17 @@ class _Calibration:
         for key in self.priorRanges:
             self.samples[key] = cols[key].tolist()
 
-    @staticmethod
-    def _error_check_log_func(log_likelihood_func):
+    def _error_check_log_func(self, log_likelihood_func):
         """Check if the log_likelihood_func is callable and has the correct signature."""
 
         # Ensure that the log_likelihood_func is callable and has the correct signature
         if not callable(log_likelihood_func):
             raise ValueError("log_likelihood_func must be a callable function.")
         sig = inspect.signature(log_likelihood_func)
-        if len(sig.parameters) != 2 or 'thetas' not in sig.parameters or 'seed' not in sig.parameters:
+        if 'thetas' not in sig.parameters or 'seed' not in sig.parameters:
             raise ValueError("log_likelihood_func must accept two parameters: thetas and seed.")
+        if 'epsilon_ll' in sig.parameters:
+            self.ifABC = True
 
     def _record_itr(self, ll, thetas, accepted_seed):
         """Record the iteration results if the log-likelihood is not -inf."""
@@ -422,7 +424,16 @@ class CalibrationMCMCSampling(_Calibration):
 
         _Calibration.__init__(self, prior_ranges=prior_ranges)
 
-    def run(self, log_likelihood_func, std_factor=0.1, num_samples=1000, rng=None, print_iterations=True):
+    def _get_ll(self, log_likelihood_func, thetas, seed, epsilon_ll=-np.inf):
+
+        if not self.ifABC:
+            output = log_likelihood_func(thetas=thetas, seed=seed)
+        else:
+            output = log_likelihood_func(thetas=thetas, seed=seed, epsilon_ll=epsilon_ll)
+
+        return output
+
+    def run(self, log_likelihood_func, std_factor=0.1, epsilon_ll=-np.inf, num_samples=1000, rng=None, print_iterations=True):
         """Run a simple Metropolis-Hastings MCMC algorithm."""
 
         self._error_check_log_func(log_likelihood_func)
@@ -443,7 +454,9 @@ class CalibrationMCMCSampling(_Calibration):
 
         # compute the log-prior and log-posterior for the initial sample
         log_prior_value = self._log_prior(thetas=thetas)
-        output = log_likelihood_func(thetas=thetas, seed=seed)
+        output = self._get_ll(
+            log_likelihood_func=log_likelihood_func, thetas=thetas, seed=seed, epsilon_ll=epsilon_ll)
+
         if isinstance(output, tuple):
             ll, accepted_seed = output
         else:
@@ -461,7 +474,9 @@ class CalibrationMCMCSampling(_Calibration):
 
             seed = rng.randint(0, iinfo(int32).max)
 
-            output = log_likelihood_func(thetas=thetas_new, seed=seed)
+            output = self._get_ll(
+                log_likelihood_func=log_likelihood_func, thetas=thetas_new, seed=seed, epsilon_ll=epsilon_ll)
+
             if isinstance(output, tuple):
                 ll, accepted_seed = output
             else:

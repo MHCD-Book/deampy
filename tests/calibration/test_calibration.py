@@ -11,8 +11,9 @@ PRIOR_RANGES = {
 N_SAMPLES = 5000  # Number of samples for random sampling
 N_RESAMPLES = 1000
 
+ST_FACTOR = 0.1
 WARM_UP = 2000  # Number of warm-up iterations for MCMC
-EPSILON_LL = -2
+EPSILON_LL = -10
 
 def simulate(thetas, seed):
     """Simulate data from a model with parameter theta."""
@@ -40,12 +41,12 @@ def log_likelihood_func(thetas, seed):
     return ll
 
 
-def binary_log_likelihood_func(thetas, seed):
+def binary_log_likelihood_func(thetas, seed, epsilon_ll):
     """Compute the log-likelihood of observed data given theta."""
 
     ll = log_likelihood_func(thetas=thetas, seed=seed)
 
-    if ll > EPSILON_LL:
+    if ll > epsilon_ll:
         ll = 0
     else:
         ll = -np.inf
@@ -84,9 +85,11 @@ def test_mcmc_sampling(log_binary=False):
     # Run MCMC calibration with the specified prior ranges and log-likelihood function
     mcmc = CalibrationMCMCSampling(prior_ranges=PRIOR_RANGES)
     if log_binary:
-        mcmc.run(log_likelihood_func=binary_log_likelihood_func, std_factor=0.05, num_samples=N_SAMPLES)
+        mcmc.run(log_likelihood_func=binary_log_likelihood_func,
+                 std_factor=ST_FACTOR, epsilon_ll=EPSILON_LL, num_samples=N_SAMPLES)
     else:
-        mcmc.run(log_likelihood_func=log_likelihood_func, std_factor=0.05, num_samples=N_SAMPLES)
+        mcmc.run(log_likelihood_func=log_likelihood_func,
+                 std_factor=ST_FACTOR, num_samples=N_SAMPLES)
 
 
     text = "bin" if log_binary else "approx"
@@ -104,7 +107,7 @@ def test_mcmc_sampling(log_binary=False):
 
 
 if __name__ == "__main__":
-
+    #
     # test_ramdom_sampling()
     # test_mcmc_sampling(log_binary=False)
     test_mcmc_sampling(log_binary=True)
