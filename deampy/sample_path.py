@@ -164,7 +164,7 @@ class IncidenceSamplePath(_SamplePath):
             self._values.append(increment)
             self._period_nums.append(self._period_num)
 
-            if self.ifCollectStat and time > self._warm_up_period:
+            if self.ifCollectStat and time >= self._warm_up_period:
                 self.stat.record(obs=self._values[-1])
 
         else:
