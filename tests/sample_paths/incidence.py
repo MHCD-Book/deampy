@@ -3,10 +3,10 @@ import deampy.plots.sample_paths as Path
 # a sample path with initial size = 1
 path1 = Path.IncidenceSamplePath('Path 1', delta_t=1, sim_rep=1)
 # record the observations
-path1.record_increment(1.2, 2)
+path1.record_increment(0.0, 2)
 path1.record_increment(2.3, 1)
 path1.record_increment(5.1, 5)
-path1.close(6)
+path1.close(10)
 # stats
 print(path1.stat.get_mean())
 
@@ -16,7 +16,7 @@ path2 = Path.IncidenceSamplePath('Path 2', delta_t=1, sim_rep=1)
 path2.record_increment(0.5, 4)
 path2.record_increment(1.8, 2)
 path2.record_increment(5.5, 1)
-path2.close(6)
+# path2.close(6)
 # stats
 print(path2.stat.get_mean())
 

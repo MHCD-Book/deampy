@@ -157,7 +157,7 @@ class IncidenceSamplePath(_SamplePath):
         if increment < 0:
             raise ValueError(self.name + ' | increment cannot be negative.')
 
-        if time > self._period_num * self._deltaT:
+        if time >= self._period_num * self._deltaT:
             self.__fill_unrecorded_periods(time=time)
 
             self._period_num += 1
@@ -199,7 +199,7 @@ class IncidenceSamplePath(_SamplePath):
         return self._period_nums
 
     def __fill_unrecorded_periods(self, time):
-        while time > (self._period_num + 1) * self._deltaT:
+        while time >= (self._period_num + 1) * self._deltaT:
             self._period_num += 1
             self._values.append(0)
             self._period_nums.append(self._period_num)
