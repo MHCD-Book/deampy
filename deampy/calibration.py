@@ -68,8 +68,7 @@ class _Calibration:
         for key in self.priorRanges:
             self.samples[key] = cols[key].tolist()
 
-    @staticmethod
-    def _error_check_log_func(log_likelihood_func):
+    def _error_check_log_func(self, log_likelihood_func):
         """Check if the log_likelihood_func is callable and has the correct signature."""
 
         # Ensure that the log_likelihood_func is callable and has the correct signature
@@ -215,7 +214,8 @@ class _Calibration:
         output_figure(plt=f, file_name=file_name)
 
     def _plot_pairwise_posteriors(
-            self, samples,figsize=(7, 7), file_name=None, parameter_names=None):
+            self, samples,figsize=(7, 7), file_name=None,
+            parameter_names=None, correct_text_size=None):
         """Plot pairwise posterior distributions."""
 
         if parameter_names is None:
@@ -257,8 +257,11 @@ class _Calibration:
                     b, m = polyfit(x_data, y_data, 1)
                     ax.plot(x_data, b + m * x_data, '-', c='black')
                     corr, p = pearsonr(x_data, y_data)
-                    ax.text(0.95, 0.95, '{0:.2f}'.format(corr), transform=ax.transAxes, fontsize=6,
-                            va='top', ha='right')
+                    if correct_text_size is not None:
+                        ax.text(0.95, 0.95, r'$\rho={0:.2f}$'.format(corr),
+                                transform=ax.transAxes, fontsize=correct_text_size,
+                                va='top', ha='right')
+
 
                 if j == 0:
                     ax.set_ylabel(parameter_names[i])
@@ -392,8 +395,10 @@ class CalibrationRandomSampling(_Calibration):
             parameter_names=parameter_names
         )
 
-    def plot_pairwise_posteriors(self, n_resample=1000, weighted=False,
-                                 figsize=(7, 7), file_name=None, parameter_names=None):
+    def plot_pairwise_posteriors(
+            self, n_resample=1000, weighted=False,
+            figsize=(7, 7), correct_text_size=None,
+            file_name=None, parameter_names=None):
 
         self.resample(n_resample=n_resample, weighted=weighted)
 
@@ -401,7 +406,8 @@ class CalibrationRandomSampling(_Calibration):
             samples=self.resamples,
             figsize=figsize,
             file_name=file_name,
-            parameter_names=parameter_names
+            parameter_names=parameter_names,
+            correct_text_size=correct_text_size
         )
 
 
@@ -422,7 +428,30 @@ class CalibrationMCMCSampling(_Calibration):
 
         _Calibration.__init__(self, prior_ranges=prior_ranges)
 
-    def run(self, log_likelihood_func, std_factor=0.1, num_samples=1000, rng=None, print_iterations=True):
+    @staticmethod
+    def _get_ll_log_post(log_likelihood_func, log_prior_value, thetas, seed, epsilon_ll):
+
+        output = log_likelihood_func(thetas=thetas, seed=seed)
+
+        if isinstance(output, tuple):
+            ll, accepted_seed = output
+        else:
+            ll = output
+            accepted_seed = seed
+
+        if epsilon_ll is not None:
+            if ll > epsilon_ll:
+                bin_ll = 0
+            else:
+                bin_ll = -np.inf
+            log_post = log_prior_value + bin_ll
+        else:
+            log_post = log_prior_value + ll
+
+        return ll, log_post, accepted_seed
+
+
+    def run(self, log_likelihood_func, std_factor=0.1, epsilon_ll=None, num_samples=1000, rng=None, print_iterations=True):
         """Run a simple Metropolis-Hastings MCMC algorithm."""
 
         self._error_check_log_func(log_likelihood_func)
@@ -443,44 +472,54 @@ class CalibrationMCMCSampling(_Calibration):
 
         # compute the log-prior and log-posterior for the initial sample
         log_prior_value = self._log_prior(thetas=thetas)
-        output = log_likelihood_func(thetas=thetas, seed=seed)
-        if isinstance(output, tuple):
-            ll, accepted_seed = output
-        else:
-            ll = output
-            accepted_seed = seed
-        log_post = log_prior_value + ll
 
+        ll, log_post, accepted_seed = self._get_ll_log_post(
+            log_likelihood_func=log_likelihood_func,
+            log_prior_value=log_prior_value,
+            thetas=thetas,
+            seed=seed,
+            epsilon_ll=epsilon_ll
+        )
+
+        # mcmc sampling iterations
         for i in range(num_samples):
 
+            # get a new sample
             thetas_new = rng.normal(thetas, std_factors)
+            # compute the log-prior for the new sample
             log_prior = self._log_prior(thetas=thetas_new)
+
+            # if the log-prior is -inf, skip the sample
             if log_prior == -np.inf:
                 # If the new sample is outside the prior range, skip it
-                continue
+                # the new sample is not accepted, so we do not update thetas
+                ll = - np.inf
+                accepted_seed = np.nan
 
-            seed = rng.randint(0, iinfo(int32).max)
-
-            output = log_likelihood_func(thetas=thetas_new, seed=seed)
-            if isinstance(output, tuple):
-                ll, accepted_seed = output
             else:
-                ll = output
-                accepted_seed = seed
+                # generate a new random seed for the new sample
+                seed = rng.randint(0, iinfo(int32).max)
+                # get the log-likelihood for the new sample
+                ll, log_post_new, accepted_seed_new = self._get_ll_log_post(
+                    log_likelihood_func=log_likelihood_func,
+                    log_prior_value=log_prior_value,
+                    thetas=thetas_new,
+                    seed=seed,
+                    epsilon_ll=epsilon_ll
+                )
 
-            log_post_new = log_prior + ll
+                # compute the acceptance probability
+                accept_prob = min(1, np.exp(log_post_new - log_post))
 
-            accept_prob = min(1, np.exp(log_post_new - log_post))
-
-            if rng.random() < accept_prob:
-                # seed = accepted_seed
-                thetas = thetas_new
-                log_post = log_post_new
+                if rng.random() < accept_prob:
+                    thetas = thetas_new
+                    log_post = log_post_new
+                    accepted_seed = accepted_seed_new
 
             if print_iterations:
-                print('Iteration: {}/{} | Log-Likelihood: {}'.format(i + 1, num_samples, log_post))
+                print('Iteration: {}/{} | Log-Likelihood: {}'.format(i + 1, num_samples, ll))
 
-            self._record_itr(ll=log_post, thetas=thetas, accepted_seed=accepted_seed)
+            self._record_itr(ll=ll, thetas=thetas, accepted_seed=accepted_seed)
 
     def _log_prior(self, thetas):
         """Compute the log-prior of theta."""
