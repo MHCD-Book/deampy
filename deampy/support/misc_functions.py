@@ -13,6 +13,27 @@ def proper_file_name(text):
     return text.replace('|', ',').replace('<', 'l').replace('>', 'g').replace('\n', '')
 
 
+def get_cumulative_mean(data):
+    """
+    calculates the cumulative mean of a time-series
+    :param data: list of observations
+    :return: list of cumulative means
+    """
+
+    cum_means = []
+    total = 0
+    n = 0
+    for i in range(len(data)):
+        if data[i] is not None:
+            total += data[i]
+            n += 1
+        if n > 0:
+            cum_means.append(total/n)
+        else:
+            cum_means.append(None)
+
+    return cum_means
+
 def get_moving_average(data, window=2):
     """
     calculates the moving average of a time-series
@@ -120,53 +141,6 @@ def convert_lnl_to_prob(ln_likelihoods):
     return np.array(probs)/sum_prob
 
 
-def get_percentile_of_empirical_dist(xs, probs, q):
-    """
-    :param xs: (list or np.array) values that the random variable can take
-        (assumed to be sorted in the increasing order).
-    :param probs: (list or np.array) probability of each value
-    :param q: (float) percentile value (has to be between 0 and 1)
-    :return: the value of x where q*100% of cumulative probability distribution is below q
-    """
-
-    raise ValueError('needs to be debugged.')
-
-    if not 0 <= q <= 1:
-        raise ValueError('q should be between 0 and 1.')
-
-    # remove x values with 0 probability
-    xs_nonzero_prob = []
-    nonzero_probs = []
-    for i, p in enumerate(probs):
-        if p > 0:
-            xs_nonzero_prob.append(xs[i])
-            nonzero_probs.append(p)
-
-    sum_p = 0
-
-    if q <= 0.5:
-        i = 0
-        while True:
-            sum_p += nonzero_probs[i]
-            if sum_p >= q:
-                if i - 1 < 0:
-                    return None
-                else:
-                    return xs_nonzero_prob[i - 1]
-            i += 1
-
-    else:
-        i = len(xs_nonzero_prob) - 1
-        while True:
-            if q == 1:
-                return xs_nonzero_prob[-1]
-            else:
-                sum_p += nonzero_probs[i]
-                if sum_p >= 1 - q:
-                    return xs_nonzero_prob[i - 1]
-                i -= 1
-
-
 def get_prob_normal_greater_0(mean, st_dev):
     """
     :param mean: (float) mean of the normal distribution
@@ -211,13 +185,11 @@ def get_prob_x_greater_than_ys(x_mean, x_st_dev, y_means, y_st_devs):
 
 
 if __name__ == "__main__":
-    print(get_percentile_of_empirical_dist(xs=[1, 2, 3, 4], probs=[0.1, 0.2, 0.7, 0], q=0.05))
-    print(get_percentile_of_empirical_dist(xs=[1, 2, 3, 4], probs=[0.1, 0.2, 0.7, 0], q=0.4))
-    print(get_percentile_of_empirical_dist(xs=[1, 2, 3, 4], probs=[0.1, 0.2, 0.7, 0], q=1))
-    print(get_percentile_of_empirical_dist(xs=[1, 2, 3, 4], probs=[0.1, 0.2, 0.7, 0], q=0.6))
 
     print(get_prob_normal_greater_0(-1, 1))
     print(get_prob_x_greater_than_y(x_mean=10, x_st_dev=2,
                                     y_mean=9, y_st_dev=2))
     print(get_prob_x_greater_than_ys(x_mean=10, x_st_dev=2,
                                      y_means=[9, 11], y_st_devs=[2, 2]))
+
+    print(get_cumulative_mean([1, 2, 3]))
