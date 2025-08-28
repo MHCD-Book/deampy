@@ -34,6 +34,30 @@ def get_cumulative_mean(data):
 
     return cum_means
 
+
+def get_cumulative_var(data):
+    """
+    calculates the cumulative variance of a time-series
+    :param data: list of observations
+    :return: list of cumulative variances
+    """
+
+    cum_vars = []
+    total = 0
+    total_sq = 0
+    n = 0
+    for i in range(len(data)):
+        if data[i] is not None:
+            total += data[i]
+            total_sq += data[i]**2
+            n += 1
+        if n > 1:
+            cum_vars.append((total_sq - (total**2)/n)/(n-1))
+        else:
+            cum_vars.append(None)
+
+    return cum_vars
+
 def get_moving_average(data, window=2):
     """
     calculates the moving average of a time-series
@@ -193,3 +217,4 @@ if __name__ == "__main__":
                                      y_means=[9, 11], y_st_devs=[2, 2]))
 
     print(get_cumulative_mean([1, 2, 3]))
+    print(get_cumulative_var([1, 2, 3]))
