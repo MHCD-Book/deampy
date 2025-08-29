@@ -5,6 +5,7 @@ import warnings
 import numpy as np
 import scipy.stats as stat
 import statsmodels.api as sm
+from scipy.stats import chi2
 from scipy.stats import pearsonr
 from statsmodels.stats.proportion import proportion_confint
 
@@ -92,6 +93,11 @@ class _Statistics(object):
         :returns standard deviation (to be calculated in the subclass) """
         raise NotImplementedError("This is an abstract method and needs to be implemented in derived classes.")
 
+    def get_stdev_CI(self, alpha):
+        """ abstract method to be overridden in derived classes
+        :returns the confidence interval for standard deviation (to be calculated in the subclass) """
+        raise NotImplementedError("This is an abstract method and needs to be implemented in derived classes.")
+
     def get_var(self):
         return self.get_stdev() ** 2
 
@@ -174,49 +180,65 @@ class _Statistics(object):
                 F.format_number(self.get_min(), digits),
                 F.format_number(self.get_max(), digits)]
 
-    def get_interval(self, interval_type='c', alpha=0.05, multiplier=1, num_of_bootstrap_samples=None):
+    def get_interval(self, interval_type='c', mean_or_stdev='mean',
+                     alpha=0.05, multiplier=1, num_of_bootstrap_samples=None):
         """
         :param interval_type: (string) 'c' for t-based confidence interval,
                                        'cb' for bootstrap confidence interval,
                                        'p' for percentile interval, and
                                        'w' for Wilson score interval (only for binary outcomes)
+        :param mean_or_stdev: 'mean' or 'stdev' to indicate whether the estimate is mean or standard deviation
         :param alpha: significance level
         :param multiplier: to multiply the estimate and the interval by the provided value
+        :param num_of_bootstrap_samples: number of bootstrap samples (only needed if interval_type is 'cb')
         :return: a list [L, U]
         """
 
-        if interval_type == 'c':
-            interval = self.get_t_CI(alpha)
-        elif interval_type == 'cb':
-            if num_of_bootstrap_samples is None:
-                num_of_bootstrap_samples = NUM_BOOTSTRAP_SAMPLES
-            interval = self.get_bootstrap_CI(alpha, num_of_bootstrap_samples)
-        elif interval_type == 'p':
-            interval = self.get_PI(alpha)
-        elif interval_type == 'w':
-            if isinstance(self, SummaryStat) or isinstance(self, DifferenceStatPaired):
-                interval = self.get_proportion_CI(alpha)
+        if mean_or_stdev == 'mean':
+            if interval_type == 'c':
+                interval = self.get_t_CI(alpha)
+            elif interval_type == 'cb':
+                if num_of_bootstrap_samples is None:
+                    num_of_bootstrap_samples = NUM_BOOTSTRAP_SAMPLES
+                interval = self.get_bootstrap_CI(alpha, num_of_bootstrap_samples)
+            elif interval_type == 'p':
+                interval = self.get_PI(alpha)
+            elif interval_type == 'w':
+                if isinstance(self, (SummaryStat, DifferenceStatPaired)):
+                    interval = self.get_proportion_CI(alpha)
+                else:
+                    raise ValueError(
+                        'Wilson score interval can only be calculated for SummaryStat or DifferenceStatPaired.')
+            elif interval_type == 'n' or interval_type is None:
+                interval = None
             else:
-                raise ValueError(
-                    'Wilson score interval can only be calculated for SummaryStat or DifferenceStatPaired.')
-        elif interval_type == 'n' or interval_type is None:
-            interval = None
-        else:
-            raise ValueError('Invalid interval type.')
-        if interval is not None:
-            if multiplier > 0:
+                raise ValueError('Invalid interval type.')
+            if interval is not None:
                 return [v * multiplier for v in interval]
             else:
-                return [interval[1] * multiplier, interval[0] * multiplier]
-        else:
-            return None
+                return None
 
-    def get_formatted_mean_and_interval(self, interval_type='c',
+        elif mean_or_stdev == 'stdev':
+            if interval_type in ('c', 'w'):
+                interval = self.get_stdev_CI(alpha)
+                if interval is not None:
+                    return [v * multiplier for v in interval]
+                else:
+                    return None
+            elif interval_type == 'n' or interval_type is None:
+                return None
+            else:
+                raise ValueError('Invalid interval type.')
+        else:
+            raise ValueError("mean_or_stdev should be either 'mean' or 'stdev'.")
+
+    def get_formatted_mean_and_interval(self, interval_type='c', mean_or_stdev='mean',
                                         alpha=0.05, deci=None, sig_digits=None, form=None, multiplier=1):
         """
         :param interval_type: (string) 'c' for t-based confidence interval,
                                        'cb' for bootstrap confidence interval, and
                                        'p' for percentile interval
+        :param mean_or_stdev: 'mean' or 'stdev' to indicate whether the estimate is mean or standard deviation
         :param alpha: significance level
         :param deci: digits to round the numbers to
         :param sig_digits: number of significant digits
@@ -225,14 +247,20 @@ class _Statistics(object):
         :return: (string) estimate and interval formatted as specified
         """
 
-        estimate = self.get_mean() * multiplier
-        interval = self.get_interval(interval_type=interval_type, alpha=alpha, multiplier=multiplier)
+        if mean_or_stdev == 'mean':
+            estimate = self.get_mean() * multiplier
+        elif mean_or_stdev == 'stdev':
+            estimate = self.get_stdev() * multiplier
+        else:
+            raise ValueError("mean_or_stdev should be either 'mean' or 'stdev'.")
 
-        return F.format_estimate_interval(estimate=estimate,
-                                          interval=interval,
-                                          deci=deci,
-                                          sig_digits=sig_digits,
-                                          format=form)
+        interval = self.get_interval(
+            interval_type=interval_type, mean_or_stdev=mean_or_stdev,
+            alpha=alpha, multiplier=multiplier)
+
+        return F.format_estimate_interval(
+            estimate=estimate, interval=interval,
+            deci=deci, sig_digits=sig_digits, format=form)
 
     def get_formatted_interval(self, interval_type='c',
                                alpha=0.05, deci=None, sig_digits=None, form=None, multiplier=1):
@@ -288,6 +316,21 @@ class SummaryStat(_Statistics):
 
     def get_stdev(self):
         return self._stDev
+
+    def get_stdev_CI(self, alpha=0.05):
+
+        n = len(self._data)
+        df = n - 1
+        s2 = np.var(self._data, ddof=1)  # unbiased sample variance
+
+        # Chi-square critical values
+        chi2_lower = chi2.ppf(alpha / 2, df)
+        chi2_upper = chi2.ppf(1 - alpha / 2, df)
+
+        lower = math.sqrt((df * s2) / chi2_upper)
+        upper = math.sqrt((df * s2) / chi2_lower)
+
+        return [lower, upper]
 
     def get_min(self):
         return np.min(self._data)
