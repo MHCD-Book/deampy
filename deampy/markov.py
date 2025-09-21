@@ -160,15 +160,17 @@ def _continuous_to_discrete_main(trans_rate_matrix, delta_t):
     for i, row in enumerate(trans_rate_matrix):
         rates_out.append(_out_rate(row, i))
 
-    prob_matrix = np.zeros((len(trans_rate_matrix), len(trans_rate_matrix)))
+    prob_matrix = np.zeros((len(trans_rate_matrix), len(trans_rate_matrix[0])))
+    # prob_matrix = []
     for i in range(len(trans_rate_matrix)):
         # calculate probabilities
+        # prob_matrix.append([0] * len(trans_rate_matrix[i]))
         for j in range(len(trans_rate_matrix[i])):
             if i == j:
-                prob_matrix[i][j] = np.exp(-rates_out[i] * delta_t)
+                prob_matrix[i][j] = float(np.exp(-rates_out[i] * delta_t))
             else:
                 if rates_out[i] > 0:
-                    prob_matrix[i][j] = (1 - np.exp(-rates_out[i] * delta_t)) * trans_rate_matrix[i][j] / rates_out[i]
+                    prob_matrix[i][j] = float((1 - np.exp(-rates_out[i] * delta_t)) * trans_rate_matrix[i][j] / rates_out[i])
 
     # # calculate the maximum probability of two transitions within delta_t
     # max_prob_2_transitions = get_prob_2_transitions(
@@ -196,7 +198,7 @@ def continuous_to_discrete(trans_rate_matrix, delta_t):
     return _continuous_to_discrete_main(trans_rate_matrix=trans_rate_matrix, delta_t=delta_t)
 
 
-# @jit(nopython=True)
+@jit(nopython=True)
 def _discrete_to_continuous_main(trans_prob_matrix, delta_t):
 
     rate_matrix = []
@@ -212,8 +214,8 @@ def _discrete_to_continuous_main(trans_prob_matrix, delta_t):
                 if trans_prob_matrix[i][i] == 1:
                     rate = 0
                 else:
-                    rate = -np.log(trans_prob_matrix[i][i]) * trans_prob_matrix[i][j] / (
-                                (1 - trans_prob_matrix[i][i]) * delta_t)
+                    rate = float(-np.log(trans_prob_matrix[i][i]) * trans_prob_matrix[i][j] / (
+                                (1 - trans_prob_matrix[i][i]) * delta_t))
             # append this rate
             rate_row.append(rate)
         # append this row of rates

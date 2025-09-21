@@ -13,9 +13,9 @@ transRateMatrix = Cls.discrete_to_continuous(
 print(transRateMatrix, '\n')
 
 # continuous to discrete
-newProbMatrix, prob2events = \
-    Cls.continuous_to_discrete(trans_rate_matrix=transRateMatrix, delta_t=1)
+newProbMatrix = Cls.continuous_to_discrete(trans_rate_matrix=transRateMatrix, delta_t=1)
+
 print(newProbMatrix)
-print('Upper bound for the probability of 2 transitions withing delta_t:', prob2events)
+
 
 
