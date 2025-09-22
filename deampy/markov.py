@@ -2,6 +2,7 @@ import enum
 
 import numpy as np
 from numba import jit
+from scipy.linalg import logm
 
 from deampy.random_variates import Empirical, Exponential, Multinomial
 
@@ -100,7 +101,7 @@ def _assert_rate_matrix(rate_matrix):
             if r is None:
                 row[i] = 0.0
             if r is not None and r < 0:
-                raise ValueError('All rates in a transition rate matrix should be non-negative. '
+                raise ValueError('All non-diagonal rates in a transition rate matrix should be non-negative. '
                                  'Negative rate ({}) found in row index {}.'.format(r, i))
 
     if isinstance(rate_matrix, list):
@@ -224,11 +225,15 @@ def _discrete_to_continuous_main(trans_prob_matrix, delta_t):
     return rate_matrix
 
 
-def discrete_to_continuous(trans_prob_matrix, delta_t):
+def discrete_to_continuous(trans_prob_matrix, delta_t, method='log'):
     """
     :param trans_prob_matrix: (list of lists) transition probability matrix
     :param delta_t: cycle length
+    :param method: method to convert transition probability matrix to transition rate matrix
+                   'log': use the matrix logarithm method (default)
+                   'approx': use the approximation method
     :return: (list of lists) transition rate matrix
+        The approximation method uses:
         Converting [p_ij] to [lambda_ij] where
             lambda_ii = None, and
             lambda_ij = -ln(p_ii) * p_ij / ((1-p_ii)*Delta_t)
@@ -236,7 +241,17 @@ def discrete_to_continuous(trans_prob_matrix, delta_t):
 
     # error checking
     trans_prob_matrix = _assert_prob_matrix(trans_prob_matrix)
-    return _discrete_to_continuous_main(trans_prob_matrix, delta_t)
+    if method == 'approx':
+        return _discrete_to_continuous_main(trans_prob_matrix, delta_t)
+
+    elif method == 'log':
+        # use the matrix logarithm method
+
+        rate_matrix = logm(trans_prob_matrix)/delta_t
+        return rate_matrix
+
+    else:
+        raise ValueError("The method should be either 'log' or 'approx'.")
 
 
 class _Markov:
