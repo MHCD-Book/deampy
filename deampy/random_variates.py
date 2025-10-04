@@ -957,13 +957,19 @@ class NegativeBinomial(RVG):
 
 
 class NonHomogeneousExponential(RVG):
-    def __init__(self, rates, delta_t=1):
+    def __init__(self, rates, delta_t=None, time_breaks=None):
         """
         :param rates: (list) of rates over each period (e.g. [1, 2])
         :param delta_t: length of each period
+        :param time_breaks: (list) time points marking the intervals
         """
 
-        if rates[-1] == 0:
+        if delta_t is None and time_breaks is None:
+            raise ValueError("Either delta_t or time_breaks should be provided.")
+        if delta_t is not None and time_breaks is not None:
+            raise ValueError("Only one of parameters delta_t or time_breaks should be provided.")
+
+        if rates[-1] <= 0:
             raise ValueError('For a non-homogeneous exponential distribution, '
                              'the rate of the last period should be greater than 0.')
 
@@ -971,30 +977,51 @@ class NonHomogeneousExponential(RVG):
         self.rates = rates
         self.deltaT = delta_t
 
+        if time_breaks is None:
+            time_breaks = [i*delta_t for i in range(len(rates))]
+
+        self.timeBreaks = time_breaks
+
     def sample(self, rng, arg=None):
         """
         :param arg: current time (age)
         :return: a realization from the NonHomogeneousExponential distribution
         """
 
+        t = 0 # current time
+        i = 0  # current interval
+
+        if arg is not None:
+            t = arg
+            if self.deltaT is not None:
+                i = min(math.floor(t/self.deltaT), len(self.rates)-1)
+            else:
+                found = False
+                i = len(self.rates)-1
+                while not found:
+                    if t >= self.timeBreaks[i]:
+                        found = True
+                    else:
+                        i -= 1
+
         if_occurred = False
-        if arg is None:
-            i = 0
-            arg = 0
-        else:
-            i = min(math.floor(arg/self.deltaT), len(self.rates)-1)
         while not if_occurred:
             if self.rates[i] > 0:
                 exp = Exponential(scale=1/self.rates[i])
-                t = exp.sample(rng)
+                delta_t = exp.sample(rng)
             else:
-                t = float('inf')
+                delta_t = float('inf')
 
-            if i == len(self.rates)-1 or t < self.deltaT:
+            next_step = self.timeBreaks[i+1] if i < len(self.timeBreaks)-1 else float('inf')
+
+            if t + delta_t < next_step:
                 if_occurred = True
-                return max(0, t + i*self.deltaT - arg)
+                t = t + delta_t
             else:
+                t = self.timeBreaks[i+1]
                 i += 1
+
+        return t - arg
 
 
 class Normal(RVG):
