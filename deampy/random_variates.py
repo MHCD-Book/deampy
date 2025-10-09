@@ -962,6 +962,14 @@ class NonHomogeneousExponential(RVG):
         :param rates: (list) of rates over each period (e.g. [1, 2])
         :param delta_t: length of each period
         :param time_breaks: (list) time points marking the intervals
+        Either delta_t or time_breaks should be provided, but not both.
+        If delta_t is provided, then the time intervals are assumed to be
+            [0, delta_t), [delta_t, 2*delta_t), ...
+        If time_breaks is provided, then the time intervals are assumed to be
+            [time_breaks[0], time_breaks[1]), [time_breaks[1], time_breaks[2]), ...
+        Note that len(rates) = len(time_breaks) if time_breaks is provided,
+            and len(rates) = len(time_breaks) - 1 if delta_t is provided.
+        The rate of the last period should be greater than 0.
         """
 
         if delta_t is None and time_breaks is None:
