@@ -10,7 +10,5 @@ https://blog.jetbrains.com/pycharm/2017/05/how-to-publish-your-package-on-pypi/
 username = __token__
 password = ...
 
-
-# not sure what it does: $ python -m twine register dist/phmod-1.1.2.tar.gz
-
-
+--------------
+Go to PyPi account and create a new Token and it gives you the instruction.
