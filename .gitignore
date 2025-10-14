@@ -91,3 +91,6 @@ fabric.properties
 # General cache/logs (just in case)
 copilot-cache/
 copilot_logs/
+
+build/
+dist/
