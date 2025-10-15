@@ -91,8 +91,6 @@ def finish_ax(ax, data, bin_width, title, x_label, x_range, y_range, filename=No
     format_fig(ax=ax, title=title, x_label=x_label, x_range=x_range, y_range=y_range)
     ax.legend(fontsize=LEGEND_FONT_SIZE)
 
-    Fig.output_figure(plt=plt, file_name=filename, dpi=300)
-
 
 def plot_continuous_dists(data, dists, labels, colors, title=None, x_label=None, x_range=None, y_range=None,
                           fig_size=(6, 5), bin_width=None, filename=None):
@@ -108,6 +106,8 @@ def plot_continuous_dists(data, dists, labels, colors, title=None, x_label=None,
     finish_ax(ax=ax, data=data, bin_width=bin_width,
               title=title, x_label=x_label, x_range=x_range, y_range=y_range,
               filename=filename)
+
+    Fig.output_figure(plt=fig, file_name=filename, dpi=300)
 
 
 def plot_continuous_dists_in_row(data, dists, labels, colors, x_label=None, x_range=None, y_range=None,
@@ -143,6 +143,8 @@ def plot_discrete_dists(data, dists, labels, colors, title=None, x_label=None, x
               title=title, x_label=x_label, x_range=x_range, y_range=y_range,
               filename=filename)
 
+    Fig.output_figure(plt=fig, file_name=filename, dpi=300)
+
 
 def plot_discrete_dists_in_row(data, dists, labels, colors, x_label=None, x_range=None, y_range=None,
                                fig_size=(6, 5), bin_width=None, filename=None):
@@ -176,6 +178,8 @@ def plot_fit_continuous(data, dist, label, title=None, x_label=None, x_range=Non
               title=title, x_label=x_label, x_range=x_range, y_range=y_range,
               filename=filename)
 
+    Fig.output_figure(plt=fig, file_name=filename, dpi=300)
+
 
 def plot_fit_discrete(data, dist, label, title=None, x_label=None, x_range=None, y_range=None,
                       fig_size=(6, 5), bin_width=None, filename=None):
@@ -190,6 +194,8 @@ def plot_fit_discrete(data, dist, label, title=None, x_label=None, x_range=None,
     finish_ax(ax=ax, data=data, bin_width=bin_width,
               title=title, x_label=x_label, x_range=x_range, y_range=y_range,
               filename=filename)
+
+    Fig.output_figure(plt=fig, file_name=filename, dpi=300)
 
 
 # ---- return distributions based on fit results ----
