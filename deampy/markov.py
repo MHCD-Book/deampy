@@ -225,7 +225,7 @@ def _discrete_to_continuous_main(trans_prob_matrix, delta_t):
     return rate_matrix
 
 
-def discrete_to_continuous(trans_prob_matrix, delta_t, method='log'):
+def discrete_to_continuous(trans_prob_matrix, delta_t, method='approx'):
     """
     :param trans_prob_matrix: (list of lists) transition probability matrix
     :param delta_t: cycle length
