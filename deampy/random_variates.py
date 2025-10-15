@@ -7,6 +7,7 @@ import scipy as sp
 import scipy.stats as stat
 from numpy.random import RandomState
 from scipy.optimize import fmin_slsqp
+from scipy.optimize import minimize
 
 warnings.filterwarnings("ignore")
 
@@ -619,6 +620,36 @@ class GammaPoisson(RVG):
 
     @staticmethod
     def fit_ml(data, fixed_location=0):
+
+        def neg_log_likelihood(params, data):
+            return -GammaPoisson.ln_likelihood(a=params[0], scale=params[1], loc=fixed_location, data=data)
+
+        initial_guess = (1.0, 1.0)
+
+        result = minimize(
+            neg_log_likelihood,
+            x0=np.array(initial_guess),
+            args=(np.asarray(data),),
+            method='L-BFGS-B',
+            bounds=[(1e-6, None), (1e-6, None)]
+        )
+
+        if not result.success:
+            raise RuntimeError("Optimization failed: " + result.message)
+
+        r_hat, p_hat = result.x
+
+        # calculate AIC (note that the data has already been shifted by loc)
+        aic = AIC(
+            k=2,
+            log_likelihood=GammaPoisson.ln_likelihood(
+                a=r_hat, scale=p_hat, loc=fixed_location, data=data)
+        )
+
+        return {"shape": r_hat, "scale": p_hat, "loc": fixed_location, "AIC": aic}
+
+    @staticmethod
+    def fit_ml_old(data, fixed_location=0):
         """
         :param data: (numpy.array) observations
         :param fixed_location: location
@@ -628,15 +659,15 @@ class GammaPoisson(RVG):
         data = data - fixed_location
 
         # define negative log-likelihood, the target function to minimize
-        def neg_ln_l(shape_scale):
+        def neg_ln_l(shape_scale, data):
             return -GammaPoisson.ln_likelihood(a=shape_scale[0], scale=shape_scale[1], loc=0, data=data)
 
         # estimate the parameters by minimize negative log-likelihood
         # initialize parameters
-        shape_scale = [1, 1]
+        initial_guess = [1, 1]
         # call Scipy optimizer to minimize the target function
         # with bounds for p [0,1] and r [0,10]
-        fitted_shape_scale, value, iter, imode, smode = fmin_slsqp(neg_ln_l, shape_scale,
+        fitted_shape_scale, value, iter, imode, smode = fmin_slsqp(neg_ln_l, initial_guess,
                                                                #bounds=[(0.0, 10.0), (0, 1)],
                                                                disp=False, full_output=True)
 
