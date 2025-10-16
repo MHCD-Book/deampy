@@ -251,6 +251,53 @@ class BetaBinomial(RVG):
 
         data = 1.0 * (data - fixed_location)
 
+        def neg_ln_l(a_b_n, data):
+            return -BetaBinomial.ln_likelihood(a=a_b_n[0], b=a_b_n[1], n=a_b_n[2], data=data)
+
+        # estimate the parameters by minimize negative log-likelihood
+        # initialize parameters
+        initial_guess = [1, 1, np.max(data)]
+        # call Scipy optimizer to minimize the target function
+        # with bounds for a [0, 10], b [0, 10] and n [0,100+max(data)]
+        result = minimize(
+            neg_ln_l,
+            x0=np.array(initial_guess),
+            args=(np.asarray(data),),
+            method='L-BFGS-B',
+            bounds=[(1e-6, None), (1e-6, None), (0, None)]
+        )
+
+        if not result.success:
+            raise RuntimeError("Optimization failed: " + result.message)
+
+        a, b, n = result.x
+
+
+        # fitted_a_b_n, value, iter, imode, smode \
+        #     = fmin_slsqp(neg_ln_l, a_b_n_0,
+        #                  bounds=[(0.0, 10000.0), (0.0, 10000.0), (0, np.max(data) + 100)],
+        #                  disp=False, full_output=True)
+
+        # calculate AIC
+        aic = AIC(
+            k=3,
+            log_likelihood=BetaBinomial.ln_likelihood(
+                a=a, b=b, n=int(n), data=data)
+        )
+
+        # report results in the form of a dictionary
+        return {"a": a, "b": b, "n": int(n), "loc": fixed_location, "AIC": aic}
+
+    @staticmethod
+    def fit_ml_old(data, fixed_location=0):
+        """
+        :param data: (numpy.array) observations
+        :param fixed_location: fixed location
+        :returns: dictionary with keys "a", "b", "n" and "AIC"
+        """
+
+        data = 1.0 * (data - fixed_location)
+
         def neg_ln_l(a_b_n):
             return -BetaBinomial.ln_likelihood(a=a_b_n[0], b=a_b_n[1], n=a_b_n[2], data=data)
 
