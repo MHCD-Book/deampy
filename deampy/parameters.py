@@ -328,6 +328,25 @@ class Logit(_SingleVariate):
         return self.value
 
 
+class ProbFromOdd(_SingleVariate):
+    # return the probability such that the odd is k times the odd of the reference event
+    # O = k*O0 or p = k*p0 / (1 + (k-1)*p0)
+
+    def __init__(self, par_p_ref, par_multiplier, id=None, name=None):
+        """
+        :param par_p_ref: (Parameter) parameter the reference probability (p0)
+        :param par_multiplier: (Parameter) parameter the multiplier for the odd of the reference (k)
+        :param id: (int) id of a parameter
+        :param name: (string) name of a parameter
+        """
+        _Parameter.__init__(self, id=id, name=name, if_time_dep=(par_p_ref.ifTimeDep or par_multiplier.ifTimeDep))
+        self.parPRef = par_p_ref
+        self.parMultiplier = par_multiplier
+
+    def sample(self, rng=None, time=None):
+        self.value =  self.parMultiplier.value * self.parPRef.value/(1 + (self.parMultiplier.value-1)*self.parPRef.value)
+        return self.value
+
 class RateToOccur(_SingleVariate):
     """ determines rate of an event such that it occurs with certain probability during a certain period """
     def __init__(self, par_probability, delta_t, id=None, name=None):

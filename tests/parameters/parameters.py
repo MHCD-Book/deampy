@@ -1,6 +1,6 @@
 import numpy as np
 
-from deampy.parameters import Surge
+from deampy.parameters import Surge, ProbFromOdd, Constant
 
 # 200% increase from the base value which has a default value of 1
 surge = Surge(par_max_percent_change=2, par_t0=0, par_t1=2)
@@ -15,3 +15,10 @@ drop_fs = [drop.sample(time=t) for t in ts]
 print(ts)
 print(surge_fs)
 print(drop_fs)
+
+
+p_new = ProbFromOdd(
+    par_p_ref=Constant(value= 1),
+    par_multiplier=Constant(value=10),
+)
+print(p_new.sample())
