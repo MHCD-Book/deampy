@@ -58,6 +58,7 @@ def get_cumulative_var(data):
 
     return cum_vars
 
+
 def get_moving_average(data, window=2):
     """
     calculates the moving average of a time-series
