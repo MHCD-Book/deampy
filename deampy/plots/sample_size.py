@@ -49,7 +49,7 @@ def plot_mean_stdev_by_np(
         list_of_obss, list_x_ranges, labels, colors,
         y_range_mean=None, y_range_stdev=None,
         y_label_mean=None, y_label_stdev=None,
-        x_label=None,
+        x_label=None, # conf_intv_transparency=0.2,
         true_mean=None, true_stdev=None, fig_size=None, file_name=None):
     """
     Plots the cumulative mean and standard deviation of a list of observations against sample size
@@ -84,6 +84,15 @@ def plot_mean_stdev_by_np(
         axes[1].plot(x_range,
                    np.sqrt(cumulative_var), color=color, linewidth=1,
                    label=label)
+        #
+        # if conf_intv_transparency is not None and conf_intv_transparency > 0:
+        #     # plot 95% confidence interval for mean
+        #     ci_lower, ci_upper = mf.get_confidence_interval_of_mean(obs, conf_level=0.95)
+        #     axes[0].fill_between(x_range,
+        #                          ci_lower,
+        #                          ci_upper,
+        #                          color=color,
+
 
     if true_mean is not None:
         axes[0].axhline(y=true_mean, color='k', linestyle='--', linewidth=1, label='True Value')
