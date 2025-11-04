@@ -122,6 +122,13 @@ class PrevalenceSamplePath(_SamplePath):
     def get_times(self):
         return self._times
 
+    def get_mean(self):
+        if self.ifCollectStat:
+            return self.stat.get_mean()
+        else:
+            raise ValueError(self.name + ' | Statistics were not collected for this sample path. '
+                                         'Set collect_stat = True when initializing the PrevalenceSamplePath class.')
+
 
 class IncidenceSamplePath(_SamplePath):
     def __init__(self, name, delta_t, sim_rep=0, collect_stat=True, warm_up_period=0):
