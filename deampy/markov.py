@@ -96,13 +96,16 @@ def _assert_rate_matrix(rate_matrix):
             'Row {} is not a list or numpy array.'.format(i)
 
     for i, row in enumerate(rate_matrix):
-        # make sure all rates are non-negative
-        for r in row:
-            if r is None:
-                row[i] = 0.0
-            if r is not None and r < 0:
+        # make sure all non-diagonal rates are non-negative
+        for j, value in enumerate(row):
+
+            if i != j and (value is None or value <0):
                 raise ValueError('All non-diagonal rates in a transition rate matrix should be non-negative. '
-                                 'Negative rate ({}) found in row index {}.'.format(r, i))
+                                 'Negative rate ({}) found in row index {}.'.format(value, i))
+            elif i == j:
+                # make sure diagonal rates are None or 0
+                if value is None:
+                    row[j] = 0.0
 
     if isinstance(rate_matrix, list):
         rate_matrix = np.array(rate_matrix)
