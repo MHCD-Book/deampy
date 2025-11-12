@@ -106,6 +106,10 @@ def _assert_rate_matrix(rate_matrix):
                 # make sure diagonal rates are None or 0
                 if value is None:
                     row[j] = 0.0
+                if value < 0:
+                    if abs(sum(row)) > 0.00001:
+                        raise ValueError(
+                            'The diagonal rate in row {} is negative; therefore the sum of rates in that row should be zero.'.format(i))
 
     if isinstance(rate_matrix, list):
         rate_matrix = np.array(rate_matrix)
