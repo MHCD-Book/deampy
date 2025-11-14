@@ -60,7 +60,7 @@ class SensitivityAnalysis:
         results, text = self._get_results_text(corr=corr)
         print(text)
         for par, values in results.items():
-            print(par, values)
+            print('\t', par, '{} , {}'.format(values[0], values[1]))
 
     def export_to_csv(self, corrs='r', file_name='Correlations.csv', decimal=3, delimiter=','):
         """
