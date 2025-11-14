@@ -296,6 +296,9 @@ class _Markov:
                                  'than 0 and smaller than the number of states. '
                                  'Value provided for current state index is {}.'.format(current_state_index))
         elif current_state is not None:
+            if not self._ifStateDescriptionProvided:
+                raise ValueError('The state description is not provided; therefore, '
+                                 'current_state cannot be used. Please provide current_state_index instead.')
             assert current_state in self._states, \
                 'The current state is invalid and not in the state description enumeration.'
             current_state_index = current_state.value
