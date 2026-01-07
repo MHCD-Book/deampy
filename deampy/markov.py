@@ -106,7 +106,7 @@ def _assert_rate_matrix(rate_matrix):
                 # make sure diagonal rates are None or 0
                 if value is None:
                     row[j] = 0.0
-                if value < 0:
+                elif value < 0:
                     if abs(sum(row)) > 0.00001:
                         raise ValueError(
                             'The diagonal rate in row {} is negative; therefore the sum of rates in that row should be zero.'.format(i))
@@ -375,17 +375,10 @@ class Gillespie(_Markov):
             if rate_out > 0:
                 # create an exponential distribution with rate equal to sum of rates out of this state
                 self._expDists.append(Exponential(scale=1/rate_out))
-                # find the transition rates to other states
-                # assume that the rate into this state is 0
-                rates = []
-                for j, v in enumerate(row):
-                    if i == j:
-                        rates.append(0)
-                    else:
-                        rates.append(v)
-
+                # set the diagonal element to 0 for calculating the probabilities of each event
+                row[i] = 0
                 # calculate the probability of each event (prob_j = rate_j / (sum over j of rate_j)
-                probs = np.array(rates) / rate_out
+                probs = np.array(row) / rate_out
                 # create an empirical distribution over the future states from this state
                 self._empiricalDists.append(Empirical(probs))
 
