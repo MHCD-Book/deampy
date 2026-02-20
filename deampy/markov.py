@@ -240,27 +240,23 @@ def continuous_to_discrete(trans_rate_matrix, delta_t):
 @jit(nopython=True)
 def __discrete_to_continuous_main(trans_prob_matrix, delta_t):
 
-    rate_matrix = []
+    # np array filled with 0
+    n = len(trans_prob_matrix)
+    q = np.zeros((n, n))
     for i, row in enumerate(trans_prob_matrix):
-        rate_row = []  # list of rates
         # calculate rates
         for j in range(len(row)):
-            # rate is None for diagonal elements
-            if i == j:
-                rate = None
-            else:
+            if i != j:
                 # rate is zero if this is an absorbing state
                 if trans_prob_matrix[i][i] == 1:
-                    rate = 0
+                    q[i, j] = 0
                 else:
-                    rate = float(-np.log(trans_prob_matrix[i][i]) * trans_prob_matrix[i][j] / (
+                    q[i, j] = float(-np.log(trans_prob_matrix[i][i]) * trans_prob_matrix[i][j] / (
                                 (1 - trans_prob_matrix[i][i]) * delta_t))
-            # append this rate
-            rate_row.append(rate)
-        # append this row of rates
-        rate_matrix.append(rate_row)
 
-    return rate_matrix
+    np.fill_diagonal(q, -q.sum(axis=1))
+
+    return q
 
 
 def discrete_to_continuous(trans_prob_matrix, delta_t, method='approx'):

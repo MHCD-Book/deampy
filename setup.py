@@ -8,7 +8,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='deampy',
-    version='1.5.8',
+    version='1.5.9',
     install_requires=['numpy', 'numba', 'matplotlib', 'scipy', 'statsmodels', 'scikit-learn', 'pandas', 'seaborn'],
     packages=['deampy', 'deampy.optimization', 'deampy.plots', 'deampy.support'],
     url='https://github.com/modeling-health-care-decisions/deampy',
