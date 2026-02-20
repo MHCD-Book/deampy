@@ -126,6 +126,15 @@ def _assert_dynamic_matrix(rate_matrix):
 
 
 def get_prob_2_transitions(rates_out, trans_rate_matrix, delta_t):
+    """
+    returns the the maximum probability of two transitions within delta_t for each state,
+        which is used as an upper bound for the error of the approximation method
+        in converting a transition rate matrix to a transition probability matrix.
+    :param rates_out:
+    :param trans_rate_matrix:
+    :param delta_t:
+    :return:
+    """
 
     # probability that transition occurs within delta_t for each state
     probs_out = []
@@ -161,27 +170,29 @@ def get_prob_2_transitions(rates_out, trans_rate_matrix, delta_t):
     return max(prob_out_out)
 
 
-def _unpack_Q(params, n):
+@jit(nopython=True)
+def __unpack_Q(params, n):
     Q = np.zeros((n, n))
     idx = 0
     for i in range(n):
         for j in range(n):
             if i != j:
-                Q[i, j] = params[idx] ** 2 # enforeces q_ij > 0
+                Q[i, j] =  params[idx] ** 2 # enforeces q_ij > 0 # np.exp(params[idx]) #
                 idx += 1
         Q[i, i] = -np.sum(Q[i, :])  # row sums to 0
     return Q
 
 
-def _loss(params, P_obs, t):
+# @jit(nopython=True)
+def __loss(params, p_obs, t):
 
-    Q = _unpack_Q(params, n=P_obs.shape[0])
-    P_hat = expm(Q * t)
-    return np.linalg.norm(P_hat - P_obs, ord='fro') ** 2
+    q = __unpack_Q(params, n=p_obs.shape[0])
+    p_hat = expm(q * t)
+    return np.linalg.norm(p_hat - p_obs, ord='fro') ** 2
 
 
 @jit(nopython=True)
-def _continuous_to_discrete_main(trans_rate_matrix, delta_t):
+def __continuous_to_discrete_main(trans_rate_matrix, delta_t):
 
     # list of rates out of each row
     rates_out = []
@@ -223,11 +234,11 @@ def continuous_to_discrete(trans_rate_matrix, delta_t):
     # error checking
     trans_rate_matrix = _assert_rate_matrix(trans_rate_matrix)
 
-    return _continuous_to_discrete_main(trans_rate_matrix=trans_rate_matrix, delta_t=delta_t)
+    return __continuous_to_discrete_main(trans_rate_matrix=trans_rate_matrix, delta_t=delta_t)
 
 
 @jit(nopython=True)
-def _discrete_to_continuous_main(trans_prob_matrix, delta_t):
+def __discrete_to_continuous_main(trans_prob_matrix, delta_t):
 
     rate_matrix = []
     for i, row in enumerate(trans_prob_matrix):
@@ -259,7 +270,7 @@ def discrete_to_continuous(trans_prob_matrix, delta_t, method='approx'):
     :param method: method to convert transition probability matrix to transition rate matrix
                    'log': use the matrix logarithm method (default)
                    'approx': use the approximation method
-                   'optimization': use constrained optimization
+                   'optim': use constrained optimization
     :return: (list of lists) transition rate matrix
         The approximation method uses:
         Converting [p_ij] to [lambda_ij] where
@@ -270,7 +281,7 @@ def discrete_to_continuous(trans_prob_matrix, delta_t, method='approx'):
     # error checking
     trans_prob_matrix = _assert_prob_matrix(trans_prob_matrix)
     if method == 'approx':
-        return _discrete_to_continuous_main(trans_prob_matrix, delta_t)
+        return __discrete_to_continuous_main(trans_prob_matrix, delta_t)
 
     elif method == 'log':
         # use the matrix logarithm method
@@ -278,24 +289,31 @@ def discrete_to_continuous(trans_prob_matrix, delta_t, method='approx'):
         rate_matrix = logm(trans_prob_matrix)/delta_t
         return rate_matrix
 
-    elif method == 'optimization':
+    elif method == 'optim':
 
         n = trans_prob_matrix.shape[0]
-        num_params = n * (n - 1)
-        initial_params = 0.1 * np.ones(num_params)
-        params = minimize(
-            _loss,
+
+        # initialize using matrix log
+        Q0 = logm(trans_prob_matrix)/delta_t
+        # replace negative numbers with 0
+        Q0[Q0 < 0] = 0
+        # update diagonal elements with the sum of rates out of each state
+        np.fill_diagonal(Q0, -Q0.sum(axis=1))
+        # list of initial parameters
+        initial_params = np.sqrt(Q0[~np.eye(n, dtype=bool)])
+
+        # minimize
+        result = minimize(
+            __loss,
             initial_params,
             args=(trans_prob_matrix, delta_t),
             method="SLSQP",
-            # options={
-            #     "maxiter": 500,
-            #     "ftol": 1e-10,
-            #     "disp": True
-            # }
         )
 
-        return _unpack_Q(params, len(trans_prob_matrix))
+        if not result.success:
+            raise ValueError("The optimization failed.")
+
+        return __unpack_Q(result.x, len(trans_prob_matrix))
 
     else:
         raise ValueError("The method should be either 'log' or 'approx'.")
