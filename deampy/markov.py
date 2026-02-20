@@ -2,7 +2,8 @@ import enum
 
 import numpy as np
 from numba import jit
-from scipy.linalg import logm
+from scipy.linalg import logm, expm
+from scipy.optimize import minimize
 
 from deampy.random_variates import Empirical, Exponential, Multinomial
 
@@ -160,6 +161,25 @@ def get_prob_2_transitions(rates_out, trans_rate_matrix, delta_t):
     return max(prob_out_out)
 
 
+def _unpack_Q(params, n):
+    Q = np.zeros((n, n))
+    idx = 0
+    for i in range(n):
+        for j in range(n):
+            if i != j:
+                Q[i, j] = params[idx] ** 2 # enforeces q_ij > 0
+                idx += 1
+        Q[i, i] = -np.sum(Q[i, :])  # row sums to 0
+    return Q
+
+
+def _loss(params, P_obs, t):
+
+    Q = _unpack_Q(params, n=P_obs.shape[0])
+    P_hat = expm(Q * t)
+    return np.linalg.norm(P_hat - P_obs, ord='fro') ** 2
+
+
 @jit(nopython=True)
 def _continuous_to_discrete_main(trans_rate_matrix, delta_t):
 
@@ -239,6 +259,7 @@ def discrete_to_continuous(trans_prob_matrix, delta_t, method='approx'):
     :param method: method to convert transition probability matrix to transition rate matrix
                    'log': use the matrix logarithm method (default)
                    'approx': use the approximation method
+                   'optimization': use constrained optimization
     :return: (list of lists) transition rate matrix
         The approximation method uses:
         Converting [p_ij] to [lambda_ij] where
@@ -256,6 +277,25 @@ def discrete_to_continuous(trans_prob_matrix, delta_t, method='approx'):
 
         rate_matrix = logm(trans_prob_matrix)/delta_t
         return rate_matrix
+
+    elif method == 'optimization':
+
+        n = trans_prob_matrix.shape[0]
+        num_params = n * (n - 1)
+        initial_params = 0.1 * np.ones(num_params)
+        params = minimize(
+            _loss,
+            initial_params,
+            args=(trans_prob_matrix, delta_t),
+            method="SLSQP",
+            # options={
+            #     "maxiter": 500,
+            #     "ftol": 1e-10,
+            #     "disp": True
+            # }
+        )
+
+        return _unpack_Q(params, len(trans_prob_matrix))
 
     else:
         raise ValueError("The method should be either 'log' or 'approx'.")
