@@ -136,7 +136,7 @@ class _Statistics(object):
         if self._n > 1:
             mean = self.get_mean()
             hl = self.get_t_half_length(alpha)
-            return [mean - hl, mean + hl]
+            return [float(mean - hl), float(mean + hl)]
         else:
             return [math.nan, math.nan]
 
