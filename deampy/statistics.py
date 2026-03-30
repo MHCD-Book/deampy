@@ -302,9 +302,9 @@ class SummaryStat(_Statistics):
 
         self._n = len(self._data)
         self._total = np.sum(self._data)
-        self._mean = np.mean(self._data)
+        self._mean = float(np.mean(self._data))
         if self._n > 1:
-            self._stDev = np.std(self._data, ddof=1)  # unbiased estimator of the standard deviation
+            self._stDev = float(np.std(self._data, ddof=1))  # unbiased estimator of the standard deviation
         else:
             self._stDev = math.nan
 
