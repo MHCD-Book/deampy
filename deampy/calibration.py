@@ -15,22 +15,22 @@ from deampy.statistics import SummaryStat
 
 class _Calibration:
 
-    def __init__(self, prior_ranges):
+    def __init__(self, dict_prior_ranges):
         """Base class for calibration methods."""
 
-        assert isinstance(prior_ranges, dict) and len(prior_ranges) > 0, \
+        assert isinstance(dict_prior_ranges, dict) and len(dict_prior_ranges) > 0, \
             "prior_ranges must be a non-empty dictionary of tuples (min, max) for each parameter."
 
         self.samples = {}
         self.seeds = None
         self.logLikelihoods = None
 
-        self.priorRanges = prior_ranges  # List of tuples (min, max) for each parameter
+        self.dictPriorRanges = dict_prior_ranges  # List of tuples (min, max) for each parameter
         self._reset()
 
     def _reset(self):
         """Reset the calibration object."""
-        self.samples = {key: [] for key in self.priorRanges} # Initialize samples for each parameter
+        self.samples = {key: [] for key in self.dictPriorRanges} # Initialize samples for each parameter
         self.seeds = []
         self.logLikelihoods = []
 
@@ -45,7 +45,7 @@ class _Calibration:
             'Log-Likelihood': self.logLikelihoods
         }
         # add parameter samples to the columns
-        for key in self.priorRanges:
+        for key in self.dictPriorRanges:
             cols[key] = self.samples[key]
 
         # write the calibration result into a csv file
@@ -65,7 +65,7 @@ class _Calibration:
         # the second column is log-likelihoods
         self.logLikelihoods = cols['Log-Likelihood'].tolist()
         # remaining columns are parameter samples
-        for key in self.priorRanges:
+        for key in self.dictPriorRanges:
             self.samples[key] = cols[key].tolist()
 
     def _error_check_log_func(self, log_likelihood_func):
@@ -84,7 +84,7 @@ class _Calibration:
         self.seeds.append(accepted_seed)
         self.logLikelihoods.append(ll)
         i = 0
-        for key in self.priorRanges:
+        for key in self.dictPriorRanges:
             self.samples[key].append(thetas[i])
             i += 1
 
@@ -120,13 +120,13 @@ class _Calibration:
         f, axarr = plt.subplots(n_rows, n_cols, sharex=share_x, sharey=share_y, figsize=figsize)
 
         if parameter_names is None:
-            parameter_names = list(self.priorRanges.keys())
+            parameter_names = list(self.dictPriorRanges.keys())
 
         i = 0
         j = 0
         for key in parameter_names:
 
-            range = self.priorRanges[key]
+            range = self.dictPriorRanges[key]
 
             # get current axis
             if n_rows == 1 and n_cols == 1:
@@ -173,13 +173,13 @@ class _Calibration:
         f, axarr = plt.subplots(n_rows, n_cols, figsize=figsize)
 
         if parameter_names is None:
-            parameter_names = self.priorRanges.keys()
+            parameter_names = self.dictPriorRanges.keys()
 
         i = 0
         j = 0
         for key in parameter_names:
 
-            range = self.priorRanges[key]
+            range = self.dictPriorRanges[key]
 
             # get current axis
             if n_rows == 1 and n_cols == 1:
@@ -219,7 +219,7 @@ class _Calibration:
         """Plot pairwise posterior distributions."""
 
         if parameter_names is None:
-            parameter_names = list(self.priorRanges.keys())
+            parameter_names = list(self.dictPriorRanges.keys())
 
         # plot each panel
         n = len(parameter_names)
@@ -238,7 +238,7 @@ class _Calibration:
                     add_histogram_to_ax(
                         ax=ax,
                         data=samples[parameter_names[i]],
-                        x_range=self.priorRanges[parameter_names[i]],
+                        x_range=self.dictPriorRanges[parameter_names[i]],
                     )
                     # ax.set_yticklabels([])
                     # ax.set_yticks([])
@@ -251,8 +251,8 @@ class _Calibration:
                     ax.scatter(x_data,
                                y_data,
                                alpha=0.5, s=2)
-                    ax.set_xlim(self.priorRanges[parameter_names[i]])
-                    ax.set_ylim(self.priorRanges[parameter_names[j]])
+                    ax.set_xlim(self.dictPriorRanges[parameter_names[i]])
+                    ax.set_ylim(self.dictPriorRanges[parameter_names[j]])
                     # correlation line
                     b, m = polyfit(x_data, y_data, 1)
                     ax.plot(x_data, b + m * x_data, '-', c='black')
@@ -275,7 +275,7 @@ class _Calibration:
     def _save_posteriors(self, samples, file_name, alpha=0.05, parameter_names=None, significant_digits=None):
 
         if parameter_names is None:
-            parameter_names = list(self.priorRanges.keys())
+            parameter_names = list(self.dictPriorRanges.keys())
 
         # first row
         first_row = ['Parameter', 'Mean', 'Credible Interval', 'Confidence Interval']
@@ -298,11 +298,11 @@ class _Calibration:
 
 class CalibrationRandomSampling(_Calibration):
 
-    def __init__(self, prior_ranges=None):
+    def __init__(self, dict_prior_ranges):
 
-        _Calibration.__init__(self, prior_ranges=prior_ranges)
+        _Calibration.__init__(self, dict_prior_ranges=dict_prior_ranges)
         self.resampledSeeds = []
-        self.resamples = {key: [] for key in prior_ranges}  # Initialize samples for each parameter
+        self.resamples = {key: [] for key in dict_prior_ranges}  # Initialize samples for each parameter
 
     def run(self, log_likelihood_func, num_samples=1000, rng=None, print_iterations=True):
 
@@ -313,7 +313,7 @@ class CalibrationRandomSampling(_Calibration):
             rng = np.random.RandomState(1)
 
         param_samples = []
-        for key, prior in self.priorRanges.items():
+        for key, prior in self.dictPriorRanges.items():
             # Generate samples uniformly within the prior range
             param_samples.append(
                 rng.uniform(low=prior[0], high=prior[1], size=num_samples)
@@ -323,7 +323,7 @@ class CalibrationRandomSampling(_Calibration):
 
             seed = i # rng.randint(0, iinfo(int32).max)
 
-            thetas = [param_samples[j][i] for j in range(len(self.priorRanges))]
+            thetas = [param_samples[j][i] for j in range(len(self.dictPriorRanges))]
 
             output = log_likelihood_func(thetas=thetas, seed=seed)
             if isinstance(output, tuple):
@@ -373,12 +373,12 @@ class CalibrationRandomSampling(_Calibration):
 
         # use the sampled indices to populate the list of cohort IDs and mortality probabilities
         self.resampledSeeds.clear()
-        self.resamples = {key: [] for key in self.priorRanges}  # Reset resamples
+        self.resamples = {key: [] for key in self.dictPriorRanges}  # Reset resamples
         for i in range(n_resample):
 
             row_index = sampled_row_indices[i]
             self.resampledSeeds.append(self.seeds[row_index])
-            for key in self.priorRanges:
+            for key in self.dictPriorRanges:
                 self.resamples[key].append(self.samples[key][row_index])
 
     def plot_posterior(self, n_resample=1000, weighted=False, n_rows=1, n_cols=1, figsize=(7, 5),
@@ -424,9 +424,9 @@ class CalibrationRandomSampling(_Calibration):
 
 class CalibrationMCMCSampling(_Calibration):
 
-    def __init__(self, prior_ranges):
+    def __init__(self, dict_prior_ranges):
 
-        _Calibration.__init__(self, prior_ranges=prior_ranges)
+        _Calibration.__init__(self, dict_prior_ranges=dict_prior_ranges)
 
     @staticmethod
     def _get_ll_log_post(log_likelihood_func, log_prior_value, thetas, seed, epsilon_ll):
@@ -461,11 +461,11 @@ class CalibrationMCMCSampling(_Calibration):
             rng = np.random.RandomState(1)
 
         # std factors for each parameter based on the prior ranges
-        std_factors = [(r[1] - r[0]) * std_factor for k, r in self.priorRanges.items()]
+        std_factors = [(r[1] - r[0]) * std_factor for k, r in self.dictPriorRanges.items()]
 
         # initial parameter samples from uniform priors
         thetas = np.array(
-            [rng.uniform(low=prior_range[0], high=prior_range[1]) for key, prior_range in self.priorRanges.items()])
+            [rng.uniform(low=prior_range[0], high=prior_range[1]) for key, prior_range in self.dictPriorRanges.items()])
 
         # generate a random seed for the first sample
         seed = rng.randint(0, iinfo(int32).max)
@@ -525,7 +525,7 @@ class CalibrationMCMCSampling(_Calibration):
         """Compute the log-prior of theta."""
 
         log_prior = 0
-        for range, value in zip(self.priorRanges.values(), thetas):
+        for range, value in zip(self.dictPriorRanges.values(), thetas):
             if range[0] <= value <= range[1]:
                 log_prior += np.log(1 / (range[1] - range[0]))
             else:
@@ -537,7 +537,7 @@ class CalibrationMCMCSampling(_Calibration):
                        file_name=None, parameter_names=None):
 
         if parameter_names is None:
-            parameter_names = list(self.priorRanges.keys())
+            parameter_names = list(self.dictPriorRanges.keys())
 
         samples = {key: self.samples[key][n_warmup:] for key in parameter_names}
 
@@ -553,7 +553,7 @@ class CalibrationMCMCSampling(_Calibration):
     def save_posterior(self, file_name, n_warmup, alpha=0.05, parameter_names=None, significant_digits=None):
 
         if parameter_names is None:
-            parameter_names = list(self.priorRanges.keys())
+            parameter_names = list(self.dictPriorRanges.keys())
 
         samples = {key: self.samples[key][n_warmup:] for key in parameter_names}
 

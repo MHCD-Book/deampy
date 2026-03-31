@@ -44,7 +44,7 @@ def log_likelihood_func(thetas, seed):
 def test_ramdom_sampling():
 
     # Run random sampling calibration with the specified prior ranges and log-likelihood function
-    random_sampling = CalibrationRandomSampling(prior_ranges=PRIOR_RANGES)
+    random_sampling = CalibrationRandomSampling(dict_prior_ranges=PRIOR_RANGES)
     random_sampling.run(log_likelihood_func=log_likelihood_func, num_samples=N_SAMPLES)
     random_sampling.save_samples(file_name="output/rnd_sampling.csv")
 
@@ -71,7 +71,7 @@ def test_ramdom_sampling():
 def test_mcmc_sampling(log_binary=False):
 
     # Run MCMC calibration with the specified prior ranges and log-likelihood function
-    mcmc = CalibrationMCMCSampling(prior_ranges=PRIOR_RANGES)
+    mcmc = CalibrationMCMCSampling(dict_prior_ranges=PRIOR_RANGES)
     if log_binary:
         mcmc.run(log_likelihood_func=log_likelihood_func,
                  std_factor=ST_FACTOR, epsilon_ll=EPSILON_LL, num_samples=N_SAMPLES)
