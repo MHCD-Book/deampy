@@ -9,6 +9,7 @@ from deampy.random_variates import Gamma as G
 from deampy.random_variates import Multinomial as Mult
 from deampy.random_variates import Uniform as U
 from deampy.random_variates import UniformDiscrete as UD
+from deampy.random_variates import Binomial as Bi
 
 
 class _Parameter:
@@ -172,6 +173,28 @@ class Equal(_SingleVariate):
     def sample(self, rng=None, time=None):
 
         self.value = self.par.value
+        return self.value
+
+
+class Binomial(_SingleVariate):
+    def __init__(self, n, p, id=None, name=None):
+        """
+        :param n: (int) number of trials
+        :param p: probability of success
+        :param id: (int) id of a parameter
+        :param name: (string) name of a parameter
+        """
+
+        if not (0.0 <= p <= 1.0):
+            raise ValueError("p value must be between 0 and 1 (not {}) for parameter '{}'.".format(sum(p_values), name))
+
+        _Parameter.__init__(self, id=id, name=name)
+        self.n = n
+        self.p = p
+
+    def sample(self, rng=None, time=None):
+
+        self.value = Bi(n=self.n, p=self.p).sample(rng=rng)
         return self.value
 
 
