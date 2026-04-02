@@ -104,6 +104,7 @@ def update_curves_with_highest_values(wtp_values, curves):
 
     # find the optimal strategy for each wtp value
     idx_highest_exp_value = []
+    highest_exp_values = []
     for wtp_idx, wtp in enumerate(wtp_values):
 
         max_value = float('-inf')
@@ -115,13 +116,14 @@ def update_curves_with_highest_values(wtp_values, curves):
 
         # store the index of the optimal strategy
         idx_highest_exp_value.append(max_idx)
+        highest_exp_values.append(max_value)
         curves[max_idx].frontierXs.append(wtp)
         curves[max_idx].frontierYs.append(max_value)
 
     for curve in curves:
         curve.convert_lists_to_arrays()
 
-    return idx_highest_exp_value
+    return idx_highest_exp_value, highest_exp_values
 
 
 def update_curves_with_lowest_values(wtp_values, curves):
@@ -131,6 +133,7 @@ def update_curves_with_lowest_values(wtp_values, curves):
 
     # find the optimal strategy for each wtp value
     idx_lowest_exp_value = []
+    lowest_exp_values = []
     for wtp_idx, wtp in enumerate(wtp_values):
 
         min_value = float('inf')
@@ -142,13 +145,14 @@ def update_curves_with_lowest_values(wtp_values, curves):
 
         # store the index of the optimal strategy
         idx_lowest_exp_value.append(min_idx)
+        lowest_exp_values.append(min_value)
         curves[min_idx].frontierXs.append(wtp)
         curves[min_idx].frontierYs.append(min_value)
 
     for curve in curves:
         curve.convert_lists_to_arrays()
 
-    return idx_lowest_exp_value
+    return idx_lowest_exp_value, lowest_exp_values
 
 
 class _Curve:
@@ -298,5 +302,3 @@ class EVPI(_Curve):
 
         self.xs = assert_np_list(obs=xs, error_message='x-values should be list or numpy.array')
         self.ys = assert_np_list(obs=ys, error_message='y-values should be list of numpy.array')
-
-
