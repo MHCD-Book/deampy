@@ -565,7 +565,7 @@ class _EconEval:
 
         # index of strategy with the highest expected net-monetary benefit over the wtp range
         self.idxHighestExpNMB = []
-        self.highestExpNMB = []
+        self.highestExpINMB = []
         # index of strategy with the lowest expected loss over the wtp range
         self.idxLowestExpLoss = []
         self.lowestExpLoss = []
@@ -885,7 +885,7 @@ class _EconEval:
                                                        interval_type=interval_type)
                                              )
 
-        self.idxHighestExpNMB, self.highestExpNMB = update_curves_with_highest_values(
+        self.idxHighestExpNMB, self.highestExpINMB = update_curves_with_highest_values(
             wtp_values=self.wtpValues, curves=self._incrementalNMBLines)
 
     def _build_acceptability_curves(self, normal_approximation=False):
@@ -1235,11 +1235,11 @@ class CEA(_EconEval):
 
         return [s for s in self.strategies if s.ifDominated]
 
-    def get_highest_exp_nmb_by_wtp_values(self):
+    def get_highest_exp_inmb_by_wtp_values(self):
 
         self._build_incremental_nmb_curves(interval_type='n')
 
-        return self.wtpValues, self.idxHighestExpNMB, self.highestExpNMB
+        return self.wtpValues, self.idxHighestExpNMB, self.highestExpINMB
 
     def get_wtp_switch_thresholds_on_frontier(self, with_confidence_intervals=True, alpha=0.05):
         """
