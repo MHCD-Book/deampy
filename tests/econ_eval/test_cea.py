@@ -56,8 +56,3 @@ for s in frontier:
         print('incCost', None)
     else:
         print('incCost', s.incCost.get_mean())
-
-
-
-
-
