@@ -600,6 +600,17 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
 
         return self._numToStatesOverTime[state_index]
 
+    def get_transitions_to_multiple_states_over_time(self, state_indices):
+        """
+        :param state_indices: list of indices of states
+        :return: sum of the transitions to the states in the list
+        """
+
+        sum_transitions = np.zeros(self._currentTimeStep)
+        for i in state_indices:
+            sum_transitions += np.array(self._numToStatesOverTime[i])
+        return  sum_transitions
+
     def get_sum_size_multiple_states(self, state_indices):
         """
         :param state_indices: list of indices of states
@@ -720,6 +731,13 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
         :return: list of number of transitions to each state
         """
         return self.dtMarkov.get_transition_to_states_over_time(state_index)
+
+    def get_transitions_to_multiple_states_over_time(self, state_indices):
+        """
+        :param state_indices: list of indices of states
+        :return: sum of the transitions to the states in the list
+        """
+        return self.dtMarkov.get_transitions_to_multiple_states_over_time(state_indices)
 
     def get_sum_size_multiple_states(self, state_indices):
         """
