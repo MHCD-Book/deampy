@@ -376,9 +376,12 @@ class RecursiveLinearReg(LinearRegression):
             epsilon = (y - self._coeffs @ x)[0]
             # theta = theta + B.x.epsilon/gamma
             self._coeffs += (self._B @ x * epsilon / gamma).flatten()
-            # B = (B-B.x.xT.B/gamma)/lambda
-            d = self._B @ x @ np.transpose(x) @ self._B
-            self._B -= d / gamma
+            # Joseph stabilized form: (I - K*xT).B.(I - K*xT)T + K.KT.lambda
+            # Mathematically equivalent to (B - B.x.xT.B/gamma)/lambda but
+            # guarantees B stays symmetric and positive semi-definite
+            K = self._B @ x / gamma
+            I_KxT = np.eye(self._B.shape[0]) - K @ x.T
+            self._B = I_KxT @ self._B @ I_KxT.T + K @ K.T * forgetting_factor
 
             self._B /= forgetting_factor
 
