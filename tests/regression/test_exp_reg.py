@@ -1,7 +1,7 @@
 import numpy as np
 
-import deampy.regression as Reg
-from deampy.regression import ExpRegression as exp
+import deampy.regression_models as Reg
+from deampy.regression_models import ExpRegression as exp
 
 # parameters of an exponential function
 par1 = (3, 2, 0.5)  # 3 + 2*exp(0.5*x)

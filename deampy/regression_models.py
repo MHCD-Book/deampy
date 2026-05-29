@@ -39,7 +39,7 @@ class _OneVarRegression:
 
     def add_to_ax(self, ax, x_range=None):
 
-        if x_range:
+        if x_range is not None:
             xs = np.linspace(x_range[0], x_range[-1], 50)
         else:
             xs = np.linspace(self._x[0], self._x[-1], 50)
@@ -122,17 +122,17 @@ class ExpRegression (_OneVarRegression):
 
     @staticmethod
     def Jac(x, c0, c1, c2):
-        v = np.exp(c1*x)
+        v = np.exp(c2*x)
         return np.array([np.ones(len(x)), v, c2*x*v]).transpose()
 
     @staticmethod
     def Jac_c0_zero(x, c1, c2):
-        v = np.exp(c1*x)
+        v = np.exp(c2*x)
         return np.array([v, c2*x*v]).transpose()
 
 
 class PowerRegression (_OneVarRegression):
-    # regression of form f(x) = c0 + c1*pow(x, c3)
+    # regression of form f(x) = c0 + c1*pow(x, c2)
 
     def __init__(self, x, y, if_c0_zero=False, p0=None):
         _OneVarRegression.__init__(self, x, y, )
@@ -429,10 +429,8 @@ class PolynomialQFunction(_QFunction):
             # with value set to 0. This is to make sure we can calculate the intercept.
             x_cont = [0]
 
-        x_continuous = []
-        if x_cont is not None:
-            x_cont = np.atleast_1d(x_cont)
-            x_continuous = self.poly.fit_transform(X=[x_cont])[0]
+        x_cont = np.atleast_1d(x_cont)
+        x_continuous = self.poly.fit_transform(X=[x_cont])[0]
 
         if x_bin is not None and len(x_bin) > 0:
             x_indicator = np.atleast_1d(x_bin)
