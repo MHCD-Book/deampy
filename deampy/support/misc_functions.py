@@ -1,3 +1,4 @@
+import math
 import random
 
 import numpy as np
@@ -61,57 +62,79 @@ def get_cumulative_var(data):
 
 def get_moving_average(data, window=2):
     """
-    calculates the moving average of a time-series
-    :param data: list of observations
-    :param window: the window (number of data points) over which the average should be calculated
-    :return: list of moving averages
+    Calculates the moving average of a time-series, ignoring missing values (None/NaN).
+    :param data: list of observations (may contain None or NaN)
+    :param window: number of data points in each window
+    :return: list of moving averages (NaN for positions before the first full window)
     """
-
     if window < 2:
         raise ValueError('The window over which the moving averages '
                          'should be calculated should be greater than 1.')
     if window >= len(data):
         window = len(data) - 1
-        # raise ValueError('The window over which the moving averages '
-        #                  'should be calculated should be less than the number of data points.')
 
     window = int(window)
+    arr = np.array(data, dtype=float)  # converts None -> nan uniformly
 
-    averages = []
-
-    # the 'window - 1' averages cannot be calculated
-    for i in range(window-1):
-        averages.append(None)
-
-    # calculate the first moving average
-    total = 0
-    n = 0
-    for i in range(window):
-        if data[i] is not None:
-            total += data[i]
-            n += 1
-    moving_ave = total/n
-    averages.append(moving_ave)
-
-    for i in range(window, len(data)):
-        if moving_ave is None:
-            moving_sum = 0
-        else:
-            moving_sum = moving_ave * n
-        if data[i-window] is not None:
-            moving_sum -= data[i-window]
-            n -= 1
-        if data[i] is not None:
-            moving_sum += data[i]
-            n += 1
-
-        if n > 0:
-            moving_ave = moving_sum/n
-        else:
-            moving_ave = None
-        averages.append(moving_ave)
+    averages = [math.nan] * (window - 1)
+    for i in range(window - 1, len(arr)):
+        averages.append(np.nanmean(arr[i - window + 1:i + 1]))
 
     return averages
+#
+# def get_moving_average(data, window=2):
+#     """
+#     calculates the moving average of a time-series
+#     :param data: list of observations
+#     :param window: the window (number of data points) over which the average should be calculated
+#     :return: list of moving averages
+#     """
+#
+#     if window < 2:
+#         raise ValueError('The window over which the moving averages '
+#                          'should be calculated should be greater than 1.')
+#     if window >= len(data):
+#         window = len(data) - 1
+#         # raise ValueError('The window over which the moving averages '
+#         #                  'should be calculated should be less than the number of data points.')
+#
+#     window = int(window)
+#
+#     averages = []
+#
+#     # the 'window - 1' averages cannot be calculated
+#     for i in range(window-1):
+#         averages.append(math.nan)
+#
+#     # calculate the first moving average
+#     total = 0
+#     n = 0
+#     for i in range(window):
+#         if not np.isnan(data[i]):
+#             total += data[i]
+#             n += 1
+#     moving_ave = total/n
+#     averages.append(moving_ave)
+#
+#     for i in range(window, len(data)):
+#         if moving_ave is None:
+#             moving_sum = 0
+#         else:
+#             moving_sum = moving_ave * n
+#         if data[i-window] is not None:
+#             moving_sum -= data[i-window]
+#             n -= 1
+#         if data[i] is not None:
+#             moving_sum += data[i]
+#             n += 1
+#
+#         if n > 0:
+#             moving_ave = moving_sum/n
+#         else:
+#             moving_ave = None
+#         averages.append(moving_ave)
+#
+#     return averages
 
 
 def effective_sample_size(likelihood_weights):
