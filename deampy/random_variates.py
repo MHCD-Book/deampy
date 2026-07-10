@@ -1089,6 +1089,8 @@ class NonHomogeneousExponential(RVG):
                         found = True
                     else:
                         i -= 1
+        else:
+            arg = 0
 
         if_occurred = False
         while not if_occurred:
