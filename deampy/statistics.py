@@ -232,6 +232,17 @@ class _Statistics(object):
         else:
             raise ValueError("mean_or_stdev should be either 'mean' or 'stdev'.")
 
+    def get_formatted_mean(self, deci=None, sig_digits=None, form=None, multiplier=1):
+        """
+        :param deci: digits to round the numbers to
+        :param sig_digits: number of significant digits
+        :param form: ',' to format as number, '%' to format as percentage, and '$' to format as currency
+        :param multiplier: to multiply the estimate and the interval by the provided value
+        :return: (string) estimate and interval formatted as specified
+        """
+
+        return F.format_number(self.get_mean() * multiplier, deci=deci, sig_digits=sig_digits, format=form)
+
     def get_formatted_mean_and_interval(self, interval_type='c', mean_or_stdev='mean',
                                         alpha=0.05, deci=None, sig_digits=None, form=None, multiplier=1):
         """
