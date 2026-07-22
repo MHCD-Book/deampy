@@ -4,12 +4,12 @@ import numpy as np
 from numpy import exp, pi, cos
 
 from deampy.random_variates import Beta as B
+from deampy.random_variates import Binomial as Bi
 from deampy.random_variates import Dirichlet as Dirich
 from deampy.random_variates import Gamma as G
 from deampy.random_variates import Multinomial as Mult
 from deampy.random_variates import Uniform as U
 from deampy.random_variates import UniformDiscrete as UD
-from deampy.random_variates import Binomial as Bi
 
 
 class _Parameter:
@@ -369,6 +369,7 @@ class ProbFromOdd(_SingleVariate):
     def sample(self, rng=None, time=None):
         self.value =  self.parMultiplier.value * self.parPRef.value/(1 + (self.parMultiplier.value-1)*self.parPRef.value)
         return self.value
+
 
 class RateToOccur(_SingleVariate):
     """ determines rate of an event such that it occurs with certain probability during a certain period """
