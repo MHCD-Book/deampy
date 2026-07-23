@@ -1094,6 +1094,35 @@ class NonHomogeneousExponential(RVG):
         self.deltaT = delta_t
         self.timeBreaks = breaks
 
+    def get_next_break(self, current_time):
+        """Return the first rate-change time strictly after ``current_time``.
+
+        The final rate applies indefinitely, so ``math.inf`` is returned when
+        there are no remaining breaks.
+
+        :param current_time: finite, nonnegative absolute time
+        :return: next break time, or ``math.inf`` after the final break
+        """
+        try:
+            invalid_time = (
+                not np.isscalar(current_time)
+                or not math.isfinite(current_time)
+                or current_time < 0
+            )
+        except TypeError:
+            invalid_time = True
+
+        if invalid_time:
+            raise ValueError(
+                "current_time must be a finite, nonnegative number."
+            )
+
+        next_index = bisect_right(self.timeBreaks, current_time)
+        if next_index == len(self.timeBreaks):
+            return math.inf
+
+        return self.timeBreaks[next_index]
+
     def sample(self, rng, arg=None):
         """
         :param arg: current time (age), or a two-value period [start, end]
@@ -1155,7 +1184,7 @@ class NonHomogeneousExponential(RVG):
                 i += 1
 
         if period_end is not None and t > period_end:
-            return None
+            return np.nan
 
         return t - start
 
