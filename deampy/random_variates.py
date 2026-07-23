@@ -1,5 +1,6 @@
 import math
 import warnings
+from bisect import bisect_right
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1050,47 +1051,91 @@ class NonHomogeneousExponential(RVG):
         The rate of the last period should be greater than 0.
         """
 
-        if delta_t is None and time_breaks is None:
-            raise ValueError("Either delta_t or time_breaks should be provided.")
-        if delta_t is not None and time_breaks is not None:
-            raise ValueError("Only one of parameters delta_t or time_breaks should be provided.")
+        if (delta_t is None) == (time_breaks is None):
+            raise ValueError(
+                "Exactly one of delta_t or time_breaks must be provided."
+            )
 
-        if rates[-1] <= 0:
-            raise ValueError('For a non-homogeneous exponential distribution, '
-                             'the rate of the last period should be greater than 0.')
+        rates = tuple(rates)
+
+        if not rates:
+            raise ValueError("rates cannot be empty.")
+
+        if any(not math.isfinite(rate) or rate < 0 for rate in rates):
+            raise ValueError("Rates must be finite and nonnegative.")
+
+        if rates[-1] == 0:
+            raise ValueError("The final rate must be greater than zero.")
+
+        if delta_t is not None:
+            if not math.isfinite(delta_t) or delta_t <= 0:
+                raise ValueError("delta_t must be finite and greater than zero.")
+
+            breaks = tuple(i * delta_t for i in range(len(rates)))
+        else:
+            breaks = tuple(time_breaks)
+
+            if len(breaks) != len(rates):
+                raise ValueError(
+                    "time_breaks and rates must have the same length."
+                )
+
+            if any(not math.isfinite(t) for t in breaks):
+                raise ValueError("time_breaks must be finite.")
+
+            if not math.isclose(breaks[0], 0):
+                raise ValueError("The first time break must be zero.")
+
+            if any(a >= b for a, b in zip(breaks, breaks[1:])):
+                raise ValueError("time_breaks must be strictly increasing.")
 
         RVG.__init__(self)
         self.rates = rates
         self.deltaT = delta_t
-
-        if time_breaks is None:
-            time_breaks = [i*delta_t for i in range(len(rates))]
-
-        self.timeBreaks = time_breaks
+        self.timeBreaks = breaks
 
     def sample(self, rng, arg=None):
         """
-        :param arg: current time (age)
-        :return: a realization from the NonHomogeneousExponential distribution
+        :param arg: current time (age), or a two-value period [start, end]
+        :return: waiting time until the event, or None if the event does not
+            occur within the specified period
         """
 
-        t = 0 # current time
-        i = 0  # current interval
-
-        if arg is not None:
-            t = arg
-            if self.deltaT is not None:
-                i = min(math.floor(t/self.deltaT), len(self.rates)-1)
-            else:
-                found = False
-                i = len(self.rates)-1
-                while not found:
-                    if t >= self.timeBreaks[i]:
-                        found = True
-                    else:
-                        i -= 1
-        else:
+        if arg is None:
             arg = 0
+
+        period_end = None
+        if np.isscalar(arg):
+            start = arg
+        else:
+            try:
+                if len(arg) != 2:
+                    raise ValueError
+                start, period_end = arg
+            except (TypeError, ValueError):
+                raise ValueError(
+                    "arg must be a number or a two-value period [start, end]."
+                ) from None
+
+        if not np.isscalar(start) or not math.isfinite(start) or start < 0:
+            raise ValueError("The start time must be finite and nonnegative.")
+
+        if period_end is not None:
+            if (not np.isscalar(period_end)
+                    or not math.isfinite(period_end)
+                    or period_end < start):
+                raise ValueError(
+                    "The period end must be finite and no earlier than its start."
+                )
+
+        t = start  # current time
+        if self.deltaT is not None:
+            i = min(int(t // self.deltaT), len(self.rates) - 1)
+        else:
+            i = min(
+                bisect_right(self.timeBreaks, t) - 1,
+                len(self.rates) - 1
+            )
 
         if_occurred = False
         while not if_occurred:
@@ -1109,7 +1154,10 @@ class NonHomogeneousExponential(RVG):
                 t = self.timeBreaks[i+1]
                 i += 1
 
-        return t - arg
+        if period_end is not None and t > period_end:
+            return None
+
+        return t - start
 
 
 class Normal(RVG):
