@@ -22,3 +22,8 @@ plot_histogram(samples)
 samples = [nhexp_dist.sample(rng=rng, arg=(5, 20)) for i in range(100)]
 print(np.nanmean(samples))
 plot_histogram(samples)
+
+# obtain samples
+samples = [nhexp_dist.sample(rng=rng, arg=(5, None)) for i in range(100)]
+print(np.nanmean(samples))
+plot_histogram(samples)

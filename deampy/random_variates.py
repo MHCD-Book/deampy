@@ -1125,7 +1125,9 @@ class NonHomogeneousExponential(RVG):
 
     def sample(self, rng, arg=None):
         """
-        :param arg: current time (age), or a two-value period [start, end]
+        :param arg: current time (age), or a two-value period [start, end].
+            If ``arg`` is a tuple and ``end`` is None, the upper bound of the
+            period containing ``start`` is used.
         :return: waiting time until the event, or None if the event does not
             occur within the specified period
         """
@@ -1134,6 +1136,7 @@ class NonHomogeneousExponential(RVG):
             arg = 0
 
         period_end = None
+        use_period_upper_bound = False
         if np.isscalar(arg):
             start = arg
         else:
@@ -1141,6 +1144,9 @@ class NonHomogeneousExponential(RVG):
                 if len(arg) != 2:
                     raise ValueError
                 start, period_end = arg
+                use_period_upper_bound = (
+                    isinstance(arg, tuple) and period_end is None
+                )
             except (TypeError, ValueError):
                 raise ValueError(
                     "arg must be a number or a two-value period [start, end]."
@@ -1149,7 +1155,9 @@ class NonHomogeneousExponential(RVG):
         if not np.isscalar(start) or not math.isfinite(start) or start < 0:
             raise ValueError("The start time must be finite and nonnegative.")
 
-        if period_end is not None:
+        if use_period_upper_bound:
+            period_end = self.get_next_break(start)
+        elif period_end is not None:
             if (not np.isscalar(period_end)
                     or not math.isfinite(period_end)
                     or period_end < start):

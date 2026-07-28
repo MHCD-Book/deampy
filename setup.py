@@ -8,13 +8,13 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='deampy',
-    version='1.5.13',
+    version='1.5.14',
     install_requires=['numpy', 'numba', 'matplotlib', 'scipy', 'statsmodels', 'scikit-learn', 'pandas', 'seaborn'],
     packages=['deampy', 'deampy.optimization', 'deampy.plots', 'deampy.support'],
     url='https://github.com/modeling-health-care-decisions/deampy',
     license='MIT License',
     author='Reza Yaesoubi',
-    author_email='reza.yaesoubi@yale.edu',
+    author_email='reza.yaesoubi@ucsf.edu',
     description='Decision analysis in medicine and public health',
     long_description=long_description
 )
