@@ -1128,7 +1128,7 @@ class NonHomogeneousExponential(RVG):
         :param arg: current time (age), or a two-value period [start, end].
             If ``arg`` is a tuple and ``end`` is None, the upper bound of the
             period containing ``start`` is used.
-        :return: waiting time until the event, or None if the event does not
+        :return: waiting time until the event, or np.nan if the event does not
             occur within the specified period
         """
 
