@@ -2130,7 +2130,7 @@ class CEA(_EconEval):
                      cep_x_label='Additional Effect',  cep_y_label='Additional Cost',
                      nmb_x_label='Willingness-To-Pay Threshold', nmb_y_label='Incremental Net Monetary Benefit',
                      delta_wtp=None, show_strategy_label_on_nmb_frontier=False,
-                     file_name='cep-nmb.png', fig_size=(3, 7)):
+                     file_name='cep-nmb.png', fig_size=(7, 3)):
         """
         produces a figure with 2 panels displaying
             cost-effectiveness plane,
