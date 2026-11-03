@@ -486,18 +486,99 @@ class _CohortMarkov:
 
 class DiscreteTimeCohortMarkov(_CohortMarkov):
 
-    def __init__(self):
+    def __init__(self, entry_cost=None, stay_cost=None, entry_qalys_loss=None, stay_quality=None,
+                 discount_rate=0.03):
+        """
+        :param entry_cost: (list) cost incurred by each individual upon entering each state
+        :param stay_cost: (list) cost incurred by each individual for each cycle spent in each state
+        :param entry_qalys_loss: (list) QALYs lost by each individual upon entering each state
+        :param stay_quality: (list) QALYs accrued by each individual for each cycle spent in each state
+                             (i.e., the health utility of each state multiplied by the cycle length)
+        :param discount_rate: (float) discount rate per cycle
+        Notes on timing:
+            - individuals in state s at the beginning of cycle k (k = 0, 1, ...) accrue stay_cost[s] and
+              stay_quality[s] for that cycle, discounted by 1/(1+discount_rate)^k.
+            - transitions that occur during cycle k are assumed to happen at the end of that cycle,
+              so entry_cost and entry_qalys_loss are discounted by 1/(1+discount_rate)^(k+1).
+            - no entry cost or QALY loss is incurred for the initial cohort.
+        Notes on discount_rate:
+            discount_rate should be the rate per cycle. If the cycle is shorter than a year,
+            convert the annual discount rate r to the per-cycle rate as:
+                per-cycle rate = (1 + r)^(1/n) - 1, where n is the number of cycles in a year.
+            For example, for r = 0.03:
+                - monthly cycles (n = 12): discount_rate = 1.03^(1/12) - 1 ≈ 0.002466
+                - weekly cycles (n = 52): discount_rate = 1.03^(1/52) - 1 ≈ 0.000569
+            This ensures that an amount incurred one year from now is discounted by 1/(1+r).
+            (Simply dividing r by n, e.g., 0.03/12, slightly overstates the discounting.)
+        """
 
         _CohortMarkov.__init__(self)
+
+        if not (0 <= discount_rate <= 1):
+            raise ValueError('discount_rate should be a number between 0 and 1.')
 
         self._nonZeroProbs = [] # list of non-zero probabilities
         self._indicesNonZeroProbs = [] # list of state indices with non-zero probabilities
 
+        self._entryCost = entry_cost
+        self._stayCost = stay_cost
+        self._entryQALYsLoss = entry_qalys_loss
+        self._stayQuality = stay_quality
+        self._discountRate = discount_rate
+
+        self.cumCost = 0  # total discounted cost
+        self.cumEffect = 0  # total discounted effect (QALYs)
+
     def initialize(self, initial_condition):
+
+        # check the length of cost and effect parameters
+        for name, values in (('entry_cost', self._entryCost),
+                             ('stay_cost', self._stayCost),
+                             ('entry_qalys_loss', self._entryQALYsLoss),
+                             ('stay_quality', self._stayQuality)):
+            if values is not None and len(values) != len(initial_condition):
+                raise ValueError('The length of {} ({}) should be equal to the number of states ({}).'
+                                 .format(name, len(values), len(initial_condition)))
 
         self._numInStates = initial_condition
         self._numInStatesOverTime = [[] for i in range(len(self._numInStates))]
         self._numToStatesOverTime = [[] for i in range(len(self._numInStates))]
+        self._currentTimeStep = 0
+
+        self.cumCost = 0
+        self.cumEffect = 0
+
+    def _collect_cost_and_effect(self, num_in_states, num_to_states):
+        """
+        updates the total discounted cost and effect for the current cycle
+        :param num_in_states: (list) number of individuals in each state at the beginning of this cycle
+        :param num_to_states: (list) number of transitions into each state during this cycle
+        """
+
+        # discount factors for the beginning and the end of this cycle
+        discount_start = pow(1 + self._discountRate, -self._currentTimeStep)
+        discount_end = pow(1 + self._discountRate, -(self._currentTimeStep + 1))
+
+        if self._stayCost is not None:
+            self.cumCost += discount_start * float(np.dot(num_in_states, self._stayCost))
+        if self._entryCost is not None:
+            self.cumCost += discount_end * float(np.dot(num_to_states, self._entryCost))
+        if self._stayQuality is not None:
+            self.cumEffect += discount_start * float(np.dot(num_in_states, self._stayQuality))
+        if self._entryQALYsLoss is not None:
+            self.cumEffect -= discount_end * float(np.dot(num_to_states, self._entryQALYsLoss))
+
+    def get_total_discounted_cost(self):
+        """
+        :return: total discounted cost of this simulation run
+        """
+        return self.cumCost
+
+    def get_total_discounted_effect(self):
+        """
+        :return: total discounted effect (QALYs) of this simulation run
+        """
+        return self.cumEffect
 
     def condense_prob_matrix(self, transition_prob_matrix):
         """
@@ -532,6 +613,9 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
                 # update the number of patients in states
                 for i in range(len(outs)):
                     temp_num_in_states[self._indicesNonZeroProbs[s][i]] += outs[i]
+
+        # collect the discounted cost and effect of this cycle
+        self._collect_cost_and_effect(num_in_states=self._numInStates, num_to_states=num_to_states)
 
         # update the number of patients in each state
         self._numInStates = temp_num_in_states.copy()
@@ -638,12 +722,37 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
 
 class ContinuousTimeCohortMarkov(_CohortMarkov):
 
-    def __init__(self, transition_rate_matrix=None, dynamic_transition_rate_matrix=None):
+    def __init__(self, transition_rate_matrix=None, dynamic_transition_rate_matrix=None,
+                 entry_cost=None, stay_cost=None, entry_qalys_loss=None, stay_quality=None,
+                 discount_rate=0.03):
         """
         :param transition_rate_matrix: (list of lists) transition rate matrix
+        :param dynamic_transition_rate_matrix: object with function get_matrix(num_in_states, time)
+                                               that returns the transition rate matrix
+        :param entry_cost: (list) cost incurred by each individual upon entering each state
+        :param stay_cost: (list) cost incurred by each individual per unit of time spent in each state
+                          (e.g., annual cost if time is measured in years)
+        :param entry_qalys_loss: (list) QALYs lost by each individual upon entering each state
+        :param stay_quality: (list) health utility of each state
+                             (QALYs accrued per unit of time spent in each state)
+        :param discount_rate: (float) discount rate per unit of time (e.g., annual discount rate)
+        Notes:
+            when simulating with cycle length delta_t, stay_cost and stay_quality are multiplied by delta_t
+            and the per-cycle discount rate is (1 + discount_rate)^delta_t - 1, so that an amount
+            incurred at time t is discounted by 1/(1+discount_rate)^t.
+            See DiscreteTimeCohortMarkov for the timing assumptions within each cycle.
         """
 
         _CohortMarkov.__init__(self)
+
+        if not (0 <= discount_rate <= 1):
+            raise ValueError('discount_rate should be a number between 0 and 1.')
+
+        self._entryCost = entry_cost
+        self._stayCost = stay_cost
+        self._entryQALYsLoss = entry_qalys_loss
+        self._stayQuality = stay_quality
+        self._discountRate = discount_rate
 
         if transition_rate_matrix is None and dynamic_transition_rate_matrix is None:
             raise ValueError('Either transition_rate_matrix or dynamic_transition_rate_matrix should be provided.')
@@ -672,6 +781,14 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
         """
 
         self.deltaT = delta_t
+
+        # create the discrete-time Markov model with per-cycle costs, QALYs, and discount rate
+        self.dtMarkov = DiscreteTimeCohortMarkov(
+            entry_cost=self._entryCost,
+            stay_cost=None if self._stayCost is None else [c * delta_t for c in self._stayCost],
+            entry_qalys_loss=self._entryQALYsLoss,
+            stay_quality=None if self._stayQuality is None else [q * delta_t for q in self._stayQuality],
+            discount_rate=pow(1 + self._discountRate, delta_t) - 1)
 
         # check if a fixed or a dynamic transition rate matrix is provided
         if self.transRateMatrix is not None:
@@ -752,3 +869,21 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
         :return: sum of people in the specified states
         """
         return self.dtMarkov.get_sum_size_multiple_states_over_time(state_indices)
+
+    def get_num_in_states(self):
+        """
+        :return: list of number of patients in each state
+        """
+        return self.dtMarkov.get_num_in_states()
+
+    def get_total_discounted_cost(self):
+        """
+        :return: total discounted cost of this simulation run
+        """
+        return self.dtMarkov.get_total_discounted_cost()
+
+    def get_total_discounted_effect(self):
+        """
+        :return: total discounted effect (QALYs) of this simulation run
+        """
+        return self.dtMarkov.get_total_discounted_effect()
