@@ -722,13 +722,14 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
 
 class ContinuousTimeCohortMarkov(_CohortMarkov):
 
-    def __init__(self, transition_rate_matrix=None, dynamic_transition_rate_matrix=None,
+    def __init__(self, transition_rate_matrix=None, dynamic_transition_rate_matrix=None, delta_t=None,
                  entry_cost=None, stay_cost=None, entry_qalys_loss=None, stay_quality=None,
                  discount_rate=0.03):
         """
         :param transition_rate_matrix: (list of lists) transition rate matrix
         :param dynamic_transition_rate_matrix: object with function get_matrix(num_in_states, time)
                                                that returns the transition rate matrix
+        :param delta_t: (float) cycle length used to simulate the continuous-time Markov process
         :param entry_cost: (list) cost incurred by each individual upon entering each state
         :param stay_cost: (list) cost incurred by each individual per unit of time spent in each state
                           (e.g., annual cost if time is measured in years)
@@ -737,7 +738,7 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
                              (QALYs accrued per unit of time spent in each state)
         :param discount_rate: (float) discount rate per unit of time (e.g., annual discount rate)
         Notes:
-            when simulating with cycle length delta_t, stay_cost and stay_quality are multiplied by delta_t
+            with cycle length delta_t, stay_cost and stay_quality are multiplied by delta_t
             and the per-cycle discount rate is (1 + discount_rate)^delta_t - 1, so that an amount
             incurred at time t is discounted by 1/(1+discount_rate)^t.
             See DiscreteTimeCohortMarkov for the timing assumptions within each cycle.
@@ -745,14 +746,10 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
 
         _CohortMarkov.__init__(self)
 
+        if delta_t is None or delta_t <= 0:
+            raise ValueError('delta_t should be a positive number.')
         if not (0 <= discount_rate <= 1):
             raise ValueError('discount_rate should be a number between 0 and 1.')
-
-        self._entryCost = entry_cost
-        self._stayCost = stay_cost
-        self._entryQALYsLoss = entry_qalys_loss
-        self._stayQuality = stay_quality
-        self._discountRate = discount_rate
 
         if transition_rate_matrix is None and dynamic_transition_rate_matrix is None:
             raise ValueError('Either transition_rate_matrix or dynamic_transition_rate_matrix should be provided.')
@@ -769,26 +766,25 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
         self.transRateMatrix = transition_rate_matrix
         self.dynamicTransRateMatrix = dynamic_transition_rate_matrix
 
-        self.dtMarkov = DiscreteTimeCohortMarkov()  # discrete-time Markov to evaluate the continuous-time Markov process
-        self.deltaT = None
+        self.deltaT = delta_t
 
-    def simulate(self, initial_condition, delta_t, n_time_steps, rng=None):
+        # discrete-time Markov to evaluate the continuous-time Markov process
+        # (with per-cycle costs, QALYs, and discount rate)
+        self.dtMarkov = DiscreteTimeCohortMarkov(
+            entry_cost=entry_cost,
+            stay_cost=None if stay_cost is None else [c * delta_t for c in stay_cost],
+            entry_qalys_loss=entry_qalys_loss,
+            stay_quality=None if stay_quality is None else [q * delta_t for q in stay_quality],
+            discount_rate=pow(1 + discount_rate, delta_t) - 1)
+
+    def simulate(self, initial_condition, n_time_steps, rng=None):
         """
         :param initial_condition: (list) initial size of each state
-        :param delta_t: (float) cycle length
         :param n_time_steps: (int) number of time steps to simulate the cohort
         :param rng: random number generator object
         """
 
-        self.deltaT = delta_t
-
-        # create the discrete-time Markov model with per-cycle costs, QALYs, and discount rate
-        self.dtMarkov = DiscreteTimeCohortMarkov(
-            entry_cost=self._entryCost,
-            stay_cost=None if self._stayCost is None else [c * delta_t for c in self._stayCost],
-            entry_qalys_loss=self._entryQALYsLoss,
-            stay_quality=None if self._stayQuality is None else [q * delta_t for q in self._stayQuality],
-            discount_rate=pow(1 + self._discountRate, delta_t) - 1)
+        delta_t = self.deltaT
 
         # check if a fixed or a dynamic transition rate matrix is provided
         if self.transRateMatrix is not None:
