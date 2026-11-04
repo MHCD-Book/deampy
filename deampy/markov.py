@@ -883,3 +883,235 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
         :return: total discounted effect (QALYs) of this simulation run
         """
         return self.dtMarkov.get_total_discounted_effect()
+
+
+class _MultiCohortMarkov:
+    """
+    base class to simulate a cohort Markov model multiple times and record the outcomes of each replication.
+    Outcomes are stored as numpy arrays where the first dimension is the replication:
+        costs: (n_sims,) total discounted cost of each replication
+        effects: (n_sims,) total discounted effect (QALYs) of each replication
+        numInStatesOverTime: (n_sims, n_states, n_time_steps + 1) size of each state over time
+        numToStatesOverTime: (n_sims, n_states, n_time_steps) number of transitions to each state over time
+    """
+
+    def __init__(self, cohort_model):
+        """
+        :param cohort_model: (DiscreteTimeCohortMarkov or ContinuousTimeCohortMarkov) the model to
+                             simulate in each replication (re-initialized at the start of each replication)
+        """
+
+        self._model = cohort_model
+        self.costs = None
+        self.effects = None
+        self.numInStatesOverTime = None
+        self.numToStatesOverTime = None
+        self._times = None
+        self._periods = None
+
+    def _simulate_replications(self, simulate_one, n_states, n_time_steps, n_sims, seed):
+        """
+        :param simulate_one: function that receives a random number generator and simulates one replication
+        :param n_states: (int) number of states
+        :param n_time_steps: (int) number of time steps
+        :param n_sims: (int) number of replications
+        :param seed: (int or None) if provided, replication i uses the seed (seed + i), which makes the results
+                     reproducible and allows common random numbers when comparing strategies
+        """
+
+        if not (isinstance(n_sims, (int, np.integer)) and n_sims > 0):
+            raise ValueError('n_sims should be a positive integer.')
+
+        self.costs = np.zeros(n_sims)
+        self.effects = np.zeros(n_sims)
+        self.numInStatesOverTime = np.zeros((n_sims, n_states, n_time_steps + 1))
+        self.numToStatesOverTime = np.zeros((n_sims, n_states, n_time_steps))
+
+        for i in range(n_sims):
+
+            rng = np.random.RandomState(seed=None if seed is None else seed + i)
+
+            # simulate one replication
+            simulate_one(rng)
+
+            # record the outcomes of this replication
+            self.costs[i] = self._model.get_total_discounted_cost()
+            self.effects[i] = self._model.get_total_discounted_effect()
+            for s in range(n_states):
+                self.numInStatesOverTime[i, s, :] = self._model.get_state_size_over_time(s)
+                self.numToStatesOverTime[i, s, :] = self._model.get_transition_to_states_over_time(s)
+
+        self._times = list(self._model.get_times())
+        self._periods = list(self._model.get_periods())
+
+    def _check_simulated(self):
+        if self.costs is None:
+            raise RuntimeError('The model has not been simulated yet. Call simulate() first.')
+
+    @staticmethod
+    def summarize(values, alpha=0.05):
+        """
+        :param values: (np.ndarray) outcomes where the first dimension is the replication
+        :param alpha: (float) significance level for the percentile interval
+        :return: (mean, lower, upper) across replications where (lower, upper) is the
+                 (1-alpha) percentile interval; each has the shape of values[0]
+        """
+        values = np.asarray(values)
+        return (np.mean(values, axis=0),
+                np.percentile(values, 100 * alpha / 2, axis=0),
+                np.percentile(values, 100 * (1 - alpha / 2), axis=0))
+
+    def get_n_sims(self):
+        self._check_simulated()
+        return len(self.costs)
+
+    def get_times(self):
+        """
+        :return: list of time points where the size of each state is stored
+        """
+        self._check_simulated()
+        return self._times
+
+    def get_periods(self):
+        """
+        :return: list of time periods where the numbers entering each state is stored
+        """
+        self._check_simulated()
+        return self._periods
+
+    def get_total_discounted_costs(self):
+        """
+        :return: (np.ndarray) total discounted cost of each replication
+        """
+        self._check_simulated()
+        return self.costs
+
+    def get_total_discounted_effects(self):
+        """
+        :return: (np.ndarray) total discounted effect (QALYs) of each replication
+        """
+        self._check_simulated()
+        return self.effects
+
+    def get_num_in_states(self):
+        """
+        :return: (np.ndarray of shape (n_sims, n_states)) number in each state at the end of each replication
+        """
+        self._check_simulated()
+        return self.numInStatesOverTime[:, :, -1]
+
+    def get_state_size_over_time(self, state_index):
+        """
+        :return: (np.ndarray of shape (n_sims, n_time_steps + 1)) size of the state over time in each replication
+        """
+        self._check_simulated()
+        return self.numInStatesOverTime[:, state_index, :]
+
+    def get_transition_to_states_over_time(self, state_index):
+        """
+        :return: (np.ndarray of shape (n_sims, n_time_steps)) number of transitions to the state
+                 over time in each replication
+        """
+        self._check_simulated()
+        return self.numToStatesOverTime[:, state_index, :]
+
+    def get_sum_size_multiple_states_over_time(self, state_indices):
+        """
+        :param state_indices: list of indices of states
+        :return: (np.ndarray of shape (n_sims, n_time_steps + 1)) sum of the sizes of the states
+                 over time in each replication
+        """
+        self._check_simulated()
+        return self.numInStatesOverTime[:, list(state_indices), :].sum(axis=1)
+
+    def get_transitions_to_multiple_states_over_time(self, state_indices):
+        """
+        :param state_indices: list of indices of states
+        :return: (np.ndarray of shape (n_sims, n_time_steps)) sum of the transitions to the states
+                 over time in each replication
+        """
+        self._check_simulated()
+        return self.numToStatesOverTime[:, list(state_indices), :].sum(axis=1)
+
+
+class MultiDiscreteTimeCohortMarkov(_MultiCohortMarkov):
+
+    def __init__(self, entry_cost=None, stay_cost=None, entry_qalys_loss=None, stay_quality=None,
+                 discount_rate=0.03):
+        """
+        simulates a DiscreteTimeCohortMarkov model multiple times
+        (see DiscreteTimeCohortMarkov for the description of parameters)
+        """
+
+        _MultiCohortMarkov.__init__(
+            self, cohort_model=DiscreteTimeCohortMarkov(
+                entry_cost=entry_cost, stay_cost=stay_cost,
+                entry_qalys_loss=entry_qalys_loss, stay_quality=stay_quality,
+                discount_rate=discount_rate))
+
+    def simulate(self, transition_prob_matrix, initial_condition, n_time_steps, n_sims, seed=None):
+        """
+        :param transition_prob_matrix: (list of lists) transition probability matrix
+        :param initial_condition: (list) initial size of each state
+        :param n_time_steps: (int) number of time steps to simulate the cohort
+        :param n_sims: (int) number of replications
+        :param seed: (int or None) replication i uses the seed (seed + i)
+        """
+
+        # error checking once (instead of in every replication)
+        transition_prob_matrix = _assert_prob_matrix(transition_prob_matrix)
+
+        self._simulate_replications(
+            simulate_one=lambda rng: self._model.simulate(
+                transition_prob_matrix=transition_prob_matrix,
+                initial_condition=initial_condition,
+                n_time_steps=n_time_steps,
+                rng=rng),
+            n_states=len(initial_condition),
+            n_time_steps=n_time_steps,
+            n_sims=n_sims,
+            seed=seed)
+
+
+class MultiContinuousTimeCohortMarkov(_MultiCohortMarkov):
+
+    def __init__(self, transition_rate_matrix=None, dynamic_transition_rate_matrix=None, delta_t=None,
+                 entry_cost=None, stay_cost=None, entry_qalys_loss=None, stay_quality=None,
+                 discount_rate=0.03):
+        """
+        simulates a ContinuousTimeCohortMarkov model multiple times
+        (see ContinuousTimeCohortMarkov for the description of parameters)
+        Note: if dynamic_transition_rate_matrix keeps an internal state that changes during a simulation run,
+              it should implement a method reset(), which is called at the start of each replication.
+        """
+
+        _MultiCohortMarkov.__init__(
+            self, cohort_model=ContinuousTimeCohortMarkov(
+                transition_rate_matrix=transition_rate_matrix,
+                dynamic_transition_rate_matrix=dynamic_transition_rate_matrix,
+                delta_t=delta_t,
+                entry_cost=entry_cost, stay_cost=stay_cost,
+                entry_qalys_loss=entry_qalys_loss, stay_quality=stay_quality,
+                discount_rate=discount_rate))
+
+    def simulate(self, initial_condition, n_time_steps, n_sims, seed=None):
+        """
+        :param initial_condition: (list) initial size of each state
+        :param n_time_steps: (int) number of time steps to simulate the cohort
+        :param n_sims: (int) number of replications
+        :param seed: (int or None) replication i uses the seed (seed + i)
+        """
+
+        dynamic_matrix = self._model.dynamicTransRateMatrix
+
+        def simulate_one(rng):
+            if dynamic_matrix is not None and hasattr(dynamic_matrix, 'reset'):
+                dynamic_matrix.reset()
+            self._model.simulate(initial_condition=initial_condition, n_time_steps=n_time_steps, rng=rng)
+
+        self._simulate_replications(
+            simulate_one=simulate_one,
+            n_states=len(initial_condition),
+            n_time_steps=n_time_steps,
+            n_sims=n_sims,
+            seed=seed)
