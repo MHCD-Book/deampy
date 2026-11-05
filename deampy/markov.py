@@ -6,6 +6,7 @@ from scipy.linalg import logm, expm
 from scipy.optimize import minimize
 
 from deampy.random_variates import Empirical, Exponential, Multinomial
+from deampy.support.simulation import SeedGenerator
 
 
 @jit(nopython=True)  # nopython=True makes it faster (forces full compilation)
@@ -915,8 +916,9 @@ class _MultiCohortMarkov:
         :param n_states: (int) number of states
         :param n_time_steps: (int) number of time steps
         :param n_sims: (int) number of replications
-        :param seed: (int or None) if provided, replication i uses the seed (seed + i), which makes the results
-                     reproducible and allows common random numbers when comparing strategies
+        :param seed: (int or None) if provided, it is used to generate the seeds of replications
+                     (using SeedGenerator), which makes the results reproducible and allows
+                     common random numbers when comparing strategies
         """
 
         if not (isinstance(n_sims, (int, np.integer)) and n_sims > 0):
@@ -927,9 +929,12 @@ class _MultiCohortMarkov:
         self.numInStatesOverTime = np.zeros((n_sims, n_states, n_time_steps + 1))
         self.numToStatesOverTime = np.zeros((n_sims, n_states, n_time_steps))
 
+        # generate the seed of each replication
+        seeds = SeedGenerator().next_seeds(n=n_sims, rng=np.random.RandomState(seed=seed))
+
         for i in range(n_sims):
 
-            rng = np.random.RandomState(seed=None if seed is None else seed + i)
+            rng = np.random.RandomState(seed=seeds[i])
 
             # simulate one replication
             simulate_one(rng)
@@ -1055,7 +1060,7 @@ class MultiDiscreteTimeCohortMarkov(_MultiCohortMarkov):
         :param initial_condition: (list) initial size of each state
         :param n_time_steps: (int) number of time steps to simulate the cohort
         :param n_sims: (int) number of replications
-        :param seed: (int or None) replication i uses the seed (seed + i)
+        :param seed: (int or None) used to generate the seeds of replications (using SeedGenerator)
         """
 
         # error checking once (instead of in every replication)
@@ -1099,7 +1104,7 @@ class MultiContinuousTimeCohortMarkov(_MultiCohortMarkov):
         :param initial_condition: (list) initial size of each state
         :param n_time_steps: (int) number of time steps to simulate the cohort
         :param n_sims: (int) number of replications
-        :param seed: (int or None) replication i uses the seed (seed + i)
+        :param seed: (int or None) used to generate the seeds of replications (using SeedGenerator)
         """
 
         dynamic_matrix = self._model.dynamicTransRateMatrix
