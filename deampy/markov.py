@@ -591,21 +591,37 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
         self._nonZeroProbs, self._indicesNonZeroProbs = condense_prob_matrix(
             transition_prob_matrix=transition_prob_matrix)
 
-    def simulate_one_time_step(self, rng=None):
+    def simulate_one_time_step(self, rng=None, deterministic=False):
+        """
+        simulates the cohort for one time step (cycle)
+        :param rng: random number generator object (ignored if deterministic is True)
+        :param deterministic: (bool) if True, the number of transitions out of each state is set to
+                              its expected value (state size x transition probability), so state sizes
+                              may become non-integer; if False, transitions are sampled from
+                              multinomial distributions.
+        """
 
         # store the size of each state
         self.record_number_in_states()
 
         # initialize the number of transitions to each state
-        num_to_states = [0] * len(self._numInStates)
-        temp_num_in_states = self._numInStates.copy()
+        if deterministic:
+            # use floats since expected numbers of transitions are generally non-integer
+            num_to_states = [0.0] * len(self._numInStates)
+            temp_num_in_states = [float(n) for n in self._numInStates]
+        else:
+            num_to_states = [0] * len(self._numInStates)
+            temp_num_in_states = self._numInStates.copy()
 
         for s in range(len(self._numInStates)):
             if self._numInStates[s] > 0:
                 # find the number of transitions to each state
-                binomial = Multinomial(N=self._numInStates[s],
-                                       pvals=self._nonZeroProbs[s])
-                outs = binomial.sample(rng)
+                if deterministic:
+                    outs = self._numInStates[s] * np.asarray(self._nonZeroProbs[s], dtype=float)
+                else:
+                    multinomial = Multinomial(N=self._numInStates[s],
+                                              pvals=self._nonZeroProbs[s])
+                    outs = multinomial.sample(rng)
                 # update the number of transitions to each state
                 for i in range(len(outs)):
                     if self._indicesNonZeroProbs[s][i] != s:
@@ -634,12 +650,14 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
         for i in range(len(self._numInStates)):
             self._numInStatesOverTime[i].append(self._numInStates[i])
 
-    def simulate(self, transition_prob_matrix, initial_condition, n_time_steps, rng=None):
+    def simulate(self, transition_prob_matrix, initial_condition, n_time_steps, rng=None, deterministic=False):
         """
         :param transition_prob_matrix: (list of lists) transition probability matrix
         :param initial_condition: initial condition
         :param n_time_steps: (int) number of time steps to simulate the cohort
-        :param rng: random number generator object
+        :param rng: random number generator object (ignored if deterministic is True)
+        :param deterministic: (bool) if True, simulates the deterministic (expected-value) cohort model;
+                              if False, simulates the stochastic model (see simulate_one_time_step)
         """
 
         # error checking
@@ -656,7 +674,7 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
         self.initialize(initial_condition=initial_condition)
 
         for k in range(n_time_steps):
-            self.simulate_one_time_step(rng=rng)
+            self.simulate_one_time_step(rng=rng, deterministic=deterministic)
 
         # store the size of each state at the end of simulation
         self.record_number_in_states()
@@ -779,11 +797,14 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
             stay_quality=None if stay_quality is None else [q * delta_t for q in stay_quality],
             discount_rate=pow(1 + discount_rate, delta_t) - 1)
 
-    def simulate(self, initial_condition, n_time_steps, rng=None):
+    def simulate(self, initial_condition, n_time_steps, rng=None, deterministic=False):
         """
         :param initial_condition: (list) initial size of each state
         :param n_time_steps: (int) number of time steps to simulate the cohort
-        :param rng: random number generator object
+        :param rng: random number generator object (ignored if deterministic is True)
+        :param deterministic: (bool) if True, the number of transitions out of each state in each cycle
+                              is set to its expected value (so state sizes may become non-integer);
+                              if False, transitions are sampled from multinomial distributions.
         """
 
         delta_t = self.deltaT
@@ -798,7 +819,8 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
                 transition_prob_matrix=transition_prob_matrix,
                 initial_condition=initial_condition,
                 n_time_steps=n_time_steps,
-                rng=rng)
+                rng=rng,
+                deterministic=deterministic)
 
         # if a dynamic transition rate matrix is provided
         else:
@@ -816,7 +838,7 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
                 self.dtMarkov.condense_prob_matrix(transition_prob_matrix=transition_prob_matrix)
 
                 # simulate one time step
-                self.dtMarkov.simulate_one_time_step(rng=rng)
+                self.dtMarkov.simulate_one_time_step(rng=rng, deterministic=deterministic)
 
                 k += 1
 
