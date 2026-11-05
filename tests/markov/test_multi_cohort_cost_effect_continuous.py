@@ -1,6 +1,7 @@
 import numpy as np
 
 from deampy.markov import ContinuousTimeCohortMarkov, MultiContinuousTimeCohortMarkov, discrete_to_continuous
+from deampy.support.simulation import SeedGenerator
 
 # states: 0 = Well, 1 = Mild, 2 = Severe, 3 = Dead
 # annual transition probability matrix converted to a transition rate matrix (per year)
@@ -43,25 +44,28 @@ multiCohort.simulate(
 costs = multiCohort.get_total_discounted_costs()
 effects = multiCohort.get_total_discounted_effects()
 
-mean, lower, upper = multiCohort.summarize(costs / COHORT_SIZE)
-print('Discounted cost per person: {:.1f} (95% PI: {:.1f}, {:.1f})'.format(mean, lower, upper))
-mean, lower, upper = multiCohort.summarize(effects / COHORT_SIZE)
-print('Discounted QALYs per person: {:.3f} (95% PI: {:.3f}, {:.3f})'.format(mean, lower, upper))
+mean, ci, pi = multiCohort.summarize(costs / COHORT_SIZE)
+print('Discounted cost per person: {:.1f} (95% CI: {:.1f}, {:.1f}; 95% PI: {:.1f}, {:.1f})'.format(
+    mean, ci[0], ci[1], pi[0], pi[1]))
+mean, ci, pi = multiCohort.summarize(effects / COHORT_SIZE)
+print('Discounted QALYs per person: {:.3f} (95% CI: {:.3f}, {:.3f}; 95% PI: {:.3f}, {:.3f})'.format(
+    mean, ci[0], ci[1], pi[0], pi[1]))
 
 # number alive over time (times are in years)
 times = multiCohort.get_times()
 alive = multiCohort.get_sum_size_multiple_states_over_time(state_indices=[0, 1, 2])
-mean, lower, upper = multiCohort.summarize(alive)
+mean, ci, pi = multiCohort.summarize(alive)
 for k in [0, 60, 120, 240]:
-    print('Number alive at year {:.0f}: {:.1f} (95% PI: {:.0f}, {:.0f})'.format(times[k], mean[k], lower[k], upper[k]))
+    print('Number alive at year {:.0f}: {:.1f} (95% PI: {:.0f}, {:.0f})'.format(times[k], mean[k], pi[k, 0], pi[k, 1]))
 
-# consistency check: replication i should match a single run with seed (SEED + i)
+# consistency check: replication i should match a single run with the i-th seed from SeedGenerator
+seeds = SeedGenerator().next_seeds(n=N_SIMS, rng=np.random.RandomState(seed=SEED))
 single = ContinuousTimeCohortMarkov(
     transition_rate_matrix=rateMatrix, delta_t=1/12,
     entry_cost=entryCost, stay_cost=stayCost,
     entry_qalys_loss=entryQALYsLoss, stay_quality=stayQuality, discount_rate=0.03)
 single.simulate(initial_condition=[COHORT_SIZE, 0, 0, 0], n_time_steps=20*12,
-                rng=np.random.RandomState(seed=SEED + 3))
+                rng=np.random.RandomState(seed=seeds[3]))
 assert abs(single.get_total_discounted_cost() - costs[3]) < 1e-6
 assert abs(single.get_total_discounted_effect() - effects[3]) < 1e-9
 print('\nConsistency check passed.')
@@ -113,7 +117,9 @@ assert dynamicMatrix.nCalls == 20*12, 'reset() should be called at the start of 
 # incremental outcomes (treatment scale-up vs. no treatment) in each replication
 dCost = (multiCohortTreat.get_total_discounted_costs() - costs) / COHORT_SIZE
 dEffect = (multiCohortTreat.get_total_discounted_effects() - effects) / COHORT_SIZE
-mean, lower, upper = multiCohortTreat.summarize(dCost)
-print('\nIncremental cost per person (scale-up vs. none): {:.1f} (95% PI: {:.1f}, {:.1f})'.format(mean, lower, upper))
-mean, lower, upper = multiCohortTreat.summarize(dEffect)
-print('Incremental QALYs per person (scale-up vs. none): {:.4f} (95% PI: {:.4f}, {:.4f})'.format(mean, lower, upper))
+mean, ci, pi = multiCohortTreat.summarize(dCost)
+print('\nIncremental cost per person (scale-up vs. none): {:.1f} (95% CI: {:.1f}, {:.1f}; 95% PI: {:.1f}, {:.1f})'.format(
+    mean, ci[0], ci[1], pi[0], pi[1]))
+mean, ci, pi = multiCohortTreat.summarize(dEffect)
+print('Incremental QALYs per person (scale-up vs. none): {:.4f} (95% CI: {:.4f}, {:.4f}; 95% PI: {:.4f}, {:.4f})'.format(
+    mean, ci[0], ci[1], pi[0], pi[1]))

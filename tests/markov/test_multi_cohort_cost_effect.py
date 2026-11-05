@@ -1,6 +1,7 @@
 import numpy as np
 
 from deampy.markov import DiscreteTimeCohortMarkov, MultiDiscreteTimeCohortMarkov
+from deampy.support.simulation import SeedGenerator
 
 # states: 0 = Well, 1 = Mild, 2 = Severe, 3 = Dead
 probMatrix = [
@@ -42,35 +43,38 @@ effects = multiCohort.get_total_discounted_effects()    # shape (n_sims,)
 print('Number of replications:', multiCohort.get_n_sims())
 print('Discounted cost per person in the first 5 replications:', costs[:5] / COHORT_SIZE)
 
-# mean and 95% percentile interval across replications
-mean, lower, upper = multiCohort.summarize(costs / COHORT_SIZE, alpha=0.05)
-print('Discounted cost per person: {:.1f} (95% PI: {:.1f}, {:.1f})'.format(mean, lower, upper))
-mean, lower, upper = multiCohort.summarize(effects / COHORT_SIZE, alpha=0.05)
-print('Discounted QALYs per person: {:.3f} (95% PI: {:.3f}, {:.3f})'.format(mean, lower, upper))
+# mean, 95% confidence interval, and 95% percentile interval across replications
+mean, ci, pi = multiCohort.summarize(costs / COHORT_SIZE, alpha=0.05)
+print('Discounted cost per person: {:.1f} (95% CI: {:.1f}, {:.1f}; 95% PI: {:.1f}, {:.1f})'.format(
+    mean, ci[0], ci[1], pi[0], pi[1]))
+mean, ci, pi = multiCohort.summarize(effects / COHORT_SIZE, alpha=0.05)
+print('Discounted QALYs per person: {:.3f} (95% CI: {:.3f}, {:.3f}; 95% PI: {:.3f}, {:.3f})'.format(
+    mean, ci[0], ci[1], pi[0], pi[1]))
 
 # state sizes over time across replications
 dead = multiCohort.get_state_size_over_time(state_index=3)      # shape (n_sims, n_time_steps + 1)
-mean, lower, upper = multiCohort.summarize(dead)
-print('\nNumber dead at year 10: {:.1f} (95% PI: {:.0f}, {:.0f})'.format(mean[10], lower[10], upper[10]))
+mean, ci, pi = multiCohort.summarize(dead)
+print('\nNumber dead at year 10: {:.1f} (95% PI: {:.0f}, {:.0f})'.format(mean[10], pi[10, 0], pi[10, 1]))
 
 # number alive (Well + Mild + Severe) over time
 alive = multiCohort.get_sum_size_multiple_states_over_time(state_indices=[0, 1, 2])
-mean, lower, upper = multiCohort.summarize(alive)
+mean, ci, pi = multiCohort.summarize(alive)
 for t in [0, 5, 10, 20]:
-    print('Number alive at year {}: {:.1f} (95% PI: {:.0f}, {:.0f})'.format(t, mean[t], lower[t], upper[t]))
+    print('Number alive at year {}: {:.1f} (95% PI: {:.0f}, {:.0f})'.format(t, mean[t], pi[t, 0], pi[t, 1]))
 
 # incident severe cases over time
 newSevere = multiCohort.get_transition_to_states_over_time(state_index=2)   # shape (n_sims, n_time_steps)
 print('Mean number of new severe cases in year 1:', multiCohort.summarize(newSevere)[0][0])
 
 
-# consistency check: replication i should match a single run with seed (SEED + i)
+# consistency check: replication i should match a single run with the i-th seed from SeedGenerator
+seeds = SeedGenerator().next_seeds(n=N_SIMS, rng=np.random.RandomState(seed=SEED))
 for i in [0, 7]:
     single = DiscreteTimeCohortMarkov(
         entry_cost=entryCost, stay_cost=stayCost,
         entry_qalys_loss=entryQALYsLoss, stay_quality=stayQuality, discount_rate=0.03)
     single.simulate(transition_prob_matrix=probMatrix, initial_condition=[COHORT_SIZE, 0, 0, 0],
-                    n_time_steps=20, rng=np.random.RandomState(seed=SEED + i))
+                    n_time_steps=20, rng=np.random.RandomState(seed=seeds[i]))
     assert abs(single.get_total_discounted_cost() - costs[i]) < 1e-6
     assert abs(single.get_total_discounted_effect() - effects[i]) < 1e-9
     assert np.array_equal(single.get_state_size_over_time(3), dead[i])

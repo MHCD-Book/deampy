@@ -6,6 +6,7 @@ from scipy.linalg import logm, expm
 from scipy.optimize import minimize
 
 from deampy.random_variates import Empirical, Exponential, Multinomial
+from deampy.statistics import SummaryStat
 from deampy.support.simulation import SeedGenerator
 
 
@@ -957,14 +958,37 @@ class _MultiCohortMarkov:
     def summarize(values, alpha=0.05):
         """
         :param values: (np.ndarray) outcomes where the first dimension is the replication
-        :param alpha: (float) significance level for the percentile interval
-        :return: (mean, lower, upper) across replications where (lower, upper) is the
-                 (1-alpha) percentile interval; each has the shape of values[0]
+        :param alpha: (float) significance level for the confidence and percentile intervals
+        :return: (mean, confidence interval, percentile interval) across replications, calculated
+                 using deampy.statistics.SummaryStat, where the confidence interval is the
+                 t-based (1-alpha) confidence interval of the mean and the percentile interval
+                 is the (1-alpha) percentile interval.
+                 If values is 1-dimensional, mean is a float and each interval is a list [l, u].
+                 Otherwise, mean is an np.ndarray with the shape of values[0] and each interval
+                 is an np.ndarray with the shape of values[0] + (2,), so that interval[..., 0]
+                 and interval[..., 1] are the lower and upper bounds.
         """
-        values = np.asarray(values)
-        return (np.mean(values, axis=0),
-                np.percentile(values, 100 * alpha / 2, axis=0),
-                np.percentile(values, 100 * (1 - alpha / 2), axis=0))
+        values = np.asarray(values, dtype=float)
+
+        if values.ndim == 1:
+            stat = SummaryStat(data=values)
+            return stat.get_mean(), stat.get_t_CI(alpha=alpha), stat.get_PI(alpha=alpha)
+
+        # summarize each outcome (e.g., each time point) across replications
+        out_shape = values.shape[1:]
+        flat = values.reshape(values.shape[0], -1)
+        means = np.zeros(flat.shape[1])
+        conf_intervals = np.zeros((flat.shape[1], 2))
+        percentile_intervals = np.zeros((flat.shape[1], 2))
+        for j in range(flat.shape[1]):
+            stat = SummaryStat(data=flat[:, j])
+            means[j] = stat.get_mean()
+            conf_intervals[j] = stat.get_t_CI(alpha=alpha)
+            percentile_intervals[j] = stat.get_PI(alpha=alpha)
+
+        return (means.reshape(out_shape),
+                conf_intervals.reshape(out_shape + (2,)),
+                percentile_intervals.reshape(out_shape + (2,)))
 
     def get_n_sims(self):
         self._check_simulated()
