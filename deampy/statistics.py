@@ -2,14 +2,13 @@ import math
 import sys
 import warnings
 
+import deampy.format_functions as F
 import numpy as np
 import scipy.stats as stat
 import statsmodels.api as sm
 from scipy.stats import chi2
 from scipy.stats import pearsonr
 from statsmodels.stats.proportion import proportion_confint
-
-import deampy.format_functions as F
 
 NUM_BOOTSTRAP_SAMPLES = 1000
 
@@ -529,6 +528,53 @@ class ContinuousTimeStat(_Statistics):
 
         self._lastObsTime = time
         self._lastObsValue += increment
+
+    def record_many(self, times, increments):
+        """ vectorized equivalent of calling record(time, increment) for each pair of (times, increments)
+        :param times: (list or np.ndarray) non-decreasing times of changes in the sample path
+        :param increments: (list or np.ndarray) the amount of change at each time
+        """
+
+        times = np.asarray(times, dtype=float)
+        increments = np.asarray(increments, dtype=float)
+        if len(times) == 0:
+            return
+
+        # value of the sample path just before each observation
+        values_before = self._lastObsValue + np.concatenate(([0.0], np.cumsum(increments)[:-1]))
+
+        # observations before the initial time only update the last observation
+        after = times >= self._initialTime
+        if not after.any():
+            self._lastObsTime = times[-1]
+            self._lastObsValue = values_before[-1] + increments[-1]
+            return
+
+        first = int(np.argmax(after))  # first observation at or after the initial time
+        t = times[first:]
+        v = values_before[first:]
+        inc = increments[first:]
+
+        # time of the previous observation (not earlier than the initial time)
+        last_obs_time = times[first - 1] if first > 0 else self._lastObsTime
+        prev_t = np.concatenate(([max(last_obs_time, self._initialTime)], t[:-1]))
+        dt = t - prev_t
+
+        # max and min (min resets at the observations recorded at the initial time)
+        self._max = max(self._max, float(v.max()))
+        resets = np.flatnonzero(t == self._initialTime)
+        if len(resets) > 0:
+            self._min = float(v[resets[-1]:].min())
+        else:
+            self._min = min(self._min, float(v.min()))
+
+        self._n += len(t)
+        h = v if self._aveMethod == 'step' else v + inc / 2
+        self._area += float(h @ dt)
+        self._areaSquared += float((h ** 2) @ dt)
+
+        self._lastObsTime = float(t[-1])
+        self._lastObsValue = float(v[-1] + inc[-1])
 
     def get_mean(self):
         if self._lastObsTime - self._initialTime > 0:

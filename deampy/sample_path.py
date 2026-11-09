@@ -1,4 +1,5 @@
 import deampy.statistics as Stat
+import numpy as np
 
 
 class _SamplePath:
@@ -112,9 +113,32 @@ class PrevalenceSamplePath(_SamplePath):
 
         if len(times) != len(values):
             raise ValueError(self.name + ' | The list of times should be the same size as the list of values.')
+        if len(times) == 0:
+            return
 
-        for i in range(len(times)):
-            self.record_value(time=times[i], value=values[i])
+        t = np.asarray(times, dtype=float)
+        v = np.asarray(values)
+        if v.dtype.kind not in 'iuf':  # keep integer values as integers
+            v = v.astype(float)
+
+        if t[0] < self._times[-1] or np.any(np.diff(t) < 0):
+            raise ValueError(self.name + ' | Current time cannot be less than the last recorded time.')
+
+        # update continuous-time stat
+        if self.ifCollectStat:
+            increments = np.diff(np.concatenate(([self.currentSize], v)))
+            self.stat.record_many(times=t, increments=increments)
+
+        # keep only the last value recorded at each time
+        keep = np.append(t[1:] != t[:-1], True)
+        t, v = t[keep].tolist(), v[keep].tolist()
+        if t[0] == self._times[-1]:
+            self._values[-1] = v[0]
+            t, v = t[1:], v[1:]
+        self._times.extend(t)
+        self._values.extend(v)
+
+        self.currentSize = self._values[-1]
 
     def close(self, time):
         self.record_increment(time=time, increment=0)

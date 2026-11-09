@@ -1,13 +1,12 @@
 import enum
 
 import numpy as np
+from deampy.random_variates import Empirical, Exponential
+from deampy.statistics import SummaryStat
+from deampy.support.simulation import SeedGenerator
 from numba import jit
 from scipy.linalg import logm, expm
 from scipy.optimize import minimize
-
-from deampy.random_variates import Empirical, Exponential, Multinomial
-from deampy.statistics import SummaryStat
-from deampy.support.simulation import SeedGenerator
 
 
 @jit(nopython=True)  # nopython=True makes it faster (forces full compilation)
@@ -519,13 +518,16 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
         if not (0 <= discount_rate <= 1):
             raise ValueError('discount_rate should be a number between 0 and 1.')
 
-        self._nonZeroProbs = [] # list of non-zero probabilities
-        self._indicesNonZeroProbs = [] # list of state indices with non-zero probabilities
+        self._probMatrix = None  # (np.ndarray) transition probability matrix
+        self._probMatrixOffDiag = None  # (np.ndarray) transition probability matrix with zero diagonal
+        self._nonZeroProbs = []  # (list of np.ndarray) non-zero probabilities of each row
+        self._indicesNonZeroProbs = []  # (list of np.ndarray) indices of non-zero probabilities of each row
 
-        self._entryCost = entry_cost
-        self._stayCost = stay_cost
-        self._entryQALYsLoss = entry_qalys_loss
-        self._stayQuality = stay_quality
+        # costs and effects are stored as numpy arrays for fast dot products
+        self._entryCost = None if entry_cost is None else np.asarray(entry_cost, dtype=float)
+        self._stayCost = None if stay_cost is None else np.asarray(stay_cost, dtype=float)
+        self._entryQALYsLoss = None if entry_qalys_loss is None else np.asarray(entry_qalys_loss, dtype=float)
+        self._stayQuality = None if stay_quality is None else np.asarray(stay_quality, dtype=float)
         self._discountRate = discount_rate
 
         self.cumCost = 0  # total discounted cost
@@ -542,7 +544,7 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
                 raise ValueError('The length of {} ({}) should be equal to the number of states ({}).'
                                  .format(name, len(values), len(initial_condition)))
 
-        self._numInStates = initial_condition
+        self._numInStates = np.asarray(initial_condition).copy()
         self._numInStatesOverTime = [[] for i in range(len(self._numInStates))]
         self._numToStatesOverTime = [[] for i in range(len(self._numInStates))]
         self._currentTimeStep = 0
@@ -562,13 +564,13 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
         discount_end = pow(1 + self._discountRate, -(self._currentTimeStep + 1))
 
         if self._stayCost is not None:
-            self.cumCost += discount_start * float(np.dot(num_in_states, self._stayCost))
+            self.cumCost += discount_start * float(num_in_states @ self._stayCost)
         if self._entryCost is not None:
-            self.cumCost += discount_end * float(np.dot(num_to_states, self._entryCost))
+            self.cumCost += discount_end * float(num_to_states @ self._entryCost)
         if self._stayQuality is not None:
-            self.cumEffect += discount_start * float(np.dot(num_in_states, self._stayQuality))
+            self.cumEffect += discount_start * float(num_in_states @ self._stayQuality)
         if self._entryQALYsLoss is not None:
-            self.cumEffect -= discount_end * float(np.dot(num_to_states, self._entryQALYsLoss))
+            self.cumEffect -= discount_end * float(num_to_states @ self._entryQALYsLoss)
 
     def get_total_discounted_cost(self):
         """
@@ -582,14 +584,33 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
         """
         return self.cumEffect
 
-    def condense_prob_matrix(self, transition_prob_matrix):
+    def get_num_in_states(self):
         """
-        Condense the transition probability matrix to include only non-zero probabilities.
+        :return: list of number of patients in each state
+        """
+        return self._numInStates.tolist()
+
+    def set_prob_matrix(self, transition_prob_matrix):
+        """
+        sets the transition probability matrix used by simulate_one_time_step
+        :param transition_prob_matrix: (list of lists or np.ndarray) transition probability matrix
         """
 
-        # condense the transition probability matrix to include only non-zero probabilities
-        self._nonZeroProbs, self._indicesNonZeroProbs = condense_prob_matrix(
-            transition_prob_matrix=transition_prob_matrix)
+        p = np.array(transition_prob_matrix, dtype=float)
+        self._probMatrix = p
+        # off-diagonal part (used to count transitions into each state, excluding self-transitions)
+        self._probMatrixOffDiag = p.copy()
+        np.fill_diagonal(self._probMatrixOffDiag, 0.0)
+        # non-zero probabilities of each row (used to sample from multinomial distributions;
+        # sampling only over non-zero probabilities keeps the random number stream unchanged)
+        self._indicesNonZeroProbs = [np.flatnonzero(row > 0) for row in p]
+        self._nonZeroProbs = [row[idx] for row, idx in zip(p, self._indicesNonZeroProbs)]
+
+    def condense_prob_matrix(self, transition_prob_matrix):
+        """
+        kept for backward compatibility; use set_prob_matrix instead.
+        """
+        self.set_prob_matrix(transition_prob_matrix=transition_prob_matrix)
 
     def simulate_one_time_step(self, rng=None, deterministic=False):
         """
@@ -604,51 +625,40 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
         # store the size of each state
         self.record_number_in_states()
 
-        # initialize the number of transitions to each state
         if deterministic:
-            # use floats since expected numbers of transitions are generally non-integer
-            num_to_states = [0.0] * len(self._numInStates)
-            temp_num_in_states = [float(n) for n in self._numInStates]
+            # expected number of transitions (state sizes may become non-integer)
+            num_in_states = self._numInStates.astype(float, copy=False)
+            # number of transitions to each state (excluding self-transitions)
+            num_to_states = num_in_states @ self._probMatrixOffDiag
+            # number of patients in each state at the end of this cycle
+            new_num_in_states = num_in_states @ self._probMatrix
         else:
-            num_to_states = [0] * len(self._numInStates)
-            temp_num_in_states = self._numInStates.copy()
-
-        for s in range(len(self._numInStates)):
-            if self._numInStates[s] > 0:
-                # find the number of transitions to each state
-                if deterministic:
-                    outs = self._numInStates[s] * np.asarray(self._nonZeroProbs[s], dtype=float)
-                else:
-                    multinomial = Multinomial(N=self._numInStates[s],
-                                              pvals=self._nonZeroProbs[s])
-                    outs = multinomial.sample(rng)
-                # update the number of transitions to each state
-                for i in range(len(outs)):
-                    if self._indicesNonZeroProbs[s][i] != s:
-                        num_to_states[self._indicesNonZeroProbs[s][i]] += outs[i]
-                # update the number of patients in this state
-                temp_num_in_states[s] -= sum(outs)
-                # update the number of patients in states
-                for i in range(len(outs)):
-                    temp_num_in_states[self._indicesNonZeroProbs[s][i]] += outs[i]
+            num_in_states = self._numInStates
+            # counts[s, j] = number of transitions from state s to state j during this cycle
+            counts = np.zeros(self._probMatrix.shape, dtype=np.int64)
+            for s in np.flatnonzero(num_in_states > 0):
+                counts[s, self._indicesNonZeroProbs[s]] = rng.multinomial(
+                    num_in_states[s], self._nonZeroProbs[s])
+            new_num_in_states = counts.sum(axis=0)
+            num_to_states = new_num_in_states - np.diag(counts)
 
         # collect the discounted cost and effect of this cycle
-        self._collect_cost_and_effect(num_in_states=self._numInStates, num_to_states=num_to_states)
+        self._collect_cost_and_effect(num_in_states=num_in_states, num_to_states=num_to_states)
 
         # update the number of patients in each state
-        self._numInStates = temp_num_in_states.copy()
+        self._numInStates = new_num_in_states
 
         # store the number of transitions to each state
-        for i in range(len(self._numInStates)):
-            self._numToStatesOverTime[i].append(num_to_states[i])
+        for i, n in enumerate(num_to_states.tolist()):
+            self._numToStatesOverTime[i].append(n)
 
         self._currentTimeStep += 1
 
     def record_number_in_states(self):
 
-        # store the size of each state at the end of simulation
-        for i in range(len(self._numInStates)):
-            self._numInStatesOverTime[i].append(self._numInStates[i])
+        # store the size of each state
+        for i, n in enumerate(self._numInStates.tolist()):
+            self._numInStatesOverTime[i].append(n)
 
     def simulate(self, transition_prob_matrix, initial_condition, n_time_steps, rng=None, deterministic=False):
         """
@@ -666,9 +676,7 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
         assert len(initial_condition) == len(transition_prob_matrix), \
             'The length of the initial condition should be equal to the number of states in the transition matrix.'
 
-        # condense the transition probability matrix to include only non-zero probabilities
-        self._nonZeroProbs, self._indicesNonZeroProbs = condense_prob_matrix(
-            transition_prob_matrix=transition_prob_matrix)
+        self.set_prob_matrix(transition_prob_matrix=transition_prob_matrix)
 
         # initialize the number of patients in each state
         self.initialize(initial_condition=initial_condition)
@@ -835,7 +843,7 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
                     trans_rate_matrix=rate_matrix,
                     delta_t=delta_t)
 
-                self.dtMarkov.condense_prob_matrix(transition_prob_matrix=transition_prob_matrix)
+                self.dtMarkov.set_prob_matrix(transition_prob_matrix=transition_prob_matrix)
 
                 # simulate one time step
                 self.dtMarkov.simulate_one_time_step(rng=rng, deterministic=deterministic)
