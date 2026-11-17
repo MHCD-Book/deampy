@@ -40,6 +40,11 @@ print('Total discounted QALYs:', cohort.get_total_discounted_effect())
 print('Discounted cost per person:', cohort.get_total_discounted_cost() / 1000)
 print('Discounted QALYs per person:', cohort.get_total_discounted_effect() / 1000)
 
+# total number of transitions between Well (0) and Severe (2)
+cumNumBetweenStates = cohort.get_cum_num_between_states()
+print('Total number moved from Well to Severe:', cumNumBetweenStates[0, 2])
+print('Total number moved from Severe to Well:', cumNumBetweenStates[2, 0])
+
 
 # sanity check: with no transitions, 10 people staying in a state with annual cost 100 and utility 1
 # for 2 years with half-year cycles should accrue 10*100*0.5*sum_k 1.03^(-0.5k) in cost (k = 0, 1, 2, 3)

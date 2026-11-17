@@ -1,12 +1,13 @@
 import enum
 
 import numpy as np
-from deampy.random_variates import Empirical, Exponential
-from deampy.statistics import SummaryStat
-from deampy.support.simulation import SeedGenerator
 from numba import jit
 from scipy.linalg import logm, expm
 from scipy.optimize import minimize
+
+from deampy.random_variates import Empirical, Exponential
+from deampy.statistics import SummaryStat
+from deampy.support.simulation import SeedGenerator
 
 
 @jit(nopython=True)  # nopython=True makes it faster (forces full compilation)
@@ -476,6 +477,9 @@ class _CohortMarkov:
         self._numInStates = []  # list of state sizes
         self._numInStatesOverTime = []  # list of number of patients in each state over time
         self._numToStatesOverTime = []  # list of number of transitions to each state over time
+        # (np.ndarray) cumulative number of transitions between states, where element [i, j]
+        # is the number of transitions from state i to state j (self-transitions are not counted)
+        self._cumNumBetweenStates = None
         self._currentTimeStep = 0
 
     def get_num_in_states(self):
@@ -483,6 +487,13 @@ class _CohortMarkov:
         :return: list of number of patients in each state
         """
         return self._numInStates
+
+    def get_cum_num_between_states(self):
+        """
+        :return: (np.ndarray) matrix where element [i, j] is the cumulative number of transitions
+                 from state i to state j (diagonal elements are 0 as self-transitions are not counted)
+        """
+        return self._cumNumBetweenStates
 
 
 class DiscreteTimeCohortMarkov(_CohortMarkov):
@@ -547,6 +558,7 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
         self._numInStates = np.asarray(initial_condition).copy()
         self._numInStatesOverTime = [[] for i in range(len(self._numInStates))]
         self._numToStatesOverTime = [[] for i in range(len(self._numInStates))]
+        self._cumNumBetweenStates = np.zeros((len(self._numInStates), len(self._numInStates)))
         self._currentTimeStep = 0
 
         self.cumCost = 0
@@ -632,6 +644,8 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
             num_to_states = num_in_states @ self._probMatrixOffDiag
             # number of patients in each state at the end of this cycle
             new_num_in_states = num_in_states @ self._probMatrix
+            # expected number of transitions between states during this cycle
+            self._cumNumBetweenStates += num_in_states[:, None] * self._probMatrixOffDiag
         else:
             num_in_states = self._numInStates
             # counts[s, j] = number of transitions from state s to state j during this cycle
@@ -641,6 +655,9 @@ class DiscreteTimeCohortMarkov(_CohortMarkov):
                     num_in_states[s], self._nonZeroProbs[s])
             new_num_in_states = counts.sum(axis=0)
             num_to_states = new_num_in_states - np.diag(counts)
+            # number of transitions between states during this cycle (excluding self-transitions)
+            np.fill_diagonal(counts, 0)
+            self._cumNumBetweenStates += counts
 
         # collect the discounted cost and effect of this cycle
         self._collect_cost_and_effect(num_in_states=num_in_states, num_to_states=num_to_states)
@@ -903,6 +920,13 @@ class ContinuousTimeCohortMarkov(_CohortMarkov):
         :return: list of number of patients in each state
         """
         return self.dtMarkov.get_num_in_states()
+
+    def get_cum_num_between_states(self):
+        """
+        :return: (np.ndarray) matrix where element [i, j] is the cumulative number of transitions
+                 from state i to state j (diagonal elements are 0 as self-transitions are not counted)
+        """
+        return self.dtMarkov.get_cum_num_between_states()
 
     def get_total_discounted_cost(self):
         """
